@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { ShieldCheck, Bus, CarFront, Zap, Coffee, Sofa, MapPin, Search, ArrowRight } from 'lucide-vue-next';
 
 // 1. Hero Images Loop (Includes Space for Sponsors)
+// Trigger refresh
 const heroImages = [
   { src: '/hero.png', alt: 'Concert Event Journey' },
   { src: '/sponsor_banner.png', alt: 'Sponsored Event - Special Promo Available!' }

@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import Splash from './components/Splash.vue';
 import Navbar from './components/Navbar.vue';
 import Footer from './components/Footer.vue';
+import MobileNav from './components/MobileNav.vue';
 
 const appReady = ref(false);
 
@@ -24,7 +25,8 @@ const onSplashReady = () => {
         </transition>
       </router-view>
     </main>
-    
+
+    <MobileNav />
     <Footer />
   </div>
 </template>
