@@ -278,6 +278,7 @@ const initials = computed(() => {
   position: relative;
   display: flex;
   gap: 16px;
+  flex-wrap: wrap; /* Ensure it wraps by default on smaller screens */
 }
 
 .stat-pill {
@@ -303,8 +304,8 @@ const initials = computed(() => {
   color: white;
   flex-shrink: 0;
 }
-.stat-val { font-size: 1.4rem; font-weight: 900; color: white; line-height: 1; }
-.stat-lbl { font-size: 0.7rem; color: rgba(255,255,255,0.65); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-val { font-size: 1.25rem; font-weight: 900; color: white; line-height: 1; }
+.stat-lbl { font-size: 0.65rem; color: rgba(255,255,255,0.7); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 
 /* === BODY === */
 .profile-body { padding-top: 40px; }
@@ -483,13 +484,34 @@ const initials = computed(() => {
   .stat-pill { max-width: none; flex: 1; min-width: 140px; }
 }
 @media (max-width: 640px) {
-  .profile-hero { padding: 100px 0 50px; }
-  .profile-name { font-size: 1.5rem; }
-  .profile-header { gap: 16px; }
-  .avatar-ring { width: 72px; height: 72px; }
-  .avatar-circle { width: 58px; height: 58px; font-size: 1.4rem; }
-  .book-cta { flex-direction: column; text-align: center; }
-  .cta-btn { width: 100%; justify-content: center; }
-  .stats-bar { gap: 10px; }
+  .profile-hero { padding: 80px 0 40px; }
+  .profile-header { gap: 16px; flex-direction: column; align-items: center; text-align: center; }
+  .avatar-ring { width: 80px; height: 80px; }
+  .avatar-circle { width: 64px; height: 64px; font-size: 1.5rem; }
+  .profile-info { width: 100%; }
+  .profile-name { font-size: 1.6rem; margin-top: 8px; }
+  .profile-email { font-size: 0.85rem; }
+  .logout-btn { align-self: center; margin-top: 16px; width: 100%; justify-content: center; }
+  
+  .stats-bar { gap: 8px; }
+  .stat-pill { padding: 12px 14px; min-width: calc(50% - 4px); flex: 1; }
+  .stat-pill:last-child { min-width: 100%; } /* Third pill takes full width on mobile if needed */
+  
+  .profile-body { padding-top: 24px; padding-left: 12px; padding-right: 12px; }
+  .profile-card { padding: 20px 16px; }
+  
+  .ride-item { padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.03); border-radius: 0; }
+  .ride-item:last-child { border-bottom: none; }
+  .ride-event { font-size: 0.85rem; }
+  .ride-meta { font-size: 0.72rem; flex-wrap: wrap; }
+  
+  .book-cta { padding: 24px; flex-direction: column; text-align: center; gap: 20px; }
+  .cta-text h3 { font-size: 1.2rem; }
+  .cta-text p { font-size: 0.8rem; }
+  .cta-btn { width: 100%; justify-content: center; padding: 12px; font-size: 0.85rem; }
+}
+
+@media (max-width: 400px) {
+  .stat-pill { min-width: 100%; } /* Stack all pills on very small screens */
 }
 </style>

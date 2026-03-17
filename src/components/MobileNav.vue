@@ -1,6 +1,6 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
-import { Home, Calendar, Layers, MapPin, Info, User } from 'lucide-vue-next';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { Home, Calendar, Layers, MapPin, User } from 'lucide-vue-next';
 import { authState } from '../store/auth';
 import { useRouter } from 'vue-router';
 
@@ -8,11 +8,10 @@ const router = useRouter();
 const activeSection = ref('home');
 
 const navItems = [
-  { id: 'home',      label: 'Beranda', icon: Home,     action: 'scroll' },
-  { id: 'vibes',     label: 'Event',   icon: Calendar, action: 'scroll' },
-  { id: 'services',  label: 'Layanan', icon: Layers,   action: 'scroll' },
-  { id: 'discovery', label: 'Pick Up', icon: MapPin,   action: 'scroll' },
-  { id: 'about',     label: 'About',   icon: Info,     action: 'scroll' },
+  { id: 'home',      label: 'Beranda', icon: Home },
+  { id: 'vibes',     label: 'Event',   icon: Calendar },
+  { id: 'services',  label: 'Layanan', icon: Layers },
+  { id: 'discovery', label: 'Pick Up', icon: MapPin },
 ];
 
 const onScroll = () => {
@@ -20,17 +19,18 @@ const onScroll = () => {
   let current = 'home';
   for (const id of sections) {
     const el = document.getElementById(id);
-    if (el && window.scrollY + 150 >= el.offsetTop) current = id;
+    if (el && window.scrollY + 100 >= el.offsetTop) current = id;
   }
   activeSection.value = current;
 };
 
-const handleNav = (item) => {
-  if (item.id === 'home') {
+const handleNav = (id) => {
+  if (id === 'home') {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    activeSection.value = 'home';
     return;
   }
-  const el = document.getElementById(item.id);
+  const el = document.getElementById(id);
   if (el) el.scrollIntoView({ behavior: 'smooth' });
 };
 
@@ -39,117 +39,168 @@ const goProfile = () => {
   else router.push('/login');
 };
 
+const isProfileActive = computed(() => {
+  return router.currentRoute.value.path.startsWith('/profile') || 
+         router.currentRoute.value.path === '/login';
+});
+
+const activeIndex = computed(() => {
+  if (isProfileActive.value) return 4;
+  return navItems.findIndex(i => i.id === activeSection.value);
+});
+
 onMounted(() => window.addEventListener('scroll', onScroll));
 onUnmounted(() => window.removeEventListener('scroll', onScroll));
 </script>
 
 <template>
-  <nav class="mobile-nav">
-    <div class="nav-container">
-      <!-- 5 section nav items (compact, icon only on very small screens) -->
-      <button
-        v-for="item in navItems"
-        :key="item.id"
-        class="nav-item"
-        :class="{ active: activeSection === item.id }"
-        @click="handleNav(item)"
+  <div class="mobile-nav-wrapper">
+    <nav class="crystal-nav">
+      <!-- Minimalist Top Indicator -->
+      <div 
+        class="active-indicator" 
+        :style="{ transform: `translateX(calc(${activeIndex} * 100%))` }"
       >
-        <div class="icon-wrap">
-          <component :is="item.icon" size="20" />
-        </div>
-        <span>{{ item.label }}</span>
-      </button>
+        <div class="indicator-line"></div>
+      </div>
 
-      <!-- Profile / Login -->
-      <button class="nav-item profile-btn" @click="goProfile">
-        <div class="icon-wrap" :class="{ 'logged-in': authState.isLoggedIn }">
-          <User size="20" />
-        </div>
-        <span>{{ authState.isLoggedIn ? 'Profil' : 'Login' }}</span>
-      </button>
-    </div>
-  </nav>
+      <div class="nav-content">
+        <button 
+          v-for="item in navItems" 
+          :key="item.id"
+          class="nav-btn"
+          :class="{ active: activeSection === item.id && !isProfileActive }"
+          @click="handleNav(item.id)"
+        >
+          <div class="icon-box">
+            <component :is="item.icon" :size="18" stroke-width="2.2" />
+          </div>
+          <span class="nav-label">{{ item.label }}</span>
+        </button>
+
+        <!-- Profile Button -->
+        <button 
+          class="nav-btn"
+          :class="{ active: isProfileActive }"
+          @click="goProfile"
+        >
+          <div class="icon-box">
+            <User :size="18" stroke-width="2.2" />
+          </div>
+          <span class="nav-label">{{ authState.isLoggedIn ? 'Profil' : 'Login' }}</span>
+        </button>
+      </div>
+    </nav>
+  </div>
 </template>
 
 <style scoped>
-.mobile-nav {
+.mobile-nav-wrapper {
   display: none;
   position: fixed;
-  bottom: 0;
+  bottom: 20px;
   left: 0;
   right: 0;
   z-index: 1000;
-  background: rgba(255,255,255,0.97);
+  padding: 0 20px;
+  justify-content: center;
+}
+
+@media (max-width: 768px) {
+  .mobile-nav-wrapper { display: flex; }
+}
+
+.crystal-nav {
+  position: relative;
+  background: rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(201,76,76,0.08);
-  box-shadow: 0 -8px 30px rgba(0,0,0,0.07);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-
-.nav-container {
+  width: 100%;
+  max-width: 350px; /* Lebih ramping */
+  height: 60px; /* Lebih pendek */
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 
+    0 10px 30px rgba(0, 0, 0, 0.04),
+    inset 0 1px 2px rgba(255, 255, 255, 0.5);
   display: flex;
-  justify-content: space-around;
-  align-items: center;
-  height: 64px;
-  padding: 0 4px;
+  padding: 0 6px;
+  overflow: hidden;
 }
 
-.nav-item {
+.nav-content {
+  display: flex;
+  width: 100%;
+  position: relative;
+  z-index: 2;
+}
+
+.nav-btn {
+  background: none;
+  border: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
   flex: 1;
-  color: #aaa;
-  background: none;
-  border: none;
+  color: #777;
   cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
   font-family: inherit;
-  padding: 0;
-  transition: color 0.2s ease;
-  min-width: 0;
+  gap: 2px;
 }
 
-.nav-item.active { color: var(--primary); }
-.nav-item.active .icon-wrap {
-  background: rgba(201,76,76,0.1);
-  transform: translateY(-2px);
-}
-
-.icon-wrap {
-  width: 36px;
-  height: 28px;
-  border-radius: 10px;
+.icon-box {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: transform 0.3s ease;
 }
 
-.icon-wrap.logged-in {
-  background: rgba(201,76,76,0.1);
-  color: var(--primary);
-}
-
-.nav-item span {
+.nav-label {
   font-size: 0.6rem;
   font-weight: 700;
+  text-transform: uppercase;
   letter-spacing: 0.3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 52px;
+  opacity: 0.7;
 }
 
-@media (max-width: 768px) {
-  .mobile-nav { display: block; }
+/* Active State */
+.nav-btn.active {
+  color: var(--primary); /* Merah AJAK! */
 }
 
-@media (max-width: 380px) {
-  .nav-item span { display: none; }
-  .nav-container { height: 58px; }
-  .icon-wrap { width: 40px; height: 36px; border-radius: 12px; }
+.nav-btn.active .icon-box {
+  transform: scale(1.15);
+}
+
+.nav-btn.active .nav-label {
+  opacity: 1;
+  font-weight: 800;
+}
+
+/* Minimalist Top Indicator */
+.active-indicator {
+  position: absolute;
+  top: 0;
+  left: 6px;
+  width: calc((100% - 12px) / 5);
+  height: 3px;
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.indicator-line {
+  width: 24px;
+  height: 100%;
+  background: var(--primary);
+  border-radius: 0 0 4px 4px;
+  box-shadow: 0 2px 6px rgba(201, 76, 76, 0.3);
+}
+
+.nav-btn:active .icon-box {
+  transform: scale(0.85);
 }
 </style>
