@@ -1,9 +1,8 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { ShieldCheck, Bus, CarFront, Zap, Coffee, Sofa, MapPin, Search, ArrowRight } from 'lucide-vue-next';
+import { ShieldCheck, Bus, Zap, Coffee, Sofa, MapPin, Navigation, Search, ArrowRight, Users, Baby } from 'lucide-vue-next';
 
-// 1. Hero Images Loop (Includes Space for Sponsors)
-// Trigger refresh
+// Hero Images Loop
 const heroImages = [
   { src: '/hero.png', alt: 'Concert Event Journey' },
   { src: '/sponsor_banner.png', alt: 'Sponsored Event - Special Promo Available!' }
@@ -14,7 +13,7 @@ let heroInterval;
 onMounted(() => {
   heroInterval = setInterval(() => {
     currentHeroIndex.value = (currentHeroIndex.value + 1) % heroImages.length;
-  }, 6000); 
+  }, 6000);
 });
 onUnmounted(() => {
   if (heroInterval) clearInterval(heroInterval);
@@ -28,19 +27,11 @@ const events = [
   { id: 4, name: 'Indie Vibes Fest', date: 'Nov 12, 2026', location: 'Downtown Square', price: '$40.00', image: '/hero.png' }
 ];
 
-const pickupPointsList = [
-  'Margo City (Depok)',
-  'Botani Square (Bogor)',
-  'Tangerang City (Tangerang)',
-  'Blok M Plaza (Jakarta Selatan)',
-  'Trans Studio Mall (Bandung)'
-];
-
 // Booking Widget State
-const activeTab = ref('public'); 
 const bookingOrigin = ref('');
 const bookingDestination = ref('');
-const passengerCount = ref(1);
+const adultCount = ref(0);
+const toddlerCount = ref(0);
 
 const facilities = [
   { icon: Bus, title: 'Modern Fleet', desc: 'Spacious & comfortable vehicles' },
@@ -65,53 +56,91 @@ const pickupLocations = [
 
 const groupedLocations = computed(() => {
   const query = searchQuery.value.toLowerCase();
-  const filtered = pickupLocations.filter(loc => 
-    loc.region.toLowerCase().includes(query) || 
+  const filtered = pickupLocations.filter(loc =>
+    loc.region.toLowerCase().includes(query) ||
     loc.name.toLowerCase().includes(query) ||
     loc.address.toLowerCase().includes(query)
   );
-  
   const groups = {};
   filtered.forEach(loc => {
-    if(!groups[loc.region]) groups[loc.region] = [];
+    if (!groups[loc.region]) groups[loc.region] = [];
     groups[loc.region].push(loc);
   });
   return groups;
 });
 
 const selectPickup = (locName) => {
-  bookingOrigin.value = `${locName}`;
-  activeTab.value = 'public';
+  bookingOrigin.value = locName;
   document.getElementById('booking-portal').scrollIntoView({ behavior: 'smooth' });
-};
-
-const switchTab = (tab) => {
-  activeTab.value = tab;
-  bookingOrigin.value = '';
 };
 
 const handleSearch = () => {
   if (!bookingDestination.value) {
-    alert("Please select an event to attend.");
+    alert('Please enter a destination.');
     return;
   }
   if (!bookingOrigin.value) {
-    alert("Please enter a pickup location.");
+    alert('Please enter a pickup location.');
     return;
   }
-  alert(`Searching ${activeTab.value} ride for ${passengerCount.value} passenger(s) to ${bookingDestination.value} from ${bookingOrigin.value}`);
+  alert(`Searching ride for ${adultCount.value} adult(s) & ${toddlerCount.value} toddler(s) from ${bookingOrigin.value} to ${bookingDestination.value}`);
 };
+
+// Reviews
+const reviews = [
+  {
+    id: 1, name: 'Rizky Aditya', initials: 'RA', trip: 'Neon Lights Festival → City Arena',
+    stars: 5, color: '#C94C4C',
+    comment: 'Pelayanan luar biasa! Berangkat on time, kursinya nyaman banget, dan drivernya ramah. Gak perlu khawatir soal parkir event lagi. Worth every penny!',
+    date: '16 Oct 2026', tag: 'Crowd Shuttle'
+  },
+  {
+    id: 2, name: 'Salsabila Putri', initials: 'SP', trip: 'Symphony in Park → Grand Park',
+    stars: 5, color: '#7C4DFF',
+    comment: 'Pertama kali coba AJAK! dan langsung ketagihan. Mobilnya bersih, ada charger USB, dan rutenya pas banget dari dekat rumah. Akan pakai lagi pastinya!',
+    date: '23 Oct 2026', tag: 'Crowd Shuttle'
+  },
+  {
+    id: 3, name: 'Daffa Ramadhan', initials: 'DR', trip: 'Midnight Rock → Stadium One',
+    stars: 5, color: '#00897B',
+    comment: 'VIP experience yang sesungguhnya. Dijemput langsung di depan venue, privat tanpa ribet. Untuk artis dan tamu penting, AJAK! Black Label adalah pilihan terbaik.',
+    date: '6 Nov 2026', tag: 'Black Label'
+  },
+  {
+    id: 4, name: 'Nadia Kusuma', initials: 'NK', trip: 'Indie Vibes Fest → Downtown',
+    stars: 4, color: '#F4511E',
+    comment: 'Sangat membantu! Aplikasinya mudah, pick up point-nya jelas, dan harganya reasonable untuk kualitas yang didapat. Sedikit telat 5 menit, tapi overall bagus.',
+    date: '13 Nov 2026', tag: 'Crowd Shuttle'
+  },
+  {
+    id: 5, name: 'Kevin Pratama', initials: 'KP', trip: 'Neon Lights → City Arena',
+    stars: 5, color: '#1565C0',
+    comment: 'Game changer untuk concert goers! Gak perlu mikirin parkir, macet, atau pulang kemalaman. AJAK! bikin experience konser jadi 10x lebih enjoyable.',
+    date: '17 Oct 2026', tag: 'Crowd Shuttle'
+  },
+  {
+    id: 6, name: 'Amelia Santoso', initials: 'AS', trip: 'Symphony → Grand Park',
+    stars: 5, color: '#6D4C41',
+    comment: 'Recommended banget! Koordinasi grupnya mudah, seats comfy, dan systemnya terorganisir. Tim AJAK! juga responsif kalau ada pertanyaan.',
+    date: '24 Oct 2026', tag: 'Crowd Shuttle'
+  }
+];
+
+// Marquee: 12 logo items per track for smooth looping
+const marqueeCount = 12;
+
 </script>
 
 <template>
   <div class="home-view">
-    
-    <!-- Modern Hero Section -->
+
+    <!-- ===== HERO SECTION ===== -->
     <section class="hero-section">
+      <!-- Background slideshow -->
       <div class="hero-bg">
         <transition-group name="fade-slideshow" tag="div">
-          <div 
-            v-for="(img, index) in heroImages" 
+          <div
+            v-for="(img, index) in heroImages"
             :key="img.src"
             v-show="currentHeroIndex === index"
             class="slide-layer"
@@ -121,95 +150,98 @@ const handleSearch = () => {
           </div>
         </transition-group>
       </div>
-      
-      <div class="container hero-content">
-        <div class="hero-badge" v-if="currentHeroIndex === 1">Special Partner Offer</div>
+
+      <!-- Hero Content — Centered -->
+      <div class="hero-body">
+        <div class="hero-badge" v-if="currentHeroIndex === 1">✦ Special Partner Offer</div>
+
         <h1 class="hero-title">
-          Ride to the <span class="text-gradient">Beat.</span> <br/>
+          Ride to the <span class="text-gradient">Beat.</span><br/>
           Arrive in <span class="text-gradient">Style.</span>
         </h1>
-        <p class="hero-subtitle mb-5">
-          Eliminate the stress of event transit. Whether you're a fan or a VIP, AJAK! provides the ultimate round-trip journey.
+        <p class="hero-subtitle">
+          Eliminate the stress of event transit. Whether you're a fan or a VIP,<br class="d-pc"/>
+          AJAK! provides the ultimate round-trip journey.
         </p>
-      </div>
 
-      <!-- Floating Booking Widget -->
-      <div class="container hero-widget-container" id="booking-portal">
-        <div class="booking-widget glass-morphism shadow-lg">
-          <div class="widget-tabs">
-            <button 
-              class="tab-btn" 
-              :class="{ 'active': activeTab === 'public' }" 
-              @click="switchTab('public')"
-            >
-              Public Experience
-            </button>
-            <button 
-              class="tab-btn" 
-              :class="{ 'active': activeTab === 'private' }" 
-              @click="switchTab('private')"
-            >
-              Private VIP
-            </button>
-          </div>
-          
-          <div class="widget-body">
-            <div class="form-grid">
-              
-              <div class="input-group">
-                <label>Depart From</label>
-                <div v-if="activeTab === 'public'" class="select-wrapper">
-                  <MapPin size="18" class="input-icon" />
-                  <select v-model="bookingOrigin">
-                    <option value="" disabled selected>Choose a Pickup Hub</option>
-                    <option v-for="point in pickupPointsList" :key="point" :value="point">{{ point }}</option>
-                  </select>
-                </div>
-                <div v-else class="input-wrapper">
-                  <MapPin size="18" class="input-icon" />
-                  <input type="text" v-model="bookingOrigin" placeholder="Full Address Pickup" />
-                </div>
-              </div>
+        <!-- ===== BOOKING WIDGET — INSIDE HERO, PART OF FLOW ===== -->
+        <div class="booking-card" id="booking-portal">
 
-              <div class="swap-icon-container">
-                <div class="swap-icon shadow-sm">⇌</div>
-              </div>
+          <!-- Row 1: Route Inputs -->
+          <div class="booking-row booking-row-inputs">
+            <div class="b-field">
+              <div class="b-label"><MapPin size="13" /> Depart From</div>
+              <input type="text" v-model="bookingOrigin" placeholder="City, station, or address..." class="b-input" />
+            </div>
 
-              <div class="input-group">
-                <label>Destination Stage</label>
-                <div class="select-wrapper">
-                  <select v-model="bookingDestination">
-                    <option value="" disabled selected>Select Event</option>
-                    <option v-for="event in events" :key="event.id" :value="event.name">{{ event.name }}</option>
-                  </select>
-                </div>
-              </div>
+            <div class="route-arrow">
+              <div class="route-line"></div>
+              <div class="route-icon">→</div>
+              <div class="route-line"></div>
+            </div>
 
-              <div class="input-group passenger-group">
-                <label>Attendies</label>
-                <div class="number-input">
-                  <button @click="passengerCount > 1 ? passengerCount-- : null">-</button>
-                  <span>{{ passengerCount }} Adult</span>
-                  <button @click="passengerCount++">+</button>
-                </div>
-              </div>
-              
-              <div class="search-action">
-                <button class="btn btn-search" @click="handleSearch">
-                  Find My Ride <ArrowRight size="18" class="ms-2" />
-                </button>
-              </div>
-
+            <div class="b-field">
+              <div class="b-label"><Navigation size="13" /> Destination</div>
+              <input type="text" v-model="bookingDestination" placeholder="Event, venue, or location..." class="b-input" />
             </div>
           </div>
+
+          <!-- Row 2: Counters + CTA -->
+          <div class="booking-row booking-row-bottom">
+            <div class="b-counters">
+              <!-- Adults -->
+              <div class="b-counter-group">
+                <div class="b-counter-label"><Users size="14" /> Adults</div>
+                <div class="b-counter-ctrl">
+                  <button @click="adultCount > 0 ? adultCount-- : null" class="cnt-btn" :class="{ faded: adultCount === 0 }">−</button>
+                  <span class="cnt-val">{{ adultCount }}</span>
+                  <button @click="adultCount++" class="cnt-btn">+</button>
+                </div>
+              </div>
+
+              <div class="b-cnt-sep"></div>
+
+              <!-- Balita -->
+              <div class="b-counter-group">
+                <div class="b-counter-label"><Baby size="14" /> Balita</div>
+                <div class="b-counter-ctrl">
+                  <button @click="toddlerCount > 0 ? toddlerCount-- : null" class="cnt-btn" :class="{ faded: toddlerCount === 0 }">−</button>
+                  <span class="cnt-val">{{ toddlerCount }}</span>
+                  <button @click="toddlerCount++" class="cnt-btn">+</button>
+                </div>
+              </div>
+            </div>
+
+            <button class="b-search-btn" @click="handleSearch">
+              <Search size="18" />
+              Find My Ride
+            </button>
+          </div>
+
         </div>
       </div>
     </section>
 
-    <!-- Upcoming Vibes (Events) -->
-    <section class="section vibes-section bg-gradient-light">
-      <div class="container mt-5 pt-5">
-        <div class="section-title-box text-center mb-5 mt-5">
+    <!-- ===== MARQUEE DIVIDER 1 ===== -->
+    <div class="logo-marquee-wrap">
+      <!-- Track 1 — Forward -->
+      <div class="logo-marquee-track">
+        <div class="logo-marquee-inner">
+          <div v-for="i in marqueeCount" :key="'f'+i" class="logo-marquee-item">
+            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img white-logo" />
+          </div>
+          <!-- duplicate for seamless loop -->
+          <div v-for="i in marqueeCount" :key="'f2'+i" class="logo-marquee-item" aria-hidden="true">
+            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img white-logo" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== UPCOMING VIBES ===== -->
+    <section class="section vibes-section" id="vibes">
+      <div class="container">
+        <div class="section-title-box text-center mb-5">
           <span class="sub-title">Curation</span>
           <h2 class="creative-title">Upcoming <span class="text-primary">Vibes</span></h2>
           <div class="title-underline mx-auto"></div>
@@ -234,7 +266,21 @@ const handleSearch = () => {
       </div>
     </section>
 
-    <!-- Experience Tiers (Layanan Kita) -->
+    <!-- ===== LOGO MARQUEE 2 ===== -->
+    <div class="logo-marquee-wrap">
+      <div class="logo-marquee-track">
+        <div class="logo-marquee-inner">
+          <div v-for="i in marqueeCount" :key="'b'+i" class="logo-marquee-item">
+            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img" />
+          </div>
+          <div v-for="i in marqueeCount" :key="'b2'+i" class="logo-marquee-item" aria-hidden="true">
+            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== EXPERIENCE TIERS ===== -->
     <section class="section tiers-section" id="services">
       <div class="container">
         <div class="section-title-box text-center mb-5">
@@ -258,11 +304,11 @@ const handleSearch = () => {
                 <li><Zap size="16"/> Scheduled Departures</li>
                 <li><Zap size="16"/> Round-trip Security</li>
               </ul>
-              <button class="btn btn-outline-white mt-4">Learn More</button>
+              <button class="btn btn-outline-red mt-4">Learn More</button>
             </div>
           </div>
 
-          <div class="tier-card private dark">
+          <div class="tier-card dark">
             <div class="tier-visual">
               <img src="/private_car.png" alt="VIP Car" />
               <div class="tier-badge vip">Elite</div>
@@ -283,8 +329,22 @@ const handleSearch = () => {
       </div>
     </section>
 
-    <!-- Pick Up Discovery (Pickup Points) -->
-    <section class="section pickup-discovery bg-light">
+    <!-- ===== LOGO MARQUEE 3 ===== -->
+    <div class="logo-marquee-wrap">
+      <div class="logo-marquee-track">
+        <div class="logo-marquee-inner">
+          <div v-for="i in marqueeCount" :key="'c'+i" class="logo-marquee-item">
+            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img" />
+          </div>
+          <div v-for="i in marqueeCount" :key="'c2'+i" class="logo-marquee-item" aria-hidden="true">
+            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PICKUP DISCOVERY ===== -->
+    <section class="section pickup-discovery bg-light" id="discovery">
       <div class="container">
         <div class="section-title-box mb-5">
           <span class="sub-title">Network</span>
@@ -293,29 +353,27 @@ const handleSearch = () => {
         </div>
 
         <div class="discovery-grid">
-          <div class="search-panel glass-morphism shadow-sm">
+          <div class="search-panel glass-morphism">
             <div class="custom-search">
-              <Search size="20" class="icon" />
-              <input type="text" v-model="searchQuery" placeholder="Search your city (e.g. Bogor, Jakarta)...">
+              <Search size="20" class="srch-icon" />
+              <input type="text" v-model="searchQuery" placeholder="Search your city...">
             </div>
 
             <div class="results-scroll">
-              <div v-for="(locations, region) in groupedLocations" :key="region" class="group-block">
+              <div v-for="(locations, region) in groupedLocations" :key="region">
                 <h4 class="group-label">{{ region }}</h4>
                 <div v-for="loc in locations" :key="loc.name" class="loc-card" @click="selectPickup(loc.name)">
                   <div class="loc-text">
                     <h5>{{ loc.name }}</h5>
                     <p>{{ loc.address }}</p>
                   </div>
-                  <div class="loc-action">
-                    <ArrowRight size="18" />
-                  </div>
+                  <div class="loc-action"><ArrowRight size="18" /></div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="map-panel shadow-lg">
+          <div class="map-panel">
             <img src="/map_placeholder.png" alt="Location Map" />
             <div class="map-floating-card">
               <div class="hub-count">24+</div>
@@ -326,14 +384,13 @@ const handleSearch = () => {
       </div>
     </section>
 
-    <!-- Facilities -->
+    <!-- ===== FACILITIES ===== -->
     <section class="section amenities-section">
       <div class="container text-center">
         <h2 class="creative-title text-white mb-5">Ride <span class="text-secondary">Amenities</span></h2>
-        
         <div class="amenities-grid">
           <div v-for="(fac, index) in facilities" :key="index" class="amenity-box">
-            <div class="amenity-icon shadow-sm">
+            <div class="amenity-icon">
               <component :is="fac.icon" size="32" />
             </div>
             <h4>{{ fac.title }}</h4>
@@ -343,35 +400,80 @@ const handleSearch = () => {
       </div>
     </section>
 
-    <!-- Centered About (The Heart) -->
+    <!-- ===== LOGO MARQUEE 4 — WHITE ===== -->
+    <div class="logo-marquee-wrap white-marquee">
+      <div class="logo-marquee-track">
+        <div class="logo-marquee-inner">
+          <div v-for="i in marqueeCount" :key="'d'+i" class="logo-marquee-item">
+            <img src="/AJAKLogo/LOGO.png" alt="AJAK!" class="marquee-logo-img marquee-logo-color" />
+          </div>
+          <div v-for="i in marqueeCount" :key="'d2'+i" class="logo-marquee-item" aria-hidden="true">
+            <img src="/AJAKLogo/LOGO.png" alt="AJAK!" class="marquee-logo-img marquee-logo-color" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== THE HEART (ABOUT) ===== -->
     <section class="section heart-section" id="about">
       <div class="container">
-        <div class="heart-container text-center mx-auto">
+        <div class="heart-container">
           <span class="sub-title">Foundations</span>
           <h2 class="creative-title mb-4">The Heart of <span class="text-primary">AJAK!</span></h2>
           <div class="title-underline mx-auto mb-5"></div>
-          
-          <div class="heart-content">
-            <p class="main-para">
-              We started with a simple belief: <strong>getting there should be as exciting as the performance itself.</strong> 
-            </p>
-            <p class="sub-para text-muted mt-4">
-              Born in 2026, AJAK! bridges the gap between chaotic city transit and the electric atmosphere of the stage. We build safe, organized, and premium transport networks for fans, artists, and everyone in between. Our mission is to ensure that your memories are made at the show, not in the parking lot.
-            </p>
-            
-            <div class="stats-row mt-5">
-              <div class="stat-circle">
-                <span class="val">50k+</span>
-                <span class="lab">Riders</span>
+
+          <p class="main-para">
+            We started with a simple belief: <strong>getting there should be as exciting as the performance itself.</strong>
+          </p>
+          <p class="sub-para mt-4">
+            Born in 2026, AJAK! bridges the gap between chaotic city transit and the electric atmosphere of the stage. We build safe, organized, and premium transport networks for fans, artists, and everyone in between. Our mission is to ensure that your memories are made at the show, not in the parking lot.
+          </p>
+
+          <div class="stats-row mt-5">
+            <div class="stat-circle">
+              <span class="val">50k+</span>
+              <span class="lab">Riders</span>
+            </div>
+            <div class="stat-circle secondary">
+              <span class="val">200+</span>
+              <span class="lab">Stages</span>
+            </div>
+            <div class="stat-circle">
+              <span class="val">24/7</span>
+              <span class="lab">Care</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== REVIEWS SECTION ===== -->
+    <section class="section reviews-section" id="reviews">
+      <div class="container">
+        <div class="section-title-box text-center mb-5">
+          <span class="sub-title">Testimonial</span>
+          <h2 class="creative-title">Apa Kata <span class="text-primary">Pengguna</span></h2>
+          <div class="title-underline mx-auto"></div>
+        </div>
+
+        <div class="reviews-grid">
+          <div v-for="review in reviews" :key="review.id" class="review-card">
+            <div class="review-header">
+              <div class="reviewer-avatar" :style="{ background: review.color }">
+                {{ review.initials }}
               </div>
-              <div class="stat-circle secondary">
-                <span class="val">200+</span>
-                <span class="lab">Stages</span>
+              <div class="reviewer-info">
+                <div class="reviewer-name">{{ review.name }}</div>
+                <div class="reviewer-trip">{{ review.trip }}</div>
               </div>
-              <div class="stat-circle">
-                <span class="val">24/7</span>
-                <span class="lab">Care</span>
+              <div class="review-stars">
+                <span v-for="s in 5" :key="s" class="star" :class="{ filled: s <= review.stars }">★</span>
               </div>
+            </div>
+            <p class="review-text">{{ review.comment }}</p>
+            <div class="review-footer">
+              <span class="review-date">{{ review.date }}</span>
+              <span class="review-tag">{{ review.tag }}</span>
             </div>
           </div>
         </div>
@@ -382,29 +484,27 @@ const handleSearch = () => {
 </template>
 
 <style scoped>
-/* Modern UI Tokens */
+/* ===== GLOBAL TOKENS ===== */
 .text-gradient {
-  background: linear-gradient(135deg, var(--primary), #FF7E7E);
+  background: linear-gradient(135deg, #ff6b6b, #ff9a9a);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
-
 .sub-title {
   text-transform: uppercase;
   letter-spacing: 3px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   font-weight: 800;
   color: var(--primary);
   display: block;
   margin-bottom: 12px;
 }
-
 .creative-title {
   font-size: 3rem;
   font-weight: 900;
   letter-spacing: -1px;
 }
-
 .title-underline {
   width: 60px;
   height: 4px;
@@ -413,301 +513,487 @@ const handleSearch = () => {
   margin-top: 16px;
 }
 
-/* Hero Section Refinements */
+/* ===== HERO ===== */
 .hero-section {
   position: relative;
-  min-height: 90vh;
+  min-height: 100vh;
   margin-top: 90px;
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
 }
 
 .hero-bg {
   position: absolute;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
   background: #0d0d0d;
 }
-
-.slide-layer {
-  position: absolute;
-  inset: 0;
-}
-
-.slide-layer img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 10s linear;
-}
-
+.slide-layer { position: absolute; inset: 0; }
+.slide-layer img { width: 100%; height: 100%; object-fit: cover; }
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.6) 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.3) 0%,
+    rgba(0,0,0,0.55) 50%,
+    rgba(0,0,0,0.85) 100%
+  );
 }
 
-.hero-content {
+/* Hero body: centered column */
+.hero-body {
   position: relative;
   z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
   color: white;
-  padding-bottom: 100px;
-}
-
-.hero-title {
-  font-size: 5rem;
-  font-weight: 900;
-  line-height: 1;
-  margin-bottom: 24px;
-}
-
-.hero-subtitle {
-  font-size: 1.4rem;
-  max-width: 600px;
-  opacity: 0.9;
-}
-
-.hero-badge {
-  display: inline-block;
-  padding: 8px 16px;
-  background: rgba(201, 76, 76, 0.2);
-  border: 1px solid var(--primary);
-  color: var(--primary);
-  border-radius: 30px;
-  font-weight: 700;
-  margin-bottom: 24px;
-  backdrop-filter: blur(10px);
-}
-
-/* Glass Widget */
-.glass-morphism {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-}
-
-.hero-widget-container {
-  position: absolute;
-  bottom: -60px;
-  left: 50%;
-  transform: translateX(-50%);
+  padding: 80px 24px 80px;
   width: 100%;
-  z-index: 20;
-}
-
-.booking-widget {
-  border-radius: 30px;
-  overflow: hidden;
   max-width: 1100px;
   margin: 0 auto;
 }
 
-.widget-tabs {
-  display: flex;
-  padding: 10px;
-  gap: 10px;
+.hero-badge {
+  display: inline-block;
+  padding: 7px 18px;
+  background: rgba(201, 76, 76, 0.25);
+  border: 1px solid rgba(201, 76, 76, 0.6);
+  color: #ff9a9a;
+  border-radius: 30px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin-bottom: 28px;
+  backdrop-filter: blur(10px);
+  letter-spacing: 0.5px;
 }
 
-.tab-btn {
+.hero-title {
+  font-size: 5.5rem;
+  font-weight: 900;
+  line-height: 1.0;
+  margin-bottom: 24px;
+  letter-spacing: -2px;
+}
+
+.hero-subtitle {
+  font-size: 1.15rem;
+  opacity: 0.8;
+  margin-bottom: 56px;
+  max-width: 560px;
+  line-height: 1.7;
+}
+
+/* ===== BOOKING CARD ===== */
+.booking-card {
+  width: 100%;
+  max-width: 900px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border-radius: 28px;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.15);
+  overflow: hidden;
+}
+
+/* Row 1 — route inputs */
+.booking-row-inputs {
+  display: flex;
+  align-items: center;
+  padding: 30px 32px 20px;
+  gap: 0;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+/* Row 2 — counters + CTA */
+.booking-row-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 32px 28px;
+  gap: 24px;
+}
+
+.b-field {
   flex: 1;
-  padding: 14px;
-  border-radius: 20px;
+  text-align: left;
+  min-width: 0;
+}
+
+.b-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.65rem;
   font-weight: 800;
-  transition: var(--transition);
-  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--primary);
+  margin-bottom: 8px;
 }
 
-.tab-btn.active {
-  background: var(--primary);
-  color: white;
-}
-
-.widget-body {
-  padding: 30px 40px;
-}
-
-.form-grid {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.input-icon { color: var(--primary); }
-
-.select-wrapper, .input-wrapper, .number-input {
-  background: rgba(255,255,255,0.6);
-  border: 1px solid rgba(201,76,76,0.1);
-  border-radius: 12px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  width: 100%;
-}
-
-.select-wrapper select, .input-wrapper input {
-  width: 100%;
+.b-input {
   border: none;
   background: transparent;
-  padding: 0 15px;
+  font-size: 1rem;
   font-weight: 600;
+  color: #2a2a2a;
+  font-family: inherit;
   outline: none;
+  width: 100%;
+}
+.b-input::placeholder { color: #c5c5c5; font-weight: 500; }
+
+/* route arrow between fields */
+.route-arrow {
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.route-line {
+  width: 40px;
+  height: 1px;
+  background: rgba(201,76,76,0.25);
+}
+.route-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(201,76,76,0.08);
+  border: 1.5px solid rgba(201,76,76,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  color: var(--primary);
+  flex-shrink: 0;
 }
 
-.number-input {
-  justify-content: space-between;
-  padding: 0 10px;
+/* Counters */
+.b-counters {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.b-counter-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.b-counter-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--primary);
+}
+.b-cnt-sep {
+  width: 1px;
+  height: 40px;
+  background: rgba(0,0,0,0.07);
+}
+.b-counter-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cnt-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(201,76,76,0.25);
+  background: rgba(201,76,76,0.05);
+  color: var(--primary);
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  line-height: 1;
+  font-family: inherit;
+}
+.cnt-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+.cnt-btn.faded { opacity: 0.3; cursor: not-allowed; }
+.cnt-val {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #2a2a2a;
+  min-width: 22px;
+  text-align: center;
 }
 
-/* Modern Cards */
+/* Search CTA */
+.b-search-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  padding: 16px 32px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+}
+.b-search-btn:hover {
+  background: #b34242;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(201,76,76,0.4);
+}
+
+/* ===== LOGO MARQUEE ===== */
+.logo-marquee-wrap {
+  background: var(--primary);
+  padding: 6px 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.white-marquee {
+  background: white;
+  border-top: 1px solid rgba(201,76,76,0.1);
+  border-bottom: 1px solid rgba(201,76,76,0.1);
+  padding: 4px 0;
+}
+
+.logo-marquee-track {
+  overflow: hidden;
+  width: 100%;
+}
+.logo-marquee-inner {
+  display: flex;
+  width: max-content;
+  animation: marquee-fwd 25s linear infinite;
+}
+@keyframes marquee-fwd {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.logo-marquee-item {
+  display: flex;
+  align-items: center;
+  padding: 0 44px;
+}
+
+/* Logo putih di atas merah (red marquees) */
+.marquee-logo-img {
+  height: 95px;
+  width: auto;
+  object-fit: contain;
+  opacity: 0.9;
+  transition: opacity 0.3s;
+  filter: brightness(0) invert(1);
+}
+.marquee-logo-img:hover { opacity: 1; }
+
+/* Logo warna asli di white marquee */
+.marquee-logo-color {
+  filter: none;
+  opacity: 0.8;
+  height: 44px;
+}
+.marquee-logo-color:hover { opacity: 1; }
+
+/* ===== REVIEWS SECTION ===== */
+.reviews-section { background: #f8f8fb; padding: 100px 0; }
+
+.reviews-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+.review-card {
+  background: white;
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.04);
+  border: 1px solid rgba(201,76,76,0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  transition: var(--transition);
+}
+.review-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(201,76,76,0.08); border-color: rgba(201,76,76,0.12); }
+.review-header { display: flex; align-items: center; gap: 14px; }
+.reviewer-avatar {
+  width: 46px; height: 46px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 1rem; color: white; flex-shrink: 0;
+}
+.reviewer-info { flex: 1; }
+.reviewer-name { font-weight: 800; font-size: 0.95rem; color: var(--text-dark); margin-bottom: 2px; }
+.reviewer-trip { font-size: 0.72rem; color: var(--text-light); font-weight: 600; }
+.review-stars { display: flex; gap: 2px; flex-shrink: 0; }
+.star { font-size: 0.9rem; color: #e0e0e0; }
+.star.filled { color: #FFB800; }
+.review-text { font-size: 0.9rem; line-height: 1.75; color: var(--text-light); flex: 1; }
+.review-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid rgba(0,0,0,0.05); }
+.review-date { font-size: 0.72rem; color: #bbb; font-weight: 600; }
+.review-tag { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--primary); background: rgba(201,76,76,0.08); padding: 3px 10px; border-radius: 20px; }
+
+
+/* ===== EVENTS ===== */
+.vibes-section { padding-top: 80px; }
+
+.events-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+}
 .modern-card {
   background: white;
   border-radius: 24px;
   overflow: hidden;
   transition: var(--transition);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.04);
 }
-
-.modern-card:hover {
-  transform: translateY(-12px);
-  box-shadow: 0 20px 40px rgba(201,76,76,0.1);
-}
-
-.card-image-box {
-  height: 200px;
-  position: relative;
-}
-
+.modern-card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(201,76,76,0.1); }
+.card-image-box { height: 200px; position: relative; }
 .card-image-box img { width: 100%; height: 100%; object-fit: cover; }
-
 .card-status {
-  position: absolute;
-  top: 15px;
-  right: 15px;
-  background: white;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: var(--primary);
+  position: absolute; top: 14px; right: 14px;
+  background: white; padding: 4px 12px;
+  border-radius: 10px; font-size: 0.7rem; font-weight: 800; color: var(--primary);
 }
-
-.card-body { padding: 24px; }
-.card-location { font-weight: 700; color: var(--primary); font-size: 0.75rem; text-transform: uppercase; margin-bottom: 8px; }
-.card-name { font-size: 1.25rem; font-weight: 800; margin-bottom: 20px; }
+.card-body { padding: 22px; }
+.card-location { font-weight: 700; color: var(--primary); font-size: 0.72rem; text-transform: uppercase; margin-bottom: 6px; }
+.card-name { font-size: 1.15rem; font-weight: 800; margin-bottom: 18px; }
 .card-footer-info { display: flex; justify-content: space-between; align-items: center; }
-.card-price-tag { font-weight: 900; font-size: 1.1rem; color: var(--text-dark); }
-.btn-primary-small { background: var(--primary); color: white; padding: 8px 16px; border-radius: 12px; font-weight: 700; font-size: 0.85rem; }
+.card-price-tag { font-weight: 900; font-size: 1.05rem; color: var(--text-dark); }
+.btn-primary-small { background: var(--primary); color: white; padding: 8px 16px; border-radius: 10px; font-weight: 700; font-size: 0.82rem; cursor: pointer; border: none; font-family: inherit; }
 
-/* Discovery Panel */
-.discovery-grid {
-  display: grid;
-  grid-template-columns: 1fr 1.2fr;
-  gap: 40px;
-}
+/* ===== TIERS ===== */
+.tiers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.tier-card { border-radius: 36px; overflow: hidden; background: white; box-shadow: 0 20px 50px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+.tier-card.dark { background: #111; color: white; }
+.tier-visual { height: 320px; position: relative; }
+.tier-visual img { width: 100%; height: 100%; object-fit: cover; }
+.tier-badge { position: absolute; bottom: 24px; left: 24px; background: white; color: var(--text-dark); padding: 7px 18px; border-radius: 10px; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; }
+.tier-badge.vip { background: var(--primary); color: white; }
+.tier-info { padding: 44px; }
+.tier-tag { color: var(--primary); font-weight: 800; text-transform: uppercase; font-size: 0.75rem; margin-bottom: 10px; }
+.tier-info h3 { font-size: 2rem; margin-bottom: 16px; }
+.tier-list { list-style: none; margin-top: 24px; }
+.tier-list li { margin-bottom: 12px; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 0.95rem; }
+.btn-outline-red { border: 2px solid var(--primary); color: var(--primary); padding: 12px 28px; border-radius: 14px; font-weight: 800; cursor: pointer; background: transparent; font-family: inherit; }
+.btn-outline-red:hover { background: var(--primary); color: white; }
+
+/* ===== DISCOVERY ===== */
+.discovery-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 36px; }
 
 .search-panel {
-  border-radius: 30px;
-  padding: 30px;
-  height: 600px;
-  display: flex; flex-direction: column;
-}
-
-.custom-search {
-  position: relative;
-  margin-bottom: 30px;
-}
-
-.custom-search .icon { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--primary); }
-.custom-search input { width: 100%; padding: 18px 20px 18px 55px; border: 1px solid rgba(201,76,76,0.1); border-radius: 20px; background: white; font-weight: 600; }
-
-.results-scroll { flex: 1; overflow-y: auto; padding-right: 10px; }
-.group-label { font-size: 0.75rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 2px; margin: 20px 0 10px; }
-
-.loc-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 20px;
-  background: rgba(201,76,76,0.02);
-  border-radius: 20px;
-  margin-bottom: 12px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: var(--transition);
-}
-
-.loc-card:hover { background: white; border-color: var(--primary); box-shadow: 0 10px 20px rgba(201,76,76,0.05); }
-.loc-text h5 { font-weight: 800; font-size: 1.1rem; margin-bottom: 4px; }
-.loc-text p { font-size: 0.85rem; color: var(--text-light); }
-.loc-action { color: var(--primary); }
-
-.map-panel { border-radius: 30px; overflow: hidden; position: relative; }
-.map-panel img { width: 100%; height: 100%; object-fit: cover; }
-.map-floating-card { position: absolute; top: 30px; right: 30px; background: white; padding: 20px; border-radius: 24px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-.hub-count { font-size: 2rem; font-weight: 900; color: var(--primary); }
-.hub-label { font-size: 0.75rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; }
-
-/* Tiers Section */
-.tiers-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 40px;
-}
-
-.tier-card {
-  border-radius: 40px;
-  overflow: hidden;
-  background: white;
-  box-shadow: 0 20px 50px rgba(0,0,0,0.05);
+  border-radius: 28px;
+  padding: 28px;
+  height: 580px;
   display: flex;
   flex-direction: column;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.4);
+  box-shadow: 0 8px 30px rgba(201,76,76,0.05);
+}
+.custom-search { position: relative; margin-bottom: 24px; }
+.srch-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--primary); }
+.custom-search input { width: 100%; padding: 16px 18px 16px 50px; border: 1px solid rgba(201,76,76,0.12); border-radius: 18px; background: white; font-weight: 600; font-family: inherit; outline: none; }
+
+.results-scroll { flex: 1; overflow-y: auto; padding-right: 8px; }
+.group-label { font-size: 0.7rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 2px; margin: 18px 0 8px; }
+.loc-card { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; background: rgba(201,76,76,0.02); border-radius: 16px; margin-bottom: 10px; cursor: pointer; border: 1px solid transparent; transition: var(--transition); }
+.loc-card:hover { background: white; border-color: var(--primary); box-shadow: 0 8px 20px rgba(201,76,76,0.05); }
+.loc-text h5 { font-weight: 800; font-size: 1rem; margin-bottom: 3px; }
+.loc-text p { font-size: 0.82rem; color: var(--text-light); }
+.loc-action { color: var(--primary); }
+
+.map-panel { border-radius: 28px; overflow: hidden; position: relative; }
+.map-panel img { width: 100%; height: 100%; object-fit: cover; }
+.map-floating-card { position: absolute; top: 24px; right: 24px; background: white; padding: 18px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+.hub-count { font-size: 1.8rem; font-weight: 900; color: var(--primary); }
+.hub-label { font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; }
+
+/* ===== AMENITIES ===== */
+.amenities-section { background: var(--primary); padding: 100px 0; }
+.amenities-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 36px; margin-top: 56px; color: white; }
+.amenity-icon { width: 68px; height: 68px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 22px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; transition: var(--transition); }
+.amenity-box:hover .amenity-icon { background: white; color: var(--primary); transform: translateY(-4px); }
+.amenity-box h4 { font-weight: 800; margin-bottom: 10px; font-size: 1rem; }
+.amenity-box p { font-size: 0.88rem; opacity: 0.75; }
+
+/* ===== HEART SECTION — FULLY CENTERED ===== */
+.heart-section {
+  padding: 140px 0;
+  background-image: radial-gradient(ellipse at 50% 0%, rgba(201,76,76,0.06) 0%, transparent 60%);
+}
+.heart-container {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+}
+.main-para {
+  font-size: 1.85rem;
+  font-weight: 800;
+  line-height: 1.45;
+  color: var(--text-dark);
+}
+.sub-para {
+  font-size: 1.1rem;
+  line-height: 1.85;
+  color: var(--text-light);
 }
 
-.tier-card.dark { background: #111; color: white; }
-.tier-visual { height: 350px; position: relative; }
-.tier-visual img { width: 100%; height: 100%; object-fit: cover; }
-.tier-badge { position: absolute; bottom: 30px; left: 30px; background: white; color: var(--text-dark); padding: 8px 20px; border-radius: 12px; font-weight: 900; font-size: 0.8rem; text-transform: uppercase; }
-.tier-badge.vip { background: var(--primary); color: white; }
-.tier-info { padding: 50px; }
-.tier-tag { color: var(--primary); font-weight: 800; text-transform: uppercase; font-size: 0.8rem; margin-bottom: 12px; }
-.tier-info h3 { font-size: 2.2rem; margin-bottom: 20px; }
-.tier-list { list-style: none; margin-top: 30px; }
-.tier-list li { margin-bottom: 15px; display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 1rem; }
-.btn-outline-white { border: 2px solid var(--primary); color: var(--primary); padding: 12px 30px; border-radius: 15px; font-weight: 800; }
-
-/* Amenities */
-.amenities-section { background: var(--primary); padding: 100px 0; }
-.amenities-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 40px; margin-top: 60px; color: white; }
-.amenity-icon { width: 70px; height: 70px; background: white; color: var(--primary); border-radius: 24px; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; transition: var(--transition); }
-.amenity-box:hover .amenity-icon { transform: rotate(10deg) scale(1.1); }
-.amenity-box h4 { font-weight: 800; margin-bottom: 12px; }
-.amenity-box p { font-size: 0.9rem; opacity: 0.8; }
-
-/* Heart (About) Centered */
-.heart-section { padding: 150px 0; background-image: radial-gradient(circle at 10% 20%, rgba(201, 76, 76, 0.05), transparent 40%); }
-.heart-container { max-width: 900px; }
-.main-para { font-size: 2rem; font-weight: 800; line-height: 1.4; color: var(--text-dark); }
-.sub-para { font-size: 1.15rem; line-height: 1.8; }
-
 .stats-row { display: flex; justify-content: center; gap: 40px; align-items: center; }
-.stat-circle { width: 140px; height: 140px; border: 1px solid rgba(201,76,76,0.1); border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: var(--transition); }
-.stat-circle:hover { border-color: var(--primary); background: white; transform: scale(1.05); }
-.stat-circle.secondary { background: var(--primary); color: white; border: none; }
-.stat-circle .val { font-size: 1.8rem; font-weight: 900; }
-.stat-circle .lab { font-size: 0.7rem; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
+.stat-circle {
+  width: 140px; height: 140px;
+  border: 1.5px solid rgba(201,76,76,0.12);
+  border-radius: 50%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: var(--transition);
+}
+.stat-circle:hover { border-color: var(--primary); box-shadow: 0 0 0 6px rgba(201,76,76,0.05); transform: scale(1.05); }
+.stat-circle.secondary { background: var(--primary); color: white; border: none; box-shadow: 0 12px 30px rgba(201,76,76,0.3); }
+.stat-circle .val { font-size: 1.75rem; font-weight: 900; }
+.stat-circle .lab { font-size: 0.65rem; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px; opacity: 0.7; }
 
-/* Responsive */
+/* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {
   .hero-title { font-size: 3.5rem; }
-  .form-grid { flex-direction: column; gap: 15px; }
-  .hero-widget-container { bottom: -280px; }
-  .vibes-section { padding-top: 300px; }
+  .booking-row-inputs { flex-direction: column; gap: 20px; }
+  .route-arrow { transform: rotate(90deg); }
+  .booking-row-bottom { flex-direction: column; align-items: stretch; }
+  .b-search-btn { justify-content: center; }
   .tiers-grid, .discovery-grid { grid-template-columns: 1fr; }
-  .discovery-grid { gap: 20px; }
+  .amenities-grid { grid-template-columns: repeat(3, 1fr); }
+  .events-cards { grid-template-columns: repeat(2, 1fr); }
+  .marquee-logo-img { height: 72px; }
+}
+
+@media (max-width: 640px) {
+  .hero-title { font-size: 2.6rem; letter-spacing: -1px; }
+  .events-cards { grid-template-columns: 1fr; }
   .amenities-grid { grid-template-columns: repeat(2, 1fr); }
-  .stat-circle { width: 120px; height: 120px; }
+  .stats-row { gap: 20px; }
+  .stat-circle { width: 110px; height: 110px; }
+  .booking-row-inputs, .booking-row-bottom { padding: 20px; }
+  .marquee-logo-img { height: 48px; }
+  .logo-marquee-item { padding: 0 18px; }
 }
 </style>
