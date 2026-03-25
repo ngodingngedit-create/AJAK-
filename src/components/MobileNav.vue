@@ -2,19 +2,23 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { Home, Calendar, Layers, MapPin, User } from 'lucide-vue-next';
 import { authState } from '../store/auth';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 
 const router = useRouter();
+const route = useRoute();
 const activeSection = ref('home');
 
 const navItems = [
-  { id: 'home',      label: 'Beranda', icon: Home },
-  { id: 'vibes',     label: 'Event',   icon: Calendar },
-  { id: 'services',  label: 'Layanan', icon: Layers },
-  { id: 'discovery', label: 'Pick Up', icon: MapPin },
+  { id: 'home',      label: 'Beranda', icon: Home,     route: '/' },
+  { id: 'events',    label: 'Event',   icon: Calendar, route: '/events' },
+  { id: 'services',  label: 'Layanan', icon: Layers,   route: null },
+  { id: 'discovery', label: 'Pick Up', icon: MapPin,   route: null },
 ];
 
+const isOnHome = computed(() => route.path === '/');
+
 const onScroll = () => {
+  if (!isOnHome.value) return;
   const sections = ['vibes', 'services', 'discovery', 'about', 'reviews'];
   let current = 'home';
   for (const id of sections) {
@@ -24,13 +28,27 @@ const onScroll = () => {
   activeSection.value = current;
 };
 
-const handleNav = (id) => {
-  if (id === 'home') {
+const handleNav = (item) => {
+  if (item.route) {
+    router.push(item.route);
+    return;
+  }
+  // scroll-based sections only work on home page
+  if (!isOnHome.value) {
+    router.push('/').then(() => {
+      setTimeout(() => {
+        const el = document.getElementById(item.id);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 300);
+    });
+    return;
+  }
+  if (item.id === 'home') {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     activeSection.value = 'home';
     return;
   }
-  const el = document.getElementById(id);
+  const el = document.getElementById(item.id);
   if (el) el.scrollIntoView({ behavior: 'smooth' });
 };
 
@@ -40,12 +58,23 @@ const goProfile = () => {
 };
 
 const isProfileActive = computed(() => {
-  return router.currentRoute.value.path.startsWith('/profile') || 
-         router.currentRoute.value.path === '/login';
+  return route.path.startsWith('/profile') || route.path === '/login';
 });
+
+const isEventActive = computed(() => {
+  return route.path === '/events' || route.path.startsWith('/booking') || route.path === '/confirmation';
+});
+
+const getItemActive = (item) => {
+  if (item.id === 'events') return isEventActive.value;
+  if (!isOnHome.value) return false;
+  return activeSection.value === item.id || (item.id === 'home' && activeSection.value === 'home');
+};
 
 const activeIndex = computed(() => {
   if (isProfileActive.value) return 4;
+  if (isEventActive.value) return 1;
+  if (!isOnHome.value) return -1;
   return navItems.findIndex(i => i.id === activeSection.value);
 });
 
@@ -69,8 +98,8 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
           v-for="item in navItems" 
           :key="item.id"
           class="nav-btn"
-          :class="{ active: activeSection === item.id && !isProfileActive }"
-          @click="handleNav(item.id)"
+          :class="{ active: getItemActive(item) }"
+          @click="handleNav(item)"
         >
           <div class="icon-box">
             <component :is="item.icon" :size="18" stroke-width="2.2" />

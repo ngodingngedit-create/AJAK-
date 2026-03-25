@@ -1,6 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { ShieldCheck, Bus, Zap, Coffee, Sofa, MapPin, Navigation, Search, ArrowRight, Users, Baby, X, Calendar, Star, Clock, Tag } from 'lucide-vue-next';
+import { bookingStore } from '../store/booking';
+
+const router = useRouter();
 
 // Hero Images Loop
 const heroImages = [
@@ -33,10 +37,9 @@ const modalAdults = ref(1);
 const modalToddlers = ref(0);
 
 const openEventModal = (event) => {
-  selectedEvent.value = event;
-  modalAdults.value = 1;
-  modalToddlers.value = 0;
-  document.body.style.overflow = 'hidden';
+  // Navigate directly to booking flow
+  bookingStore.selectedEvent = event;
+  router.push(`/booking/${event.id}`);
 };
 
 const closeEventModal = () => {
@@ -46,7 +49,8 @@ const closeEventModal = () => {
 
 const bookEvent = () => {
   if (!selectedEvent.value) return;
-  alert(`Booking ${modalAdults.value} tiket dewasa & ${modalToddlers.value} balita untuk ${selectedEvent.value.name}!\n\nTotal: akan dihitung saat checkout.`);
+  bookingStore.selectedEvent = selectedEvent.value;
+  router.push(`/booking/${selectedEvent.value.id}`);
   closeEventModal();
 };
 
@@ -198,70 +202,89 @@ const marqueeCount = 12;
 
     <!-- ===== HERO SECTION ===== -->
     <section class="hero-section">
+      <!-- Background slideshow -->
       <div class="hero-bg">
         <transition-group name="fade-slideshow" tag="div">
           <div v-for="(img, index) in heroImages" :key="img.src" v-show="currentHeroIndex === index" class="slide-layer">
             <img :src="img.src" :alt="img.alt" />
-            <div class="hero-overlay"></div>
           </div>
         </transition-group>
+        <!-- Layered overlays for depth -->
+        <div class="hero-overlay-bottom"></div>
+        <div class="hero-overlay-vignette"></div>
+        <!-- Floating decorative orbs -->
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+      </div>
+
+      <!-- Slide dots indicator -->
+      <div class="slide-dots">
+        <button
+          v-for="(img, i) in heroImages"
+          :key="i"
+          class="slide-dot"
+          :class="{ active: currentHeroIndex === i }"
+          @click="currentHeroIndex = i"
+        ></button>
       </div>
 
       <div class="hero-body">
-        <div class="hero-badge" v-if="currentHeroIndex === 1">✦ Special Partner Offer</div>
+        <!-- Top eyebrow badge -->
+        <div class="hero-eyebrow">
+          <span class="eyebrow-dot"></span>
+          Transport Resmi Event Indonesia
+        </div>
+
+        <!-- Main headline -->
         <h1 class="hero-title">
-          Ride to the <span class="text-gradient">Beat.</span><br/>
-          Arrive in <span class="text-gradient">Style.</span>
+          Ride to the
+          <span class="hero-highlight"> Beat.</span><br />
+          Arrive in <span class="hero-highlight">Style.</span>
         </h1>
+
+        <!-- Subtext -->
         <p class="hero-subtitle">
-          Eliminate the stress of event transit. Whether you're a fan or a VIP,<br class="d-pc"/>
-          AJAK! provides the ultimate round-trip journey.
+          Tanpa stres parkir, tanpa macet, tanpa ribet.<br class="d-pc" />
+          AJAK! mengantarmu ke event favoritmu dengan nyaman dan aman.
         </p>
 
-        <!-- BOOKING WIDGET -->
-        <div class="booking-card" id="booking-portal">
-          <div class="booking-row booking-row-inputs">
-            <div class="b-field">
-              <div class="b-label"><MapPin size="13" /> Depart From</div>
-              <input type="text" v-model="bookingOrigin" placeholder="City, station, or address..." class="b-input" />
-            </div>
-            <div class="route-arrow">
-              <div class="route-line"></div>
-              <div class="route-icon">→</div>
-              <div class="route-line"></div>
-            </div>
-            <div class="b-field">
-              <div class="b-label"><Navigation size="13" /> Destination</div>
-              <input type="text" v-model="bookingDestination" placeholder="Event, venue, or location..." class="b-input" />
-            </div>
+        <!-- Dual CTA -->
+        <div class="hero-ctas">
+          <button class="cta-primary" @click="router.push('/events')">
+            <span>Lihat Semua Event</span>
+            <ArrowRight :size="18" />
+          </button>
+          <button class="cta-secondary" @click="document.getElementById('services').scrollIntoView({ behavior: 'smooth' })">
+            Jelajahi Layanan
+          </button>
+        </div>
+
+        <!-- Stats row -->
+        <div class="hero-stats">
+          <div class="stat-pill">
+            <span class="stat-num">50K+</span>
+            <span class="stat-lab">Riders</span>
           </div>
-          <div class="booking-row booking-row-bottom">
-            <div class="b-counters">
-              <div class="b-counter-group">
-                <div class="b-counter-label"><Users size="14" /> Adults</div>
-                <div class="b-counter-ctrl">
-                  <button @click="adultCount > 0 ? adultCount-- : null" class="cnt-btn" :class="{ faded: adultCount === 0 }">−</button>
-                  <span class="cnt-val">{{ adultCount }}</span>
-                  <button @click="adultCount++" class="cnt-btn">+</button>
-                </div>
-              </div>
-              <div class="b-cnt-sep"></div>
-              <div class="b-counter-group">
-                <div class="b-counter-label"><Baby size="14" /> Balita</div>
-                <div class="b-counter-ctrl">
-                  <button @click="toddlerCount > 0 ? toddlerCount-- : null" class="cnt-btn" :class="{ faded: toddlerCount === 0 }">−</button>
-                  <span class="cnt-val">{{ toddlerCount }}</span>
-                  <button @click="toddlerCount++" class="cnt-btn">+</button>
-                </div>
-              </div>
-            </div>
-            <button class="b-search-btn" @click="handleSearch">
-              <Search size="18" />
-              Find My Ride
-            </button>
+          <div class="stat-sep"></div>
+          <div class="stat-pill">
+            <span class="stat-num">200+</span>
+            <span class="stat-lab">Events</span>
+          </div>
+          <div class="stat-sep"></div>
+          <div class="stat-pill">
+            <span class="stat-num">24/7</span>
+            <span class="stat-lab">Support</span>
           </div>
         </div>
       </div>
+
+      <!-- Scroll cue -->
+      <!-- <div class="scroll-cue">
+        <div class="scroll-mouse">
+          <div class="scroll-wheel"></div>
+        </div>
+        <span>Scroll</span>
+      </div> -->
     </section>
 
     <!-- ===== MARQUEE 1 ===== -->
@@ -292,10 +315,10 @@ const marqueeCount = 12;
             <div class="card-image-box">
               <img :src="event.image" :alt="event.name"/>
               <div class="card-status">Selling Fast</div>
-              <div class="card-click-hint">Tap for details</div>
+              <div class="card-click-hint">Tap to book ride</div>
             </div>
             <div class="card-body">
-              <p class="card-location">{{ event.location }}</p>
+              <p class="card-location">{{ event.location }} · {{ event.city }}</p>
               <h3 class="card-name">{{ event.name }}</h3>
               <div class="card-footer-info">
                 <span class="card-price-tag">{{ event.price }}</span>
@@ -303,6 +326,14 @@ const marqueeCount = 12;
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- View all CTA -->
+        <div class="view-all-wrap">
+          <button class="view-all-btn" @click="router.push('/events')">
+            Lihat Semua Event
+            <ArrowRight :size="18" />
+          </button>
         </div>
       </div>
     </section>
@@ -525,8 +556,8 @@ const marqueeCount = 12;
             <h2 class="cta-title">Siap untuk perjalanan berikutnya?</h2>
             <p class="cta-desc">Temukan event favoritmu dan pesan ride kamu sekarang tanpa ribet.</p>
           </div>
-          <button class="btn btn-primary cta-action-btn" @click="document.getElementById('booking-portal').scrollIntoView({ behavior: 'smooth' })">
-            Cari Ride Sekarang <ArrowRight size="20" />
+          <button class="btn btn-primary cta-action-btn" @click="router.push('/events')">
+            Lihat Semua Event <ArrowRight size="20" />
           </button>
         </div>
       </div>
@@ -569,49 +600,284 @@ const marqueeCount = 12;
 .hero-section {
   position: relative;
   min-height: 100vh;
-  margin-top: 90px;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.hero-bg { position: absolute; inset: 0; z-index: 0; overflow: hidden; background: #0d0d0d; }
-.slide-layer { position: absolute; inset: 0; }
-.slide-layer img { width: 100%; height: 100%; object-fit: cover; }
-.hero-overlay {
-  position: absolute; inset: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.55) 50%, rgba(0,0,0,0.85) 100%);
+  overflow: hidden;
 }
 
+/* Background & overlays */
+.hero-bg {
+  position: absolute; inset: 0; z-index: 0;
+  overflow: hidden; background: #0a0a0a;
+}
+.slide-layer {
+  position: absolute; inset: 0;
+  transition: opacity 1s ease;
+}
+.slide-layer img {
+  width: 100%; height: 100%; object-fit: cover;
+  transform: scale(1.04);
+  animation: hero-zoom 10s ease forwards;
+}
+@keyframes hero-zoom {
+  from { transform: scale(1.04); }
+  to   { transform: scale(1.00); }
+}
+.hero-overlay-bottom {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 75%;
+  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 50%, transparent 100%);
+  z-index: 1;
+}
+.hero-overlay-vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);
+  z-index: 1;
+}
+
+/* Decorative orbs */
+.orb {
+  position: absolute; border-radius: 50%; z-index: 1;
+  filter: blur(80px); pointer-events: none;
+}
+.orb-1 {
+  width: 500px; height: 500px;
+  background: rgba(201, 76, 76, 0.18);
+  top: -100px; right: -100px;
+  animation: orb-drift 8s ease-in-out infinite alternate;
+}
+.orb-2 {
+  width: 300px; height: 300px;
+  background: rgba(201, 76, 76, 0.10);
+  bottom: 80px; left: -80px;
+  animation: orb-drift 10s ease-in-out 2s infinite alternate-reverse;
+}
+@keyframes orb-drift {
+  from { transform: translate(0, 0); }
+  to   { transform: translate(30px, 20px); }
+}
+
+/* Slide dots */
+.slide-dots {
+  position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 8px; z-index: 10;
+}
+.slide-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.35);
+  border: none; cursor: pointer; padding: 0;
+  transition: all 0.3s ease;
+}
+.slide-dot.active {
+  background: var(--primary);
+  width: 24px;
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(201,76,76,0.5);
+}
+
+/* Hero body */
 .hero-body {
   position: relative; z-index: 5;
   display: flex; flex-direction: column; align-items: center;
   text-align: center; color: white;
-  padding: 80px 24px 80px;
-  width: 100%; max-width: 1100px; margin: 0 auto;
+  padding: 100px 24px 100px;
+  width: 100%; max-width: 1000px; margin: 0 auto;
 }
 
-.hero-badge {
-  display: inline-block; padding: 7px 18px;
-  background: rgba(201, 76, 76, 0.25); border: 1px solid rgba(201, 76, 76, 0.6);
-  color: #ff9a9a; border-radius: 30px; font-weight: 700; font-size: 0.8rem;
-  margin-bottom: 28px; backdrop-filter: blur(10px); letter-spacing: 0.5px;
+/* Eyebrow */
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  backdrop-filter: blur(12px);
+  color: rgba(255,255,255,0.8);
+  padding: 8px 18px; border-radius: 30px;
+  font-size: 0.78rem; font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 32px;
+  animation: fade-up 0.6s ease 0.1s both;
 }
-.hero-title { font-size: 5.5rem; font-weight: 900; line-height: 1.0; margin-bottom: 24px; letter-spacing: -2px; }
-.hero-subtitle { font-size: 1.15rem; opacity: 0.8; margin-bottom: 56px; max-width: 560px; line-height: 1.7; }
+.eyebrow-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
+  animation: pulse-dot 2s ease infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.8); }
+}
+
+/* Title */
+.hero-title {
+  font-size: clamp(3rem, 7vw, 6.5rem);
+  font-weight: 900;
+  line-height: 1.0;
+  margin-bottom: 24px;
+  letter-spacing: -3px;
+  animation: fade-up 0.6s ease 0.2s both;
+}
+.hero-highlight {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff9a9a 50%, #ffb3b3 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  position: relative;
+}
+
+/* Subtitle */
+.hero-subtitle {
+  font-size: 1.1rem;
+  opacity: 0.7;
+  margin-bottom: 44px;
+  max-width: 520px;
+  line-height: 1.75;
+  animation: fade-up 0.6s ease 0.3s both;
+}
+
+/* CTA buttons */
+.hero-ctas {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 56px;
+  flex-wrap: wrap;
+  justify-content: center;
+  animation: fade-up 0.6s ease 0.4s both;
+}
+.cta-primary {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 16px 32px;
+  border-radius: 18px;
+  font-family: inherit; font-size: 1rem; font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 8px 32px rgba(201,76,76,0.4), 0 0 0 0 rgba(201,76,76,0.3);
+  position: relative; overflow: hidden;
+}
+.cta-primary::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.cta-primary:hover::before { opacity: 1; }
+.cta-primary:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 16px 40px rgba(201,76,76,0.5), 0 0 0 4px rgba(201,76,76,0.15);
+}
+.cta-primary:active { transform: translateY(0) scale(0.98); }
+.cta-primary svg { transition: transform 0.3s; }
+.cta-primary:hover svg { transform: translateX(4px); }
+
+.cta-secondary {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.08);
+  color: white;
+  border: 1.5px solid rgba(255,255,255,0.25);
+  padding: 16px 32px;
+  border-radius: 18px;
+  font-family: inherit; font-size: 1rem; font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+.cta-secondary:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.5);
+  transform: translateY(-2px);
+}
+.cta-secondary:active { transform: translateY(0); }
+
+/* Stats row */
+.hero-stats {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  backdrop-filter: blur(16px);
+  border-radius: 20px;
+  padding: 18px 36px;
+  animation: fade-up 0.6s ease 0.5s both;
+}
+.stat-pill {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 2px;
+  padding: 0 28px;
+}
+.stat-num {
+  font-size: 1.6rem; font-weight: 900;
+  color: white; line-height: 1;
+  letter-spacing: -1px;
+}
+.stat-lab {
+  font-size: 0.7rem; font-weight: 700;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase; letter-spacing: 1.5px;
+}
+.stat-sep {
+  width: 1px; height: 40px;
+  background: rgba(255,255,255,0.15);
+}
+
+/* Scroll cue */
+.scroll-cue {
+  position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  z-index: 10; color: rgba(255,255,255,0.4);
+  font-size: 0.65rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 2px;
+  animation: fade-up 0.6s ease 0.8s both;
+}
+.scroll-mouse {
+  width: 22px; height: 34px; border: 2px solid rgba(255,255,255,0.25);
+  border-radius: 12px; display: flex; justify-content: center;
+  padding-top: 6px;
+}
+.scroll-wheel {
+  width: 3px; height: 6px; background: rgba(255,255,255,0.5);
+  border-radius: 2px;
+  animation: scroll-anim 1.8s ease infinite;
+}
+@keyframes scroll-anim {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(10px); opacity: 0; }
+}
+
+/* Fade-up animation */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+  .hero-title { letter-spacing: -1.5px; }
+  .hero-stats { padding: 14px 16px; }
+  .stat-pill { padding: 0 14px; }
+  .stat-num { font-size: 1.3rem; }
+  .hero-ctas { gap: 10px; }
+  .cta-primary, .cta-secondary { padding: 14px 22px; font-size: 0.92rem; }
+  .scroll-cue { display: none; }
+}
 
 /* ===== BOOKING CARD ===== */
 .booking-card {
   width: 100%; max-width: 900px;
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--navbar-bg);
   backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
   border-radius: 28px;
-  box-shadow: 0 40px 100px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.15);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-color);
   overflow: hidden;
 }
 .booking-row-inputs {
   display: flex; align-items: center;
   padding: 30px 32px 20px; gap: 0;
-  border-bottom: 1px solid rgba(0,0,0,0.06);
+  border-bottom: 1px solid var(--border-color);
 }
 .booking-row-bottom {
   display: flex; align-items: center; justify-content: space-between;
@@ -625,7 +891,7 @@ const marqueeCount = 12;
 }
 .b-input {
   border: none; background: transparent; font-size: 1rem;
-  font-weight: 600; color: #2a2a2a; font-family: inherit; outline: none; width: 100%;
+  font-weight: 600; color: var(--text-dark); font-family: inherit; outline: none; width: 100%;
 }
 .b-input::placeholder { color: #c5c5c5; font-weight: 500; }
 
@@ -656,7 +922,7 @@ const marqueeCount = 12;
 }
 .cnt-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
 .cnt-btn.faded { opacity: 0.3; cursor: not-allowed; }
-.cnt-val { font-size: 1.25rem; font-weight: 900; color: #2a2a2a; min-width: 22px; text-align: center; }
+.cnt-val { font-size: 1.25rem; font-weight: 900; color: var(--text-dark); min-width: 22px; text-align: center; }
 
 .b-search-btn {
   display: flex; align-items: center; gap: 10px;
@@ -673,8 +939,8 @@ const marqueeCount = 12;
   display: flex; flex-direction: column; gap: 0;
 }
 .white-marquee {
-  background: white;
-  border-top: 1px solid rgba(201,76,76,0.1); border-bottom: 1px solid rgba(201,76,76,0.1);
+  background: var(--bg-color);
+  border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);
   padding: 4px 0;
 }
 .logo-marquee-track { overflow: hidden; width: 100%; }
@@ -701,24 +967,42 @@ const marqueeCount = 12;
   gap: 24px;
 }
 .modern-card {
-  background: white; border-radius: 24px; overflow: hidden;
-  transition: var(--transition); box-shadow: 0 8px 30px rgba(0,0,0,0.04);
+  background: var(--card-bg); border-radius: 24px; overflow: hidden;
+  transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: var(--shadow-md);
   cursor: pointer;
+  border: 1px solid var(--border-color);
+  position: relative;
 }
-.modern-card:hover { transform: translateY(-10px); box-shadow: 0 20px 40px rgba(201,76,76,0.1); }
+.modern-card::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 24px;
+  border: 2px solid transparent;
+  transition: border-color 0.3s;
+  pointer-events: none;
+}
+.modern-card:hover {
+  transform: translateY(-12px) scale(1.01);
+  box-shadow: 0 24px 50px rgba(201,76,76,0.14), 0 8px 20px rgba(0,0,0,0.06);
+}
+.modern-card:hover::after { border-color: rgba(201,76,76,0.2); }
 .modern-card:hover .card-click-hint { opacity: 1; }
+.modern-card:active { transform: translateY(-4px) scale(0.99); }
+
 .card-image-box { height: 200px; position: relative; overflow: hidden; }
-.card-image-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
-.modern-card:hover .card-image-box img { transform: scale(1.06); }
+.card-image-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1); }
+.modern-card:hover .card-image-box img { transform: scale(1.08); }
 .card-status {
   position: absolute; top: 14px; right: 14px;
-  background: white; padding: 4px 12px;
+  background: var(--card-bg); padding: 4px 12px;
   border-radius: 10px; font-size: 0.7rem; font-weight: 800; color: var(--primary);
+  box-shadow: var(--shadow-sm);
 }
 .card-click-hint {
   position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
   background: rgba(0,0,0,0.6); color: white; font-size: 0.7rem; font-weight: 700;
-  padding: 4px 12px; border-radius: 20px; opacity: 0; transition: opacity 0.3s;
+  padding: 5px 14px; border-radius: 20px; opacity: 0; transition: opacity 0.3s;
   white-space: nowrap; backdrop-filter: blur(6px);
 }
 .card-body { padding: 22px; }
@@ -727,11 +1011,42 @@ const marqueeCount = 12;
 .card-footer-info { display: flex; justify-content: space-between; align-items: center; }
 .card-price-tag { font-weight: 900; font-size: 1.05rem; color: var(--text-dark); }
 .btn-primary-small {
-  background: var(--primary); color: white; padding: 8px 16px;
+  background: var(--primary); color: white; padding: 8px 18px;
   border-radius: 10px; font-weight: 700; font-size: 0.82rem;
-  cursor: pointer; border: none; font-family: inherit; transition: var(--transition);
+  cursor: pointer; border: none; font-family: inherit; transition: all 0.25s;
+  display: flex; align-items: center; gap: 6px;
 }
-.btn-primary-small:hover { background: #b34242; }
+.btn-primary-small::after { content: '→'; transition: transform 0.25s; }
+.modern-card:hover .btn-primary-small::after { transform: translateX(4px); }
+.btn-primary-small:hover { background: #b34242; transform: scale(1.04); }
+
+/* View all button */
+.view-all-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
+}
+.view-all-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: transparent;
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  padding: 14px 32px;
+  border-radius: 16px;
+  font-family: inherit; font-size: 0.95rem; font-weight: 800;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  letter-spacing: 0.3px;
+}
+.view-all-btn:hover {
+  background: var(--primary);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(201,76,76,0.25);
+}
+.view-all-btn:hover svg { transform: translateX(4px); }
+.view-all-btn svg { transition: transform 0.3s; }
+.view-all-btn:active { transform: translateY(0); }
 
 /* ===== EVENT MODAL ===== */
 .modal-overlay {
@@ -742,7 +1057,7 @@ const marqueeCount = 12;
   padding: 20px;
 }
 .modal-card {
-  background: white; border-radius: 32px; overflow: hidden;
+  background: var(--card-bg); border-radius: 32px; overflow: hidden;
   width: 100%; max-width: 520px;
   box-shadow: 0 40px 100px rgba(0,0,0,0.3);
   position: relative; max-height: 90vh; overflow-y: auto;
@@ -771,8 +1086,8 @@ const marqueeCount = 12;
 .meta-item {
   display: flex; align-items: center; gap: 8px;
   font-size: 0.8rem; font-weight: 700; color: var(--text-dark);
-  background: #f8f8fb; border-radius: 14px; padding: 12px 14px;
-  border: 1px solid rgba(0,0,0,0.03);
+  background: var(--input-bg); border-radius: 14px; padding: 12px 14px;
+  border: 1px solid var(--border-color);
 }
 .meta-item.seats { color: var(--primary); background: rgba(201,76,76,0.04); border-color: rgba(201,76,76,0.1); }
 
@@ -781,7 +1096,7 @@ const marqueeCount = 12;
 .section-tag-mini { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--primary); margin-bottom: 16px; }
 
 /* Route Visual */
-.modal-route-box { background: #fdfdfd; border-radius: 20px; padding: 20px; border: 1px dashed rgba(201,76,76,0.2); }
+.modal-route-box { background: var(--input-bg); border-radius: 20px; padding: 20px; border: 1px dashed rgba(201,76,76,0.2); }
 .route-visual { position: relative; height: 50px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px; margin-bottom: 10px; }
 .route-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); position: relative; z-index: 2; box-shadow: 0 0 0 4px rgba(201,76,76,0.1); }
 .route-line-dashed { position: absolute; left: 15px; right: 15px; height: 1px; border-top: 2px dashed rgba(201,76,76,0.25); z-index: 1; }
@@ -941,11 +1256,11 @@ const marqueeCount = 12;
 
 /* ===== TIERS ===== */
 .tiers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
-.tier-card { border-radius: 36px; overflow: hidden; background: white; box-shadow: 0 20px 50px rgba(0,0,0,0.05); display: flex; flex-direction: column; }
+.tier-card { border-radius: 36px; overflow: hidden; background: var(--card-bg); box-shadow: var(--shadow-md); display: flex; flex-direction: column; }
 .tier-card.dark { background: #111; color: white; }
 .tier-visual { height: 320px; position: relative; }
 .tier-visual img { width: 100%; height: 100%; object-fit: cover; }
-.tier-badge { position: absolute; bottom: 24px; left: 24px; background: white; color: var(--text-dark); padding: 7px 18px; border-radius: 10px; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; }
+.tier-badge { position: absolute; bottom: 24px; left: 24px; background: var(--card-bg); color: var(--text-dark); padding: 7px 18px; border-radius: 10px; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; }
 .tier-badge.vip { background: var(--primary); color: white; }
 .tier-info { padding: 44px; }
 .tier-tag { color: var(--primary); font-weight: 800; text-transform: uppercase; font-size: 0.75rem; margin-bottom: 10px; }
@@ -960,22 +1275,22 @@ const marqueeCount = 12;
 .search-panel {
   border-radius: 28px; padding: 28px; height: 580px;
   display: flex; flex-direction: column;
-  background: rgba(255,255,255,0.85); backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.4); box-shadow: 0 8px 30px rgba(201,76,76,0.05);
+  background: var(--card-bg);
+  border: 1px solid var(--border-color); box-shadow: var(--shadow-md);
 }
 .custom-search { position: relative; margin-bottom: 24px; }
 .srch-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: var(--primary); }
-.custom-search input { width: 100%; padding: 16px 18px 16px 50px; border: 1px solid rgba(201,76,76,0.12); border-radius: 18px; background: white; font-weight: 600; font-family: inherit; outline: none; }
+.custom-search input { width: 100%; padding: 16px 18px 16px 50px; border: 1px solid var(--border-color); border-radius: 18px; background: var(--input-bg); color: var(--text-dark); font-weight: 600; font-family: inherit; outline: none; }
 .results-scroll { flex: 1; overflow-y: auto; padding-right: 8px; }
 .group-label { font-size: 0.7rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 2px; margin: 18px 0 8px; }
 .loc-card { display: flex; justify-content: space-between; align-items: center; padding: 16px 18px; background: rgba(201,76,76,0.02); border-radius: 16px; margin-bottom: 10px; cursor: pointer; border: 1px solid transparent; transition: var(--transition); }
-.loc-card:hover { background: white; border-color: var(--primary); box-shadow: 0 8px 20px rgba(201,76,76,0.05); }
+.loc-card:hover { background: var(--input-bg); border-color: var(--primary); box-shadow: var(--shadow-sm); }
 .loc-text h5 { font-weight: 800; font-size: 1rem; margin-bottom: 3px; }
 .loc-text p { font-size: 0.82rem; color: var(--text-light); }
 .loc-action { color: var(--primary); }
 .map-panel { border-radius: 28px; overflow: hidden; position: relative; min-height: 400px; }
 .map-panel img { width: 100%; height: 100%; object-fit: cover; }
-.map-floating-card { position: absolute; top: 24px; right: 24px; background: white; padding: 18px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+.map-floating-card { position: absolute; top: 24px; right: 24px; background: var(--card-bg); padding: 18px; border-radius: 20px; text-align: center; box-shadow: var(--shadow-md); }
 .hub-count { font-size: 1.8rem; font-weight: 900; color: var(--primary); }
 .hub-label { font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; }
 
@@ -1003,7 +1318,7 @@ const marqueeCount = 12;
 .stat-circle .lab { font-size: 0.65rem; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px; opacity: 0.7; }
 
 /* ===== REVIEWS — HORIZONTAL MARQUEE ===== */
-.reviews-section { background: #f8f8fb; padding: 100px 0 0; }
+.reviews-section { background: var(--bg-color); padding: 100px 0 0; }
 .reviews-marquee-outer {
   overflow: hidden;
   padding: 40px 0 80px;
@@ -1022,14 +1337,14 @@ const marqueeCount = 12;
   to   { transform: translateX(-50%); }
 }
 .review-card {
-  background: white; border-radius: 24px; padding: 28px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.04);
-  border: 1px solid rgba(201,76,76,0.05);
+  background: var(--card-bg); border-radius: 24px; padding: 28px;
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-color);
   display: flex; flex-direction: column; gap: 16px;
   width: 360px; flex-shrink: 0;
   transition: var(--transition);
 }
-.review-card:hover { box-shadow: 0 16px 40px rgba(201,76,76,0.08); border-color: rgba(201,76,76,0.12); }
+.review-card:hover { box-shadow: var(--shadow-lg); border-color: var(--primary); }
 .review-header { display: flex; align-items: center; gap: 14px; }
 .reviewer-avatar {
   width: 46px; height: 46px; border-radius: 50%;

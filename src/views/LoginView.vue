@@ -59,7 +59,7 @@ const handleLogin = (e) => {
 }
 
 .login-container {
-  background: var(--white);
+  background: var(--card-bg);
   padding: 48px;
   border-radius: var(--radius-lg);
   width: 100%;
@@ -83,18 +83,19 @@ const handleLogin = (e) => {
 .form-input {
   width: 100%;
   padding: 14px 16px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   font-family: inherit;
   font-size: 1rem;
   transition: var(--transition);
-  background-color: #fafafa;
+  background-color: var(--input-bg);
+  color: var(--text-dark);
 }
 
 .form-input:focus {
   outline: none;
   border-color: var(--primary);
-  background-color: var(--white);
+  background-color: var(--card-bg);
   box-shadow: 0 0 0 3px rgba(201, 76, 76, 0.1);
 }
 
