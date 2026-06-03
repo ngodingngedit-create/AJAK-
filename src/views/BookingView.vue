@@ -7,7 +7,7 @@ import { bookingStore } from '../store/booking';
 const route = useRoute();
 const router = useRouter();
 
-// All events data (same source of truth)
+// All events data (same source of truth
 const allEvents = [
   { id: 1, name: 'The Sounds Project', date: '2026-10-15', dateLabel: '15 Okt 2026', time: '18:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', tag: 'Shuttle Bersama' },
   { id: 2, name: 'The Sounds Project', date: '2026-10-22', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Ancol', city: 'Jakarta', price: 'Rp 1.500.000', priceNum: 1500000, image: '/TSP.jpeg', tag: 'Shuttle Eksklusif' },
