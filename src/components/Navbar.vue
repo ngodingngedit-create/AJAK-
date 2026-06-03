@@ -181,10 +181,10 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 
         <!-- Desktop Only Auth (Hidden on Mobile) -->
         <div class="desktop-auth-area">
-          <template v-if="!authState.isLoggedIn">
+          <template v-if="false">
             <router-link to="/login" class="btn btn-outline nav-btn">Login / Sign Up</router-link>
           </template>
-          <template v-else>
+          <template v-else-if="authState.isLoggedIn">
             <router-link to="/profile" class="user-profile-nav">
               <div class="avatar-sm">
                 <User size="14" color="var(--primary)" />

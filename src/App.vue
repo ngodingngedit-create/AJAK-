@@ -16,7 +16,7 @@ const onSplashReady = () => {
   <Splash @ready="onSplashReady" />
   
   <div v-show="appReady" class="app-container">
-    <Navbar />
+    <Navbar v-if="$route.path !== '/portfolio'" />
     
     <main class="main-content">
       <router-view v-slot="{ Component }">
@@ -26,8 +26,8 @@ const onSplashReady = () => {
       </router-view>
     </main>
 
-    <MobileNav />
-    <Footer />
+    <MobileNav v-if="$route.path !== '/portfolio'" />
+    <Footer v-if="$route.path !== '/portfolio'" />
   </div>
 </template>
 

@@ -72,7 +72,6 @@ const getItemActive = (item) => {
 };
 
 const activeIndex = computed(() => {
-  if (isProfileActive.value) return 4;
   if (isEventActive.value) return 1;
   if (!isOnHome.value) return -1;
   return navItems.findIndex(i => i.id === activeSection.value);
@@ -107,17 +106,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
           <span class="nav-label">{{ item.label }}</span>
         </button>
 
-        <!-- Profile Button -->
-        <button 
-          class="nav-btn"
-          :class="{ active: isProfileActive }"
-          @click="goProfile"
-        >
-          <div class="icon-box">
-            <User :size="18" stroke-width="2.2" />
-          </div>
-          <span class="nav-label">{{ authState.isLoggedIn ? 'Profil' : 'Login' }}</span>
-        </button>
+        <!-- Profile Button (Hidden) -->
       </div>
     </nav>
   </div>
@@ -213,7 +202,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
   position: absolute;
   top: 0;
   left: 6px;
-  width: calc((100% - 12px) / 5);
+  width: calc((100% - 12px) / 4);
   height: 3px;
   transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
   z-index: 1;

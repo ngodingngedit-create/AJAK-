@@ -7,12 +7,12 @@ import { bookingStore } from '../store/booking';
 const router = useRouter();
 
 const events = [
-  { id: 1, name: 'Neon Lights Festival', date: '2026-10-15', dateLabel: '15 Okt 2026', time: '18:00 WIB', location: 'City Arena', city: 'Jakarta', price: 'Rp 750.000', priceNum: 750000, image: '/hero.png', desc: 'Festival musik elektronik terbesar di Asia Tenggara dengan lineup DJ kelas dunia.', seats: 42, tag: 'Electronic' },
-  { id: 2, name: 'Symphony in the Park', date: '2026-10-22', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Grand Park', city: 'Bandung', price: 'Rp 450.000', priceNum: 450000, image: '/hero.png', desc: 'Konser orkestra klasik di bawah bulan purnama bersama musisi terbaik Indonesia.', seats: 18, tag: 'Classical' },
-  { id: 3, name: 'Midnight Rock', date: '2026-11-05', dateLabel: '5 Nov 2026', time: '20:00 WIB', location: 'Stadium One', city: 'Surabaya', price: 'Rp 950.000', priceNum: 950000, image: '/hero.png', desc: 'Rock concert dengan energy level tertinggi! Band-band legendaris tampil di panggung terbesar.', seats: 67, tag: 'Rock' },
-  { id: 4, name: 'Indie Vibes Fest', date: '2026-11-12', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Downtown Square', city: 'Yogyakarta', price: 'Rp 350.000', priceNum: 350000, image: '/hero.png', desc: 'Festival indie lokal merayakan kreativitas musisi independen Indonesia.', seats: 89, tag: 'Indie' },
-  { id: 5, name: 'Jazz Under Stars', date: '2026-11-20', dateLabel: '20 Nov 2026', time: '19:00 WIB', location: 'Alun-Alun Kota', city: 'Bandung', price: 'Rp 280.000', priceNum: 280000, image: '/hero.png', desc: 'Malam jazz yang tenang di bawah bintang-bintang kota Bandung.', seats: 120, tag: 'Jazz' },
-  { id: 6, name: 'Future Bass Summit', date: '2026-12-01', dateLabel: '1 Des 2026', time: '21:00 WIB', location: 'Skydome Arena', city: 'Jakarta', price: 'Rp 650.000', priceNum: 650000, image: '/hero.png', desc: 'DJ dan produser future bass berkumpul dalam satu malam yang legendary.', seats: 55, tag: 'EDM' },
+  { id: 1, name: 'Silaturahmi', date: '2026-10-15', dateLabel: '15 Okt 2026', time: '18:00 WIB', location: 'City Arena', city: 'Jakarta', price: 'Rp 750.000', priceNum: 750000, image: '/silaturahmi_new2.webp', desc: 'Festival musik elektronik terbesar di Asia Tenggara dengan lineup DJ kelas dunia.', seats: 42, tag: 'Electronic' },
+  { id: 2, name: 'Silaturahmi', date: '2026-10-22', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Grand Park', city: 'Bandung', price: 'Rp 450.000', priceNum: 450000, image: '/silaturahmi_new2.webp', desc: 'Konser orkestra klasik di bawah bulan purnama bersama musisi terbaik Indonesia.', seats: 18, tag: 'Classical' },
+  { id: 3, name: 'Silaturahmi', date: '2026-11-05', dateLabel: '5 Nov 2026', time: '20:00 WIB', location: 'Stadium One', city: 'Surabaya', price: 'Rp 950.000', priceNum: 950000, image: '/silaturahmi_new2.webp', desc: 'Rock concert dengan energy level tertinggi! Band-band legendaris tampil di panggung terbesar.', seats: 67, tag: 'Rock' },
+  { id: 4, name: 'Silaturahmi', date: '2026-11-12', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Downtown Square', city: 'Yogyakarta', price: 'Rp 350.000', priceNum: 350000, image: '/silaturahmi_new2.webp', desc: 'Festival indie lokal merayakan kreativitas musisi independen Indonesia.', seats: 89, tag: 'Indie' },
+  { id: 5, name: 'Silaturahmi', date: '2026-11-20', dateLabel: '20 Nov 2026', time: '19:00 WIB', location: 'Alun-Alun Kota', city: 'Bandung', price: 'Rp 280.000', priceNum: 280000, image: '/silaturahmi_new2.webp', desc: 'Malam jazz yang tenang di bawah bintang-bintang kota Bandung.', seats: 120, tag: 'Jazz' },
+  { id: 6, name: 'Silaturahmi', date: '2026-12-01', dateLabel: '1 Des 2026', time: '21:00 WIB', location: 'Skydome Arena', city: 'Jakarta', price: 'Rp 650.000', priceNum: 650000, image: '/silaturahmi_new2.webp', desc: 'DJ dan produser future bass berkumpul dalam satu malam yang legendary.', seats: 55, tag: 'EDM' },
 ];
 
 const cities = ['Semua', 'Jakarta', 'Bandung', 'Surabaya', 'Yogyakarta'];
@@ -76,8 +76,8 @@ const tagColors = {
     <section class="events-hero">
       <div class="events-hero-bg"></div>
       <div class="container events-hero-content">
-        <span class="subtitle-tag">Curation</span>
-        <h1 class="events-hero-title">Upcoming <span class="text-red">Events</span></h1>
+        <span class="subtitle-tag">Kurasi</span>
+        <h1 class="events-hero-title">Event <span class="text-red">Mendatang</span></h1>
         <p class="events-hero-sub">Temukan konser & festival favoritmu, lalu pesan ride-mu sekarang.</p>
       </div>
     </section>
@@ -509,7 +509,8 @@ const tagColors = {
 .event-img-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.5));
+  background: url('/silaturahmi_new2.webp') no-repeat center;
+  background-size: cover;
 }
 .event-genre-tag {
   position: absolute;

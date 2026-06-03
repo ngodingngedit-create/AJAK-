@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ShieldCheck, Bus, Zap, Coffee, Sofa, MapPin, Navigation, Search, ArrowRight, Users, Baby, X, Calendar, Star, Clock, Tag } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
@@ -8,27 +8,55 @@ const router = useRouter();
 
 // Hero Images Loop
 const heroImages = [
-  { src: '/hero.png', alt: 'Concert Event Journey' },
-  { src: '/sponsor_banner.png', alt: 'Sponsored Event - Special Promo Available!' }
+  { src: '/home/home (1).jpg', alt: 'Home Slide 1' },
+  { src: '/home/home (2).jpg', alt: 'Home Slide 2' },
+  { src: '/home/home (3).jpg', alt: 'Home Slide 3' }
 ];
 const currentHeroIndex = ref(0);
 let heroInterval;
+
+// GPS & Map State
+const userCoords = ref(null);
+const selectedLocation = ref('');
+const mapUrl = computed(() => {
+  if (!selectedLocation.value) return '';
+  return `https://maps.google.com/maps?q=${encodeURIComponent(selectedLocation.value)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+});
 
 onMounted(() => {
   heroInterval = setInterval(() => {
     currentHeroIndex.value = (currentHeroIndex.value + 1) % heroImages.length;
   }, 6000);
+
+  // Request user GPS location
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        userCoords.value = { lat, lng };
+        selectedLocation.value = `${lat},${lng}`;
+      },
+      (error) => {
+        console.warn("Geolocation access denied or failed:", error);
+        selectedLocation.value = 'Jakarta, Indonesia';
+      }
+    );
+  } else {
+    selectedLocation.value = 'Jakarta, Indonesia';
+  }
 });
+
 onUnmounted(() => {
   if (heroInterval) clearInterval(heroInterval);
 });
 
 // Mock Data
 const events = [
-  { id: 1, name: 'Neon Lights Festival', date: 'Oct 15, 2026', time: '18:00 WIB', location: 'City Arena', city: 'Jakarta', price: 'Rp 750.000', image: '/hero.png', desc: 'Festival musik elektronik terbesar di Asia Tenggara dengan lineup DJ kelas dunia. Nikmati malam yang penuh cahaya neon dan musik yang menggetarkan jiwa.', seats: 42, tag: 'Electronic' },
-  { id: 2, name: 'Symphony in the Park', date: 'Oct 22, 2026', time: '19:30 WIB', location: 'Grand Park', city: 'Bandung', price: 'Rp 450.000', image: '/hero.png', desc: 'Konser orkestra klasik di bawah bulan purnama. Rasakan harmoni indah dari musisi terbaik Indonesia bersama orang-orang tersayang.', seats: 18, tag: 'Classical' },
-  { id: 3, name: 'Midnight Rock', date: 'Nov 05, 2026', time: '20:00 WIB', location: 'Stadium One', city: 'Surabaya', price: 'Rp 950.000', image: '/hero.png', desc: 'Rock concert dengan energy level tertinggi! Band-band rock legendaris akan tampil di panggung terbesar Indonesia malam ini.', seats: 67, tag: 'Rock' },
-  { id: 4, name: 'Indie Vibes Fest', date: 'Nov 12, 2026', time: '17:00 WIB', location: 'Downtown Square', city: 'Yogyakarta', price: 'Rp 350.000', image: '/hero.png', desc: 'Festival indie lokal yang merayakan kreativitas musisi independen Indonesia. Temukan suara baru yang segar dan autentik.', seats: 89, tag: 'Indie' },
+  { id: 1, name: 'Silaturahmi', date: 'Oct 15, 2026', dateLabel: '15 Okt 2026', time: '18:00 WIB', location: 'City Arena', city: 'Jakarta', price: 'Rp 750.000', image: '/silaturahmi_new2.webp', desc: 'Festival musik elektronik terbesar di Asia Tenggara dengan lineup DJ kelas dunia. Nikmati malam yang penuh cahaya neon dan musik yang menggetarkan jiwa.', seats: 42, tag: 'Electronic' },
+  { id: 2, name: 'Silaturahmi', date: 'Oct 22, 2026', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Grand Park', city: 'Bandung', price: 'Rp 450.000', image: '/silaturahmi_new2.webp', desc: 'Konser orkestra klasik di bawah bulan purnama. Rasakan harmoni indah dari musisi terbaik Indonesia bersama orang-orang tersayang.', seats: 18, tag: 'Classical' },
+  { id: 3, name: 'Silaturahmi', date: 'Nov 05, 2026', dateLabel: '5 Nov 2026', time: '20:00 WIB', location: 'Stadium One', city: 'Surabaya', price: 'Rp 950.000', image: '/silaturahmi_new2.webp', desc: 'Rock concert dengan energy level tertinggi! Band-band rock legendaris akan tampil di panggung terbesar Indonesia malam ini.', seats: 67, tag: 'Rock' },
+  { id: 4, name: 'Silaturahmi', date: 'Nov 12, 2026', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Downtown Square', city: 'Yogyakarta', price: 'Rp 350.000', image: '/silaturahmi_new2.webp', desc: 'Festival indie lokal yang merayakan kreativitas musisi independen Indonesia. Temukan suara baru yang segar dan autentik.', seats: 89, tag: 'Indie' },
 ];
 
 // Event Modal
@@ -61,24 +89,24 @@ const adultCount = ref(0);
 const toddlerCount = ref(0);
 
 const facilities = [
-  { icon: Bus, title: 'Modern Fleet', desc: 'Spacious & comfortable vehicles' },
-  { icon: ShieldCheck, title: 'Safe & Secure', desc: 'Verified drivers & tracking' },
-  { icon: Sofa, title: 'Comfort Seats', desc: 'Ergonomic seating layout' },
-  { icon: Zap, title: 'Free Charging', desc: 'USB ports on every seat' },
-  { icon: Coffee, title: 'Complimentary Water', desc: 'Free mineral water' }
+  { icon: Bus, title: 'Armada Modern', desc: 'Kendaraan yang luas & nyaman' },
+  { icon: ShieldCheck, title: 'Aman & Terpercaya', desc: 'Sopir terverifikasi & pelacakan' },
+  { icon: Sofa, title: 'Kursi Nyaman', desc: 'Tata letak kursi ergonomis' },
+  { icon: Zap, title: 'Pengisian Daya Gratis', desc: 'Port USB di setiap kursi' },
+  { icon: Coffee, title: 'Air Minum Gratis', desc: 'Air mineral gratis untuk perjalanan' }
 ];
 
 const searchQuery = ref('');
 const pickupLocations = [
-  { region: 'Depok', name: 'Margo City', address: 'Jl. Margonda Raya No.358, Depok' },
-  { region: 'Bogor', name: 'Botani Square', address: 'Jl. Raya Pajajaran, Tegallega' },
-  { region: 'Tangerang', name: 'Tangerang City Mall', address: 'Jl. Jenderal Sudirman No.1' },
-  { region: 'DKI Jakarta', name: 'Blok M Plaza', address: 'Jl. Bulungan No.76, Jakarta Selatan' },
-  { region: 'DKI Jakarta', name: 'Grand Indonesia', address: 'Jl. M.H. Thamrin No.1, Jakarta Pusat' },
-  { region: 'DKI Jakarta', name: 'Central Park', address: 'Jl. Letjen S. Parman, Jakarta Barat' },
-  { region: 'Bandung', name: 'Trans Studio Mall', address: 'Jl. Gatot Subroto No.289, Bandung' },
-  { region: 'Bandung', name: 'Cihampelas Walk', address: 'Jl. Cihampelas No.160, Bandung' },
-  { region: 'Bekasi', name: 'Summarecon Mall Bekasi', address: 'Jl. Boulevard Ahmad Yani' }
+  { region: 'Depok', name: 'Margo City', address: 'Jl. Margonda Raya No.358, Depok', lat: -6.3731, lng: 106.8346 },
+  { region: 'Bogor', name: 'Botani Square', address: 'Jl. Raya Pajajaran, Tegallega', lat: -6.6016, lng: 106.8062 },
+  { region: 'Tangerang', name: 'Tangerang City Mall', address: 'Jl. Jenderal Sudirman No.1', lat: -6.2023, lng: 106.6347 },
+  { region: 'DKI Jakarta', name: 'Blok M Plaza', address: 'Jl. Bulungan No.76, Jakarta Selatan', lat: -6.2443, lng: 106.7975 },
+  { region: 'DKI Jakarta', name: 'Grand Indonesia', address: 'Jl. M.H. Thamrin No.1, Jakarta Pusat', lat: -6.1951, lng: 106.8208 },
+  { region: 'DKI Jakarta', name: 'Central Park', address: 'Jl. Letjen S. Parman, Jakarta Barat', lat: -6.1774, lng: 106.7907 },
+  { region: 'Bandung', name: 'Trans Studio Mall', address: 'Jl. Gatot Subroto No.289, Bandung', lat: -6.9255, lng: 107.6369 },
+  { region: 'Bandung', name: 'Cihampelas Walk', address: 'Jl. Cihampelas No.160, Bandung', lat: -6.8965, lng: 107.6104 },
+  { region: 'Bekasi', name: 'Summarecon Mall Bekasi', address: 'Jl. Boulevard Ahmad Yani', lat: -6.2256, lng: 106.9996 }
 ];
 
 const groupedLocations = computed(() => {
@@ -96,9 +124,28 @@ const groupedLocations = computed(() => {
   return groups;
 });
 
-const selectPickup = (locName) => {
-  bookingOrigin.value = locName;
-  document.getElementById('booking-portal').scrollIntoView({ behavior: 'smooth' });
+let searchDebounceTimeout = null;
+watch(searchQuery, (newVal) => {
+  if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
+  searchDebounceTimeout = setTimeout(() => {
+    if (newVal.trim()) {
+      selectedLocation.value = newVal;
+    }
+  }, 1000);
+});
+
+const searchOnMap = () => {
+  if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
+  if (searchQuery.value.trim()) {
+    selectedLocation.value = searchQuery.value;
+  }
+};
+
+const selectPickup = (loc) => {
+  bookingOrigin.value = loc.name;
+  selectedLocation.value = loc.lat && loc.lng ? `${loc.lat},${loc.lng}` : `${loc.name}, ${loc.address}`;
+  const portal = document.getElementById('booking-portal');
+  if (portal) portal.scrollIntoView({ behavior: 'smooth' });
 };
 
 const handleSearch = () => {
@@ -109,12 +156,12 @@ const handleSearch = () => {
 
 // Reviews
 const reviews = [
-  { id: 1, name: 'Rizky Aditya', initials: 'RA', trip: 'Neon Lights Festival → City Arena', stars: 5, color: '#C94C4C', comment: 'Pelayanan luar biasa! Berangkat on time, kursinya nyaman banget, dan drivernya ramah. Gak perlu khawatir soal parkir event lagi. Worth every penny!', date: '16 Oct 2026', tag: 'Crowd Shuttle' },
-  { id: 2, name: 'Salsabila Putri', initials: 'SP', trip: 'Symphony in Park → Grand Park', stars: 5, color: '#7C4DFF', comment: 'Pertama kali coba AJAK! dan langsung ketagihan. Mobilnya bersih, ada charger USB, dan rutenya pas banget dari dekat rumah. Akan pakai lagi pastinya!', date: '23 Oct 2026', tag: 'Crowd Shuttle' },
-  { id: 3, name: 'Daffa Ramadhan', initials: 'DR', trip: 'Midnight Rock → Stadium One', stars: 5, color: '#00897B', comment: 'VIP experience yang sesungguhnya. Dijemput langsung di depan venue, privat tanpa ribet. Untuk artis dan tamu penting, AJAK! Black Label adalah pilihan terbaik.', date: '6 Nov 2026', tag: 'Black Label' },
-  { id: 4, name: 'Nadia Kusuma', initials: 'NK', trip: 'Indie Vibes Fest → Downtown', stars: 4, color: '#F4511E', comment: 'Sangat membantu! Aplikasinya mudah, pick up point-nya jelas, dan harganya reasonable untuk kualitas yang didapat. Sedikit telat 5 menit, tapi overall bagus.', date: '13 Nov 2026', tag: 'Crowd Shuttle' },
-  { id: 5, name: 'Kevin Pratama', initials: 'KP', trip: 'Neon Lights → City Arena', stars: 5, color: '#1565C0', comment: 'Game changer untuk concert goers! Gak perlu mikirin parkir, macet, atau pulang kemalaman. AJAK! bikin experience konser jadi 10x lebih enjoyable.', date: '17 Oct 2026', tag: 'Crowd Shuttle' },
-  { id: 6, name: 'Amelia Santoso', initials: 'AS', trip: 'Symphony → Grand Park', stars: 5, color: '#6D4C41', comment: 'Recommended banget! Koordinasi grupnya mudah, seats comfy, dan systemnya terorganisir. Tim AJAK! juga responsif kalau ada pertanyaan.', date: '24 Oct 2026', tag: 'Crowd Shuttle' }
+  { id: 1, name: 'Rizky Aditya', initials: 'RA', trip: 'Silaturahmi → City Arena', stars: 5, color: '#C94C4C', comment: 'Pelayanan luar biasa! Berangkat on time, kursinya nyaman banget, dan drivernya ramah. Gak perlu khawatir soal parkir event lagi. Worth every penny!', date: '16 Okt 2026', tag: 'Shuttle Bersama' },
+  { id: 2, name: 'Salsabila Putri', initials: 'SP', trip: 'Silaturahmi → Grand Park', stars: 5, color: '#7C4DFF', comment: 'Pertama kali coba AJAK! dan langsung ketagihan. Mobilnya bersih, ada charger USB, dan rutenya pas banget dari dekat rumah. Akan pakai lagi pastinya!', date: '23 Okt 2026', tag: 'Shuttle Bersama' },
+  { id: 3, name: 'Daffa Ramadhan', initials: 'DR', trip: 'Silaturahmi → Stadium One', stars: 5, color: '#00897B', comment: 'VIP experience yang sesungguhnya. Dijemput langsung di depan venue, privat tanpa ribet. Untuk artis dan tamu penting, AJAK! Black Label adalah pilihan terbaik.', date: '6 Nov 2026', tag: 'VIP Pribadi' },
+  { id: 4, name: 'Nadia Kusuma', initials: 'NK', trip: 'Silaturahmi → Downtown', stars: 4, color: '#F4511E', comment: 'Sangat membantu! Aplikasinya mudah, pick up point-nya jelas, dan harganya reasonable untuk kualitas yang didapat. Sedikit telat 5 menit, tapi overall bagus.', date: '13 Nov 2026', tag: 'Shuttle Bersama' },
+  { id: 5, name: 'Kevin Pratama', initials: 'KP', trip: 'Silaturahmi → City Arena', stars: 5, color: '#1565C0', comment: 'Game changer untuk concert goers! Gak perlu mikirin parkir, macet, atau pulang kemalaman. AJAK! bikin experience konser jadi 10x lebih enjoyable.', date: '17 Okt 2026', tag: 'Shuttle Bersama' },
+  { id: 6, name: 'Amelia Santoso', initials: 'AS', trip: 'Silaturahmi → Grand Park', stars: 5, color: '#6D4C41', comment: 'Recommended banget! Koordinasi grupnya mudah, seats comfy, dan systemnya terorganisir. Tim AJAK! juga responsif kalau ada pertanyaan.', date: '24 Okt 2026', tag: 'Shuttle Bersama' }
 ];
 
 // duplicated for seamless marquee loop
@@ -122,6 +169,15 @@ const reviewsMarquee = [...reviews, ...reviews];
 
 // Marquee logo count
 const marqueeCount = 12;
+
+const tagColors = {
+  Electronic: '#7C4DFF',
+  Classical: '#00897B',
+  Rock: '#C94C4C',
+  Indie: '#F4511E',
+  Jazz: '#1565C0',
+  EDM: '#6D1B7B',
+};
 </script>
 
 <template>
@@ -237,9 +293,8 @@ const marqueeCount = 12;
 
         <!-- Main headline -->
         <h1 class="hero-title">
-          Ride to the
-          <span class="hero-highlight"> Beat.</span><br />
-          Arrive in <span class="hero-highlight">Style.</span>
+          Perjalanan Nyaman.<br />
+          Tiba dengan <span class="hero-highlight">Gaya.</span>
         </h1>
 
         <!-- Subtext -->
@@ -263,17 +318,17 @@ const marqueeCount = 12;
         <div class="hero-stats">
           <div class="stat-pill">
             <span class="stat-num">50K+</span>
-            <span class="stat-lab">Riders</span>
+            <span class="stat-lab">Penumpang</span>
           </div>
           <div class="stat-sep"></div>
           <div class="stat-pill">
             <span class="stat-num">200+</span>
-            <span class="stat-lab">Events</span>
+            <span class="stat-lab">Event</span>
           </div>
           <div class="stat-sep"></div>
           <div class="stat-pill">
             <span class="stat-num">24/7</span>
-            <span class="stat-lab">Support</span>
+            <span class="stat-lab">Layanan</span>
           </div>
         </div>
       </div>
@@ -311,18 +366,43 @@ const marqueeCount = 12;
         </div>
 
         <div class="events-cards">
-          <div v-for="event in events" :key="event.id" class="modern-card" @click="openEventModal(event)">
-            <div class="card-image-box">
-              <img :src="event.image" :alt="event.name"/>
-              <div class="card-status">Selling Fast</div>
-              <div class="card-click-hint">Tap to book ride</div>
+          <div
+            v-for="event in events.slice(0, 3)"
+            :key="event.id"
+            class="event-card"
+            @click="openEventModal(event)"
+          >
+            <div class="event-card-img">
+              <img :src="event.image" :alt="event.name" />
+              <div class="event-img-overlay"></div>
+              <div class="event-genre-tag" :style="{ background: tagColors[event.tag] }">
+                {{ event.tag }}
+              </div>
+              <div class="event-city-tag">
+                <MapPin :size="11" />{{ event.city }}
+              </div>
             </div>
-            <div class="card-body">
-              <p class="card-location">{{ event.location }} · {{ event.city }}</p>
-              <h3 class="card-name">{{ event.name }}</h3>
-              <div class="card-footer-info">
-                <span class="card-price-tag">{{ event.price }}</span>
-                <button class="btn btn-primary-small">Book Ride</button>
+            <div class="event-card-body">
+              <h3 class="event-name">{{ event.name }}</h3>
+              <p class="event-desc">{{ event.desc }}</p>
+              <div class="event-meta">
+                <div class="meta-row">
+                  <Calendar :size="13" />
+                  <span>{{ event.dateLabel }} · {{ event.time }}</span>
+                </div>
+                <div class="meta-row">
+                  <MapPin :size="13" />
+                  <span>{{ event.location }}</span>
+                </div>
+              </div>
+              <div class="event-card-footer">
+                <div class="event-price-block">
+                  <span class="price-label">Mulai dari</span>
+                  <span class="event-price">{{ event.price }}</span>
+                </div>
+                <button class="book-now-btn">
+                  Pesan Sekarang →
+                </button>
               </div>
             </div>
           </div>
@@ -356,45 +436,45 @@ const marqueeCount = 12;
     <section class="section tiers-section" id="services">
       <div class="container">
         <div class="section-title-box text-center mb-5">
-          <span class="sub-title">Our Fleet</span>
-          <h2 class="creative-title">Experience <span class="text-primary">Tiers</span></h2>
+          <span class="sub-title">Armada Kami</span>
+          <h2 class="creative-title">Tingkat <span class="text-primary">Layanan</span></h2>
           <div class="title-underline mx-auto"></div>
         </div>
 
         <div class="tiers-grid">
           <div class="tier-card public">
             <div class="tier-visual">
-              <img src="/public_bus.png" alt="Public Shuttle" />
-              <div class="tier-badge">Fan Favorite</div>
+              <img src="/bus.png" alt="Public Shuttle" />
+              <div class="tier-badge">Favorit Penggemar</div>
             </div>
             <div class="tier-info">
-              <div class="tier-tag">Shared Community</div>
-              <h3>The Crowd Shuttle</h3>
-              <p>The ultimate way to travel with fellow fans. Efficient, safe, and social.</p>
+              <div class="tier-tag">Komunitas Bersama</div>
+              <h3>Shuttle Bersama</h3>
+              <p>Cara terbaik untuk bepergian bersama sesama penggemar. Efisien, aman, dan menyenangkan.</p>
               <ul class="tier-list">
-                <li><Zap size="16"/> Smart Pickup Locations</li>
-                <li><Zap size="16"/> Scheduled Departures</li>
-                <li><Zap size="16"/> Round-trip Security</li>
+                <li><Zap size="16"/> Titik Jemput Strategis</li>
+                <li><Zap size="16"/> Keberangkatan Terjadwal</li>
+                <li><Zap size="16"/> Keamanan Pulang-Pergi</li>
               </ul>
-              <button class="btn btn-outline-red mt-4">Learn More</button>
+              <button class="btn btn-outline-red mt-4">Pelajari Selengkapnya</button>
             </div>
           </div>
 
           <div class="tier-card dark">
             <div class="tier-visual">
-              <img src="/private_car.png" alt="VIP Car" />
+              <img src="/vvip.png" alt="VIP Car" />
               <div class="tier-badge vip">Elite</div>
             </div>
             <div class="tier-info">
-              <div class="tier-tag">VIP Exclusive</div>
-              <h3>The Black Label</h3>
-              <p>Premium privacy for performers and VVIPs. Total control over your schedule.</p>
+              <div class="tier-tag">Eksklusif VIP</div>
+              <h3>Layanan Black Label</h3>
+              <p>Privasi premium untuk penampil dan VVIP. Kontrol penuh atas jadwal perjalanan Anda.</p>
               <ul class="tier-list">
-                <li><Zap size="16"/> Luxury Chauffeurs</li>
-                <li><Zap size="16"/> Door-to-Door Direct</li>
-                <li><Zap size="16"/> Absolute Privacy</li>
+                <li><Zap size="16"/> Sopir Mewah Profesional</li>
+                <li><Zap size="16"/> Langsung Pintu ke Pintu</li>
+                <li><Zap size="16"/> Privasi Mutlak</li>
               </ul>
-              <button class="btn btn-primary mt-4">Book VIP</button>
+              <button class="btn btn-primary mt-4">Pesan VIP</button>
             </div>
           </div>
         </div>
@@ -419,8 +499,8 @@ const marqueeCount = 12;
     <section class="section pickup-discovery bg-light" id="discovery">
       <div class="container">
         <div class="section-title-box mb-5">
-          <span class="sub-title">Network</span>
-          <h2 class="creative-title">Pick Up <span class="text-primary">Discovery</span></h2>
+          <span class="sub-title">Jaringan</span>
+          <h2 class="creative-title">Temukan <span class="text-primary">Titik Jemput</span></h2>
           <div class="title-underline"></div>
         </div>
 
@@ -428,12 +508,12 @@ const marqueeCount = 12;
           <div class="search-panel glass-morphism">
             <div class="custom-search">
               <Search size="20" class="srch-icon" />
-              <input type="text" v-model="searchQuery" placeholder="Search your city...">
+              <input type="text" v-model="searchQuery" placeholder="Cari kota atau lokasi penjemputan..." @keyup.enter="searchOnMap">
             </div>
             <div class="results-scroll">
               <div v-for="(locations, region) in groupedLocations" :key="region">
                 <h4 class="group-label">{{ region }}</h4>
-                <div v-for="loc in locations" :key="loc.name" class="loc-card" @click="selectPickup(loc.name)">
+                <div v-for="loc in locations" :key="loc.name" class="loc-card" @click="selectPickup(loc)">
                   <div class="loc-text">
                     <h5>{{ loc.name }}</h5>
                     <p>{{ loc.address }}</p>
@@ -445,10 +525,19 @@ const marqueeCount = 12;
           </div>
 
           <div class="map-panel">
-            <img src="/map_placeholder.png" alt="Location Map" />
-            <div class="map-floating-card">
-              <div class="hub-count">24+</div>
-              <div class="hub-label">Active Hubs</div>
+            <iframe
+              v-if="mapUrl"
+              :src="mapUrl"
+              width="100%"
+              height="100%"
+              style="border:0;"
+              allowfullscreen=""
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade"
+            ></iframe>
+            <div v-else class="map-placeholder-fallback">
+              <div class="map-spinner"></div>
+              <p>Mencari lokasi Anda...</p>
             </div>
           </div>
         </div>
@@ -458,7 +547,7 @@ const marqueeCount = 12;
     <!-- ===== FACILITIES ===== -->
     <section class="section amenities-section">
       <div class="container text-center">
-        <h2 class="creative-title text-white mb-5">Ride <span class="text-secondary">Amenities</span></h2>
+        <h2 class="creative-title text-white mb-5">Fasilitas <span class="text-secondary">Perjalanan</span></h2>
         <div class="amenities-grid">
           <div v-for="(fac, index) in facilities" :key="index" class="amenity-box">
             <div class="amenity-icon">
@@ -489,19 +578,19 @@ const marqueeCount = 12;
     <section class="section heart-section" id="about">
       <div class="container">
         <div class="heart-container">
-          <span class="sub-title">Foundations</span>
-          <h2 class="creative-title mb-4">The Heart of <span class="text-primary">AJAK!</span></h2>
+          <span class="sub-title">Fondasi Utama</span>
+          <h2 class="creative-title mb-4">Jantung dari <span class="text-primary">AJAK!</span></h2>
           <div class="title-underline mx-auto mb-5"></div>
           <p class="main-para">
-            We started with a simple belief: <strong>getting there should be as exciting as the performance itself.</strong>
+            Kami memulai dengan keyakinan sederhana: <strong>perjalanan menuju venue harus sama serunya dengan pertunjukan itu sendiri.</strong>
           </p>
           <p class="sub-para mt-4">
-            Born in 2026, AJAK! bridges the gap between chaotic city transit and the electric atmosphere of the stage. We build safe, organized, and premium transport networks for fans, artists, and everyone in between.
+            Lahir pada tahun 2026, AJAK! menjembatani celah antara transit kota yang padat dan atmosfer panggung yang membara. Kami membangun jaringan transportasi yang aman, terorganisir, dan premium untuk penggemar, artis, dan semua orang diantaranya.
           </p>
           <div class="stats-row mt-5">
-            <div class="stat-circle"><span class="val">50k+</span><span class="lab">Riders</span></div>
-            <div class="stat-circle secondary"><span class="val">200+</span><span class="lab">Stages</span></div>
-            <div class="stat-circle"><span class="val">24/7</span><span class="lab">Care</span></div>
+            <div class="stat-circle"><span class="val">50k+</span><span class="lab">Penumpang</span></div>
+            <div class="stat-circle secondary"><span class="val">200+</span><span class="lab">Panggung</span></div>
+            <div class="stat-circle"><span class="val">24/7</span><span class="lab">Layanan</span></div>
           </div>
         </div>
       </div>
@@ -613,7 +702,15 @@ const marqueeCount = 12;
 }
 .slide-layer {
   position: absolute; inset: 0;
-  transition: opacity 1s ease;
+  transition: opacity 1.5s ease-in-out;
+}
+.fade-slideshow-enter-active,
+.fade-slideshow-leave-active {
+  transition: opacity 1.5s ease-in-out;
+}
+.fade-slideshow-enter-from,
+.fade-slideshow-leave-to {
+  opacity: 0;
 }
 .slide-layer img {
   width: 100%; height: 100%; object-fit: cover;
@@ -963,62 +1060,137 @@ const marqueeCount = 12;
 .vibes-section { padding-top: 80px; }
 .events-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 24px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
 }
-.modern-card {
-  background: var(--card-bg); border-radius: 24px; overflow: hidden;
-  transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: var(--shadow-md);
-  cursor: pointer;
-  border: 1px solid var(--border-color);
-  position: relative;
-}
-.modern-card::after {
-  content: '';
-  position: absolute; inset: 0;
+.event-card {
+  background: var(--card-bg);
   border-radius: 24px;
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  pointer-events: none;
-}
-.modern-card:hover {
-  transform: translateY(-12px) scale(1.01);
-  box-shadow: 0 24px 50px rgba(201,76,76,0.14), 0 8px 20px rgba(0,0,0,0.06);
-}
-.modern-card:hover::after { border-color: rgba(201,76,76,0.2); }
-.modern-card:hover .card-click-hint { opacity: 1; }
-.modern-card:active { transform: translateY(-4px) scale(0.99); }
-
-.card-image-box { height: 200px; position: relative; overflow: hidden; }
-.card-image-box img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1); }
-.modern-card:hover .card-image-box img { transform: scale(1.08); }
-.card-status {
-  position: absolute; top: 14px; right: 14px;
-  background: var(--card-bg); padding: 4px 12px;
-  border-radius: 10px; font-size: 0.7rem; font-weight: 800; color: var(--primary);
+  overflow: hidden;
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
+  border: 1px solid var(--border-color);
+  text-align: left;
 }
-.card-click-hint {
-  position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
-  background: rgba(0,0,0,0.6); color: white; font-size: 0.7rem; font-weight: 700;
-  padding: 5px 14px; border-radius: 20px; opacity: 0; transition: opacity 0.3s;
-  white-space: nowrap; backdrop-filter: blur(6px);
+.event-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary);
 }
-.card-body { padding: 22px; }
-.card-location { font-weight: 700; color: var(--primary); font-size: 0.72rem; text-transform: uppercase; margin-bottom: 6px; }
-.card-name { font-size: 1.15rem; font-weight: 800; margin-bottom: 18px; }
-.card-footer-info { display: flex; justify-content: space-between; align-items: center; }
-.card-price-tag { font-weight: 900; font-size: 1.05rem; color: var(--text-dark); }
-.btn-primary-small {
-  background: var(--primary); color: white; padding: 8px 18px;
-  border-radius: 10px; font-weight: 700; font-size: 0.82rem;
-  cursor: pointer; border: none; font-family: inherit; transition: all 0.25s;
-  display: flex; align-items: center; gap: 6px;
+.event-card-img {
+  height: 200px;
+  position: relative;
+  overflow: hidden;
 }
-.btn-primary-small::after { content: '→'; transition: transform 0.25s; }
-.modern-card:hover .btn-primary-small::after { transform: translateX(4px); }
-.btn-primary-small:hover { background: #b34242; transform: scale(1.04); }
+.event-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+.event-card:hover .event-card-img img { transform: scale(1.07); }
+.event-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: url('/silaturahmi_new2.webp') no-repeat center;
+  background-size: cover;
+}
+.event-genre-tag {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.event-city-tag {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: rgba(0,0,0,0.45);
+  padding: 4px 10px;
+  border-radius: 20px;
+  backdrop-filter: blur(6px);
+}
+.event-card-body { padding: 22px; }
+.event-name {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: var(--text-dark);
+  margin-bottom: 8px;
+  letter-spacing: -0.3px;
+}
+.event-desc {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  line-height: 1.6;
+  margin-bottom: 16px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.event-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+.meta-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+.meta-row svg { color: var(--primary); flex-shrink: 0; }
+.event-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color);
+}
+.price-label {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #bbb;
+  margin-bottom: 2px;
+}
+.event-price {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--text-dark);
+}
+.book-now-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.25s;
+  white-space: nowrap;
+}
+.book-now-btn:hover {
+  background: #b34242;
+  transform: scale(1.03);
+  box-shadow: 0 6px 18px rgba(201,76,76,0.3);
+}
 
 /* View all button */
 .view-all-wrap {
@@ -1190,8 +1362,7 @@ const marqueeCount = 12;
 
   .discovery-grid { grid-template-columns: 1fr; gap: 16px; }
   .search-panel { height: 360px; padding: 16px; border-radius: 20px; }
-  .map-panel { min-height: 200px; border-radius: 20px; margin-bottom: 20px; }
-  .map-panel img { height: 200px; }
+  .map-panel { min-height: 350px; height: 350px; border-radius: 20px; margin-bottom: 20px; }
 
   .amenities-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
   .amenity-icon { width: 50px; height: 50px; border-radius: 16px; }
@@ -1288,8 +1459,11 @@ const marqueeCount = 12;
 .loc-text h5 { font-weight: 800; font-size: 1rem; margin-bottom: 3px; }
 .loc-text p { font-size: 0.82rem; color: var(--text-light); }
 .loc-action { color: var(--primary); }
-.map-panel { border-radius: 28px; overflow: hidden; position: relative; min-height: 400px; }
-.map-panel img { width: 100%; height: 100%; object-fit: cover; }
+.map-panel { border-radius: 28px; overflow: hidden; position: relative; min-height: 400px; height: 100%; border: 1px solid var(--border-color); box-shadow: var(--shadow-md); }
+.map-panel iframe { width: 100%; height: 100%; border: 0; display: block; }
+.map-placeholder-fallback { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; background: #1a1a1a; color: white; gap: 16px; min-height: 400px; }
+.map-spinner { width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.1); border-top-color: var(--primary); border-radius: 50%; animation: map-spin 1s linear infinite; }
+@keyframes map-spin { to { transform: rotate(360deg); } }
 .map-floating-card { position: absolute; top: 24px; right: 24px; background: var(--card-bg); padding: 18px; border-radius: 20px; text-align: center; box-shadow: var(--shadow-md); }
 .hub-count { font-size: 1.8rem; font-weight: 900; color: var(--primary); }
 .hub-label { font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; }
@@ -1373,8 +1547,7 @@ const marqueeCount = 12;
   .amenities-grid { grid-template-columns: repeat(3, 1fr); }
   .events-cards { grid-template-columns: repeat(2, 1fr); }
   .marquee-logo-img { height: 72px; }
-  .map-panel { min-height: 300px; }
-  .map-panel img { height: 300px; }
+  .map-panel { min-height: 400px; height: 400px; }
 }
 
 @media (max-width: 768px) {
@@ -1404,8 +1577,7 @@ const marqueeCount = 12;
 
   .discovery-grid { grid-template-columns: 1fr; gap: 20px; }
   .search-panel { height: 340px; padding: 20px; }
-  .map-panel { min-height: 220px; border-radius: 20px; }
-  .map-panel img { height: 220px; object-fit: cover; }
+  .map-panel { min-height: 350px; height: 350px; border-radius: 20px; }
 
   .amenities-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
   .amenities-section { padding: 60px 0; }
