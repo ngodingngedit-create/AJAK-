@@ -15,6 +15,7 @@ const router = createRouter({
     { path: '/booking/:id', name: 'booking', component: BookingView },
     { path: '/confirmation', name: 'confirmation', component: ConfirmationView },
     { path: '/login', name: 'login', component: LoginView },
+    { path: '/dashboard', name: 'dashboard', component: () => import('../views/DashboardView.vue') },
     { path: '/profile', name: 'profile', component: ProfileView },
     { path: '/profile/payments', name: 'profile-payments', component: ComingSoonView },
     { path: '/profile/notifications', name: 'profile-notif', component: ComingSoonView },

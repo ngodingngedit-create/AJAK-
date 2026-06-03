@@ -3,7 +3,12 @@ import { reactive } from 'vue';
 export const bookingStore = reactive({
   selectedEvent: null,
   selectedPickup: null,
-  selectedSchedule: null,
+  selectedReturn: null,
+  customer: {
+    name: '',
+    email: '',
+    phone: ''
+  },
   adults: 1,
   toddlers: 0,
   bookingCode: null,
@@ -11,7 +16,8 @@ export const bookingStore = reactive({
   reset() {
     this.selectedEvent = null;
     this.selectedPickup = null;
-    this.selectedSchedule = null;
+    this.selectedReturn = null;
+    this.customer = { name: '', email: '', phone: '' };
     this.adults = 1;
     this.toddlers = 0;
     this.bookingCode = null;
@@ -30,7 +36,15 @@ export const bookingStore = reactive({
   },
 
   get ridePrice() {
-    if (!this.selectedSchedule) return 0;
-    return this.selectedSchedule.pricePerPax * this.adults;
+    if (!this.selectedEvent) return 0;
+    return this.selectedEvent.priceNum * this.adults;
+  },
+
+  get adminFee() {
+    return 5000;
+  },
+
+  get totalPrice() {
+    return this.ridePrice + this.adminFee;
   }
 });

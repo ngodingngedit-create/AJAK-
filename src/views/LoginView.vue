@@ -9,9 +9,12 @@ const password = ref('');
 
 const handleLogin = (e) => {
   e.preventDefault();
-  // Simulate login
-  authState.login();
-  router.push('/');
+  if (email.value === 'thesoundsproject@gmail.com' && password.value === '12345678') {
+    authState.login();
+    router.push('/dashboard');
+  } else {
+    alert('Email atau password salah!');
+  }
 };
 </script>
 

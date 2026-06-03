@@ -5,7 +5,7 @@ export const authState = reactive({
   user: null,
   login() {
     this.isLoggedIn = true;
-    this.user = { name: 'VIP User', avatar: '' };
+    this.user = { name: 'The Sounds Project', avatar: '' };
   },
   logout() {
     this.isLoggedIn = false;

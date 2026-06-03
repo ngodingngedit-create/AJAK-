@@ -8,9 +8,9 @@ const router = useRouter();
 
 // Hero Images Loop
 const heroImages = [
-  { src: '/home/home (1).jpg', alt: 'Home Slide 1' },
-  { src: '/home/home (2).jpg', alt: 'Home Slide 2' },
-  { src: '/home/home (3).jpg', alt: 'Home Slide 3' }
+  { src: '/busbiru.png', alt: 'Bus Biru' },
+  { src: '/busputih.png', alt: 'Bus Putih' },
+  { src: '/hiace.png', alt: 'Hiace' }
 ];
 const currentHeroIndex = ref(0);
 let heroInterval;
@@ -53,10 +53,10 @@ onUnmounted(() => {
 
 // Mock Data
 const events = [
-  { id: 1, name: 'Silaturahmi', date: 'Oct 15, 2026', dateLabel: '15 Okt 2026', time: '18:00 WIB', location: 'City Arena', city: 'Jakarta', price: 'Rp 750.000', image: '/silaturahmi_new2.webp', desc: 'Festival musik elektronik terbesar di Asia Tenggara dengan lineup DJ kelas dunia. Nikmati malam yang penuh cahaya neon dan musik yang menggetarkan jiwa.', seats: 42, tag: 'Electronic' },
-  { id: 2, name: 'Silaturahmi', date: 'Oct 22, 2026', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Grand Park', city: 'Bandung', price: 'Rp 450.000', image: '/silaturahmi_new2.webp', desc: 'Konser orkestra klasik di bawah bulan purnama. Rasakan harmoni indah dari musisi terbaik Indonesia bersama orang-orang tersayang.', seats: 18, tag: 'Classical' },
-  { id: 3, name: 'Silaturahmi', date: 'Nov 05, 2026', dateLabel: '5 Nov 2026', time: '20:00 WIB', location: 'Stadium One', city: 'Surabaya', price: 'Rp 950.000', image: '/silaturahmi_new2.webp', desc: 'Rock concert dengan energy level tertinggi! Band-band rock legendaris akan tampil di panggung terbesar Indonesia malam ini.', seats: 67, tag: 'Rock' },
-  { id: 4, name: 'Silaturahmi', date: 'Nov 12, 2026', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Downtown Square', city: 'Yogyakarta', price: 'Rp 350.000', image: '/silaturahmi_new2.webp', desc: 'Festival indie lokal yang merayakan kreativitas musisi independen Indonesia. Temukan suara baru yang segar dan autentik.', seats: 89, tag: 'Indie' },
+  { id: 1, name: 'The Sounds Project', date: 'Oct 15, 2026', dateLabel: '15 Okt 2026', time: '18:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', image: '/TSP.jpeg', desc: 'Festival musik terbesar di Indonesia. Nikmati malam yang penuh musik yang menggetarkan jiwa.', seats: 42, tag: 'Shuttle Bersama' },
+  { id: 2, name: 'The Sounds Project', date: 'Oct 22, 2026', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Ancol', city: 'Jakarta', price: 'Rp 1.500.000', image: '/TSP.jpeg', desc: 'Konser dengan pemandangan laut yang indah di bawah bulan purnama.', seats: 18, tag: 'Shuttle Eksklusif' },
+  { id: 3, name: 'The Sounds Project', date: 'Nov 05, 2026', dateLabel: '5 Nov 2026', time: '20:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', image: '/TSP.jpeg', desc: 'Saksikan artis favoritmu dengan energy level tertinggi malam ini.', seats: 67, tag: 'Shuttle Bersama' },
+  { id: 4, name: 'The Sounds Project', date: 'Nov 12, 2026', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Ancol', city: 'Jakarta', price: 'Rp 1.500.000', image: '/TSP.jpeg', desc: 'Rasakan pengalaman VIP eksklusif bersama orang-orang tersayang.', seats: 89, tag: 'Shuttle Eksklusif' },
 ];
 
 // Event Modal
@@ -92,21 +92,20 @@ const facilities = [
   { icon: Bus, title: 'Armada Modern', desc: 'Kendaraan yang luas & nyaman' },
   { icon: ShieldCheck, title: 'Aman & Terpercaya', desc: 'Sopir terverifikasi & pelacakan' },
   { icon: Sofa, title: 'Kursi Nyaman', desc: 'Tata letak kursi ergonomis' },
-  { icon: Zap, title: 'Pengisian Daya Gratis', desc: 'Port USB di setiap kursi' },
-  { icon: Coffee, title: 'Air Minum Gratis', desc: 'Air mineral gratis untuk perjalanan' }
+  { icon: Zap, title: 'Pengisian Daya Gratis', desc: 'Isi daya gadget Anda selama perjalanan' },
+  { icon: Coffee, title: 'Air Conditioner', desc: 'AC yang sejuk' }
 ];
 
 const searchQuery = ref('');
 const pickupLocations = [
-  { region: 'Depok', name: 'Margo City', address: 'Jl. Margonda Raya No.358, Depok', lat: -6.3731, lng: 106.8346 },
-  { region: 'Bogor', name: 'Botani Square', address: 'Jl. Raya Pajajaran, Tegallega', lat: -6.6016, lng: 106.8062 },
-  { region: 'Tangerang', name: 'Tangerang City Mall', address: 'Jl. Jenderal Sudirman No.1', lat: -6.2023, lng: 106.6347 },
-  { region: 'DKI Jakarta', name: 'Blok M Plaza', address: 'Jl. Bulungan No.76, Jakarta Selatan', lat: -6.2443, lng: 106.7975 },
-  { region: 'DKI Jakarta', name: 'Grand Indonesia', address: 'Jl. M.H. Thamrin No.1, Jakarta Pusat', lat: -6.1951, lng: 106.8208 },
-  { region: 'DKI Jakarta', name: 'Central Park', address: 'Jl. Letjen S. Parman, Jakarta Barat', lat: -6.1774, lng: 106.7907 },
-  { region: 'Bandung', name: 'Trans Studio Mall', address: 'Jl. Gatot Subroto No.289, Bandung', lat: -6.9255, lng: 107.6369 },
-  { region: 'Bandung', name: 'Cihampelas Walk', address: 'Jl. Cihampelas No.160, Bandung', lat: -6.8965, lng: 107.6104 },
-  { region: 'Bekasi', name: 'Summarecon Mall Bekasi', address: 'Jl. Boulevard Ahmad Yani', lat: -6.2256, lng: 106.9996 }
+  { region: 'Jakarta Selatan', name: 'Pondok Indah Decathlon', address: 'Jakarta Selatan', lat: -6.2625, lng: 106.7824 },
+  { region: 'Depok', name: 'Showroom Royal Enfield, Margonda', address: 'Depok', lat: -6.3731, lng: 106.8346 },
+  { region: 'Sudirman', name: 'Jalan New Delhi, Disebelah Mall FX Sudirman', address: 'Sudirman', lat: -6.2241, lng: 106.8021 },
+  { region: 'Bogor', name: 'Terminal Damri Botani Square', address: 'Bogor', lat: -6.6016, lng: 106.8062 },
+  { region: 'BSD', name: 'Pasar Modern Intermoda BSD City', address: 'BSD', lat: -6.3213, lng: 106.6397 },
+  { region: 'Bekasi', name: 'Gerbang Tol Bekasi Barat', address: 'Bekasi', lat: -6.2458, lng: 106.9856 },
+  { region: 'Tangerang', name: 'Bandara Soekarno Hatta', address: 'Tangerang', lat: -6.1256, lng: 106.6558 },
+  { region: 'Jakarta Pusat', name: 'Jalan Silang Merdeka Tenggara (Gerbang Monas) Gambir', address: 'Jakarta Pusat', lat: -6.1754, lng: 106.8272 }
 ];
 
 const groupedLocations = computed(() => {
@@ -171,6 +170,8 @@ const reviewsMarquee = [...reviews, ...reviews];
 const marqueeCount = 12;
 
 const tagColors = {
+  'Shuttle Bersama': '#1565C0',
+  'Shuttle Eksklusif': '#C94C4C',
   Electronic: '#7C4DFF',
   Classical: '#00897B',
   Rock: '#C94C4C',
@@ -293,8 +294,8 @@ const tagColors = {
 
         <!-- Main headline -->
         <h1 class="hero-title">
-          Perjalanan Nyaman.<br />
-          Tiba dengan <span class="hero-highlight">Gaya.</span>
+          Antar Jemput.<br />
+          Anak <span class="hero-highlight">Konser.</span>
         </h1>
 
         <!-- Subtext -->
@@ -322,13 +323,13 @@ const tagColors = {
           </div>
           <div class="stat-sep"></div>
           <div class="stat-pill">
-            <span class="stat-num">200+</span>
+            <span class="stat-num">100+</span>
             <span class="stat-lab">Event</span>
           </div>
           <div class="stat-sep"></div>
           <div class="stat-pill">
             <span class="stat-num">24/7</span>
-            <span class="stat-lab">Layanan</span>
+            <span class="stat-lab">Layanan Customer Service</span>
           </div>
         </div>
       </div>
@@ -361,7 +362,7 @@ const tagColors = {
       <div class="container">
         <div class="section-title-box text-center mb-5">
           <span class="sub-title">Curation</span>
-          <h2 class="creative-title">Upcoming <span class="text-primary">Vibes</span></h2>
+          <h2 class="creative-title">Upcoming <span class="text-primary">Event</span></h2>
           <div class="title-underline mx-auto"></div>
         </div>
 
@@ -398,7 +399,10 @@ const tagColors = {
               <div class="event-card-footer">
                 <div class="event-price-block">
                   <span class="price-label">Mulai dari</span>
-                  <span class="event-price">{{ event.price }}</span>
+                  <div style="display: flex; flex-direction: column;">
+                    <span class="event-price">{{ event.price }}</span>
+                    <span style="font-size: 0.75rem; color: #aaa;">pulang - pergi</span>
+                  </div>
                 </div>
                 <button class="book-now-btn">
                   Pesan Sekarang →
@@ -437,14 +441,14 @@ const tagColors = {
       <div class="container">
         <div class="section-title-box text-center mb-5">
           <span class="sub-title">Armada Kami</span>
-          <h2 class="creative-title">Tingkat <span class="text-primary">Layanan</span></h2>
+          <h2 class="creative-title">Produk <span class="text-primary">Layanan</span></h2>
           <div class="title-underline mx-auto"></div>
         </div>
 
         <div class="tiers-grid">
           <div class="tier-card public">
             <div class="tier-visual">
-              <img src="/bus.png" alt="Public Shuttle" />
+              <img src="/shuttlebersama.png" alt="Public Shuttle" />
               <div class="tier-badge">Favorit Penggemar</div>
             </div>
             <div class="tier-info">
@@ -455,26 +459,29 @@ const tagColors = {
                 <li><Zap size="16"/> Titik Jemput Strategis</li>
                 <li><Zap size="16"/> Keberangkatan Terjadwal</li>
                 <li><Zap size="16"/> Keamanan Pulang-Pergi</li>
+                <li><Zap size="16"/> Terdapat Liaison Officer di tiap armada</li>
+                <li><Zap size="16"/> Full entertainment</li>
+                <li><Zap size="16"/> Kenyamanan Perjalanan</li>
               </ul>
-              <button class="btn btn-outline-red mt-4">Pelajari Selengkapnya</button>
             </div>
           </div>
 
           <div class="tier-card dark">
             <div class="tier-visual">
-              <img src="/vvip.png" alt="VIP Car" />
-              <div class="tier-badge vip">Elite</div>
+              <img src="/shuttleekslusif.png" alt="VIP Car" />
             </div>
             <div class="tier-info">
-              <div class="tier-tag">Eksklusif VIP</div>
-              <h3>Layanan Black Label</h3>
-              <p>Privasi premium untuk penampil dan VVIP. Kontrol penuh atas jadwal perjalanan Anda.</p>
+              <div class="tier-tag">Layanan Premium</div>
+              <h3>Shuttle Eksklusif</h3>
+              <p>Privasi premium untuk perjalanan Anda. Kontrol penuh atas jadwal perjalanan Anda.</p>
               <ul class="tier-list">
                 <li><Zap size="16"/> Sopir Mewah Profesional</li>
                 <li><Zap size="16"/> Langsung Pintu ke Pintu</li>
                 <li><Zap size="16"/> Privasi Mutlak</li>
+                <li><Zap size="16"/> Bisa menentukan titik jemput</li>
+                <li><Zap size="16"/> Bisa menentukan jam keberangkatan & kepulangan sesuka hati</li>
+                <li><Zap size="16"/> Terdapat Air Mineral</li>
               </ul>
-              <button class="btn btn-primary mt-4">Pesan VIP</button>
             </div>
           </div>
         </div>
@@ -482,15 +489,20 @@ const tagColors = {
     </section>
 
     <!-- ===== MARQUEE 3 ===== -->
-    <div class="logo-marquee-wrap">
+    <div class="text-marquee-wrap text-marquee">
       <div class="logo-marquee-track">
-        <div class="logo-marquee-inner">
-          <div v-for="i in marqueeCount" :key="'c'+i" class="logo-marquee-item">
-            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img" />
-          </div>
-          <div v-for="i in marqueeCount" :key="'c2'+i" class="logo-marquee-item" aria-hidden="true">
-            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img" />
-          </div>
+        <div class="logo-marquee-inner text-marquee-inner">
+          <span>Alasan harus menggunakan Shuttle Bus dari AJAX! :</span>
+          <span>TIDAK USAH REPOT CARI PARKIRAN</span>
+          <span>TIDAK PERLU ANTERI PANJANG</span>
+          <span>TIDAK PUSING MENGHADAPI KEMACETAN</span>
+          <span>HEMAT TENAGA</span>
+          <span>HEMAT BIAYA</span>
+          <span>HEMAT WAKTU</span>
+          <span>AMAN</span>
+          <span>NYAMAN</span>
+          <span>PERJALANAN MENYENANGKAN</span>
+          <span>MENDAPATKAN PENGALAMAN DAN TEMAN BARU</span>
         </div>
       </div>
     </div>
@@ -547,7 +559,7 @@ const tagColors = {
     <!-- ===== FACILITIES ===== -->
     <section class="section amenities-section">
       <div class="container text-center">
-        <h2 class="creative-title text-white mb-5">Fasilitas <span class="text-secondary">Perjalanan</span></h2>
+        <h2 class="creative-title mb-5" style="color: white !important;">Fasilitas <span style="color: white !important;">Perjalanan</span></h2>
         <div class="amenities-grid">
           <div v-for="(fac, index) in facilities" :key="index" class="amenity-box">
             <div class="amenity-icon">
@@ -582,15 +594,15 @@ const tagColors = {
           <h2 class="creative-title mb-4">Jantung dari <span class="text-primary">AJAK!</span></h2>
           <div class="title-underline mx-auto mb-5"></div>
           <p class="main-para">
-            Kami memulai dengan keyakinan sederhana: <strong>perjalanan menuju venue harus sama serunya dengan pertunjukan itu sendiri.</strong>
+            Kami memulai dengan keyakinan sederhana: <strong>perjalanan menuju tempat terselenggaranya acara harus sama serunya dengan pertunjukan itu sendiri.</strong>
           </p>
           <p class="sub-para mt-4">
-            Lahir pada tahun 2026, AJAK! menjembatani celah antara transit kota yang padat dan atmosfer panggung yang membara. Kami membangun jaringan transportasi yang aman, terorganisir, dan premium untuk penggemar, artis, dan semua orang diantaranya.
+            Lahir pada akhir 2025, AJAK! menjembatani celah antara transit kota yang padat dan atmosfer panggung yang membara. Kami membangun jaringan transportasi yang aman, terorganisir, dan premium untuk penggemar, artis, dan semua orang diantaranya.
           </p>
           <div class="stats-row mt-5">
             <div class="stat-circle"><span class="val">50k+</span><span class="lab">Penumpang</span></div>
-            <div class="stat-circle secondary"><span class="val">200+</span><span class="lab">Panggung</span></div>
-            <div class="stat-circle"><span class="val">24/7</span><span class="lab">Layanan</span></div>
+            <div class="stat-circle secondary"><span class="val">100+</span><span class="lab">Panggung</span></div>
+            <div class="stat-circle"><span class="val">24/7</span><span class="lab">Layanan Customer Service</span></div>
           </div>
         </div>
       </div>
@@ -652,6 +664,10 @@ const tagColors = {
       </div>
     </section>
 
+    <!-- WhatsApp Floating Button -->
+    <a href="https://wa.me/6285178276837" target="_blank" class="wa-float-btn" title="Hubungi Kami via WhatsApp">
+      <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" />
+    </a>
   </div>
 </template>
 
@@ -1093,8 +1109,7 @@ const tagColors = {
 .event-img-overlay {
   position: absolute;
   inset: 0;
-  background: url('/silaturahmi_new2.webp') no-repeat center;
-  background-size: cover;
+  background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 60%);
 }
 .event-genre-tag {
   position: absolute;
@@ -1606,5 +1621,49 @@ const tagColors = {
 @media (max-width: 480px) {
   .events-cards { grid-template-columns: 1fr; gap: 16px; }
   .hero-title { font-size: 2.2rem; }
+}
+
+.text-marquee { background: var(--primary); padding: 15px 0; color: white; display: flex; align-items: center; overflow: hidden; }
+.text-marquee-inner { display: flex; gap: 40px; padding-right: 40px; font-weight: bold; font-size: 1.2rem; align-items: center; white-space: nowrap; }
+.text-marquee-inner span { position: relative; }
+.text-marquee-inner span:not(:last-child)::after { content: "•"; position: absolute; right: -25px; color: rgba(255,255,255,0.5); }
+
+/* WhatsApp Float Button */
+.wa-float-btn {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  background-color: #25D366;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(37, 211, 102, 0.4);
+  z-index: 999;
+  transition: all 0.3s ease;
+}
+.wa-float-btn img {
+  width: 35px;
+  height: 35px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+}
+.wa-float-btn:hover {
+  transform: translateY(-5px) scale(1.05);
+  box-shadow: 0 8px 25px rgba(37, 211, 102, 0.5);
+}
+
+@media (max-width: 768px) {
+  .wa-float-btn {
+    bottom: 90px; /* Hindari tertimpa bottom navbar */
+    right: 20px;
+    width: 50px;
+    height: 50px;
+  }
+  .wa-float-btn img {
+    width: 28px;
+    height: 28px;
+  }
 }
 </style>

@@ -2,7 +2,7 @@
   <footer class="footer">
     <div class="container footer-content text-center">
       <div class="logo mb-2">AJAK!</div>
-      <p class="text-light">© 2026 AJAK! Transportation. All rights reserved.</p>
+      <p class="text-light">© 2025 AJAK! Transportation. All rights reserved.</p>
     </div>
   </footer>
 </template>

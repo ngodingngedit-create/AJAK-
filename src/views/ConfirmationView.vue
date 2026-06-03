@@ -20,8 +20,7 @@ const code = computed(() => bookingStore.bookingCode);
 const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 
 const totalRide = computed(() => {
-  if (!schedule.value) return 0;
-  return schedule.value.pricePerPax * bookingStore.adults;
+  return bookingStore.totalPrice;
 });
 
 const goHome = () => {
@@ -47,7 +46,7 @@ const browseMore = () => {
           <CheckCircle :size="52" class="success-ico" />
         </div>
         <h1 class="confirm-title">Pesanan Dikonfirmasi!</h1>
-        <p class="confirm-sub">Ride kamu sudah siap. Selamat menikmati {{ event.name }}! 🎉</p>
+        <p class="confirm-sub">Shuttle kamu sudah siap. Selamat menikmati {{ event.name }}! 🎉</p>
         <div class="booking-code-badge">
           <span class="code-label">Kode Booking</span>
           <span class="code-value">{{ code }}</span>
@@ -87,10 +86,19 @@ const browseMore = () => {
           </div>
 
           <div class="cc-detail-item">
+            <div class="cc-detail-icon"><MapPin :size="18" /></div>
+            <div>
+              <div class="cc-detail-label">Titik Pulang (Tujuan Akhir)</div>
+              <div class="cc-detail-value">{{ event?.location }}</div>
+              <div class="cc-detail-sub">Lokasi Tempat Diselenggarakannya Acara</div>
+            </div>
+          </div>
+
+          <div class="cc-detail-item">
             <div class="cc-detail-icon"><Clock :size="18" /></div>
             <div>
               <div class="cc-detail-label">Jadwal Keberangkatan</div>
-              <div class="cc-detail-value">{{ schedule?.time }} ({{ schedule?.label }})</div>
+              <div class="cc-detail-value">15:00 WIB</div>
               <div class="cc-detail-sub">{{ event.dateLabel }}</div>
             </div>
           </div>
@@ -116,7 +124,7 @@ const browseMore = () => {
 
         <!-- Price -->
         <div class="cc-price-row">
-          <span class="cc-price-label">Total Ride</span>
+          <span class="cc-price-label">Total Shuttle</span>
           <span class="cc-price-total">{{ formatRp(totalRide) }}</span>
         </div>
 
@@ -143,7 +151,7 @@ const browseMore = () => {
               <div class="ticket-code-big">{{ code }}</div>
               <div class="ticket-event-nm">{{ event.name }}</div>
               <div class="ticket-pickup">📍 {{ pickup?.name }}</div>
-              <div class="ticket-dep">🕑 {{ schedule?.time }}</div>
+              <div class="ticket-dep">🕑 15:00 WIB</div>
             </div>
           </div>
         </div>
@@ -172,6 +180,13 @@ const browseMore = () => {
             <div>
               <div class="wn-step-title">Nikmati perjalananmu!</div>
               <div class="wn-step-desc">Duduk, relax, dan biarkan AJAK! yang mengantarmu ke {{ event.location }}.</div>
+            </div>
+          </div>
+          <div class="wn-step">
+            <div class="wn-num">04</div>
+            <div>
+              <div class="wn-step-title">Toleransi waktu tunggu</div>
+              <div class="wn-step-desc">Maksimal 10 menit dari jam keberangkatan yang sudah ditentukan.</div>
             </div>
           </div>
         </div>
