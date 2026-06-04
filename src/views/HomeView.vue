@@ -54,9 +54,9 @@ onUnmounted(() => {
 // Mock Data
 const events = [
   { id: 1, name: 'The Sounds Project', date: 'Oct 15, 2026', dateLabel: '15 Okt 2026', time: '18:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', image: '/TSP.jpeg', desc: 'Festival musik terbesar di Indonesia. Nikmati malam yang penuh musik yang menggetarkan jiwa.', seats: 42, tag: 'Shuttle Bersama' },
-  { id: 2, name: 'The Sounds Project', date: 'Oct 22, 2026', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Ancol', city: 'Jakarta', price: 'Rp 1.500.000', image: '/TSP.jpeg', desc: 'Konser dengan pemandangan laut yang indah di bawah bulan purnama.', seats: 18, tag: 'Shuttle Eksklusif' },
+  { id: 2, name: 'The Sounds Project', date: 'Oct 22, 2026', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 1.500.000', image: '/TSP.jpeg', desc: 'Konser dengan pemandangan laut yang indah di bawah bulan purnama.', seats: 18, tag: 'Shuttle Eksklusif' },
   { id: 3, name: 'The Sounds Project', date: 'Nov 05, 2026', dateLabel: '5 Nov 2026', time: '20:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', image: '/TSP.jpeg', desc: 'Saksikan artis favoritmu dengan energy level tertinggi malam ini.', seats: 67, tag: 'Shuttle Bersama' },
-  { id: 4, name: 'The Sounds Project', date: 'Nov 12, 2026', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Ancol', city: 'Jakarta', price: 'Rp 1.500.000', image: '/TSP.jpeg', desc: 'Rasakan pengalaman VIP eksklusif bersama orang-orang tersayang.', seats: 89, tag: 'Shuttle Eksklusif' },
+  { id: 4, name: 'The Sounds Project', date: 'Nov 12, 2026', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 1.500.000', image: '/TSP.jpeg', desc: 'Rasakan pengalaman VIP eksklusif bersama orang-orang tersayang.', seats: 89, tag: 'Shuttle Eksklusif' },
 ];
 
 // Event Modal

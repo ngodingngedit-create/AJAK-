@@ -10,9 +10,9 @@ const router = useRouter();
 // All events data (same source of truth
 const allEvents = [
   { id: 1, name: 'The Sounds Project', date: '2026-10-15', dateLabel: '15 Okt 2026', time: '18:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', tag: 'Shuttle Bersama' },
-  { id: 2, name: 'The Sounds Project', date: '2026-10-22', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Ancol', city: 'Jakarta', price: 'Rp 1.500.000', priceNum: 1500000, image: '/TSP.jpeg', tag: 'Shuttle Eksklusif' },
+  { id: 2, name: 'The Sounds Project', date: '2026-10-22', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 1.500.000', priceNum: 1500000, image: '/TSP.jpeg', tag: 'Shuttle Eksklusif' },
   { id: 3, name: 'The Sounds Project', date: '2026-11-05', dateLabel: '5 Nov 2026', time: '20:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', tag: 'Shuttle Bersama' },
-  { id: 4, name: 'The Sounds Project', date: '2026-11-12', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Ancol', city: 'Jakarta', price: 'Rp 1.500.000', priceNum: 1500000, image: '/TSP.jpeg', tag: 'Shuttle Eksklusif' },
+  { id: 4, name: 'The Sounds Project', date: '2026-11-12', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 1.500.000', priceNum: 1500000, image: '/TSP.jpeg', tag: 'Shuttle Eksklusif' },
 ];
 
 onMounted(() => {
