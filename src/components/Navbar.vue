@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { authState } from '../store/auth';
 import { themeStore } from '../store/theme';
-import { User, LogOut, Search, X, Moon, Sun } from 'lucide-vue-next';
+import { User, LogOut, Search, X, Moon, Sun, Home, Calendar, Layers, MapPin, Info, Menu } from 'lucide-vue-next';
 import { useRouter, useRoute } from 'vue-router';
 
 const router = useRouter();
@@ -11,6 +11,7 @@ const scrollSection = ref('');   // only tracks scroll sections on home page
 const scrolled = ref(false);
 const searchOpen = ref(false);
 const searchQuery = ref('');
+const sidebarOpen = ref(false);
 
 // Language State
 const languages = [
@@ -27,11 +28,11 @@ const handleLogout = () => { authState.logout(); router.push('/'); };
 //   isRoute: true  → navigate to `to`, active = route.path match
 //   isRoute: false → scroll to section id on home page, active = scroll position
 const navLinks = [
-  { id: 'home',      label: 'Beranda', isRoute: true,  to: '/' },
-  { id: 'events',    label: 'Event',   isRoute: true,  to: '/events' },
-  { id: 'services',  label: 'Layanan', isRoute: false },
-  { id: 'discovery', label: 'Pick Up', isRoute: false },
-  { id: 'about',     label: 'About',   isRoute: false },
+  { id: 'home',      label: 'Beranda', icon: Home,     isRoute: true,  to: '/' },
+  { id: 'events',    label: 'Event',   icon: Calendar, isRoute: true,  to: '/events' },
+  { id: 'services',  label: 'Layanan', icon: Layers,   isRoute: false },
+  { id: 'discovery', label: 'Pick Up', icon: MapPin,   isRoute: false },
+  { id: 'about',     label: 'About',   icon: Info,     isRoute: false },
 ];
 
 const isOnHome = computed(() => route.path === '/');
@@ -124,7 +125,8 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
           :class="{ active: isLinkActive(link) }"
           @click="handleNav(link)"
         >
-          {{ link.label }}
+          <span class="nav-label-text">{{ link.label }}</span>
+          <component :is="link.icon" size="18" class="nav-icon-mobile" />
           <span class="nav-dot" v-if="isLinkActive(link)"></span>
         </button>
       </nav>
@@ -179,6 +181,11 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
           </transition>
         </div>
 
+        <!-- Hamburger Menu (Mobile Only) -->
+        <button class="icon-pill-btn hamburger-btn" @click="sidebarOpen = true">
+          <Menu size="18" />
+        </button>
+
         <!-- Desktop Only Auth (Hidden on Mobile) -->
         <div class="desktop-auth-area">
           <template v-if="!authState.isLoggedIn">
@@ -214,6 +221,74 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
         </div>
       </div>
     </transition>
+
+    <!-- Mobile Sidebar -->
+    <Teleport to="body">
+      <transition name="slide-side">
+        <div v-if="sidebarOpen" class="mobile-sidebar-overlay" @click="sidebarOpen = false">
+          <div class="mobile-sidebar" @click.stop>
+            <div class="sidebar-header">
+              <img src="/AJAKLogo/LOGO.png" alt="AJAK! Logo" class="logo-img-sidebar" />
+              <button class="icon-pill-btn" @click="sidebarOpen = false">
+                <X size="18" />
+              </button>
+            </div>
+            <div class="sidebar-links">
+              <button
+                v-for="link in navLinks"
+                :key="link.id"
+                class="sidebar-item"
+                :class="{ active: isLinkActive(link) }"
+                @click="handleNav(link); sidebarOpen = false;"
+              >
+                <component :is="link.icon" size="18" class="sidebar-icon" />
+                <span>{{ link.label }}</span>
+              </button>
+            </div>
+            
+            <div class="sidebar-footer">
+              <div class="sidebar-tools">
+                <!-- Theme Toggle -->
+                <button
+                  class="icon-pill-btn"
+                  @click="themeStore.toggle()"
+                >
+                  <Moon v-if="!themeStore.isDark" size="17" />
+                  <Sun v-else size="17" />
+                </button>
+                
+                <!-- Language Switcher -->
+                <button class="icon-pill-btn" @click="langDropdownOpen = !langDropdownOpen" style="position:relative;">
+                  <img :src="currentLang.flag" class="flag-img" />
+                  <div v-if="langDropdownOpen" class="lang-dropdown" style="bottom: 110%; top: auto;">
+                    <button v-for="lang in languages" :key="lang.code" class="lang-opt" @click="selectLang(lang)">
+                      <img :src="lang.flag" class="flag-img" />
+                      <span>{{ lang.name }}</span>
+                    </button>
+                  </div>
+                </button>
+              </div>
+              
+              <!-- Auth -->
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <template v-if="!authState.isLoggedIn">
+                  <router-link to="/login" class="btn btn-outline" style="text-align:center; padding:10px; border-radius:12px; font-weight:700;" @click="sidebarOpen=false">Login</router-link>
+                </template>
+                <template v-else>
+                  <div style="display:flex; align-items:center; gap:10px; padding:10px; background:rgba(201,76,76,0.06); border-radius:12px; margin-bottom:4px;">
+                    <div class="avatar-sm"><User size="16" color="var(--primary)" /></div>
+                    <span style="font-weight:700; font-size:0.9rem;">{{ authState.user?.name }}</span>
+                  </div>
+                  <button @click="handleLogout(); sidebarOpen=false;" class="btn btn-primary" style="padding:10px; border-radius:12px; font-weight:700; display:flex; justify-content:center; gap:8px;">
+                    <LogOut size="16" /> Logout
+                  </button>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </header>
 </template>
 
@@ -254,8 +329,9 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
   position: relative; padding: 8px 16px; border-radius: 12px;
   font-weight: 600; font-size: 0.85rem; color: var(--text-dark);
   transition: color 0.2s ease, background-color 0.2s ease; background: transparent; border: none;
-  cursor: pointer; font-family: inherit;
+  cursor: pointer; font-family: inherit; display: flex; align-items: center; justify-content: center;
 }
+.nav-icon-mobile { display: none; }
 .nav-item:hover { color: var(--primary); background: rgba(201, 76, 76, 0.07); }
 .nav-item.active { color: var(--primary); background: rgba(201, 76, 76, 0.08); font-weight: 700; }
 .nav-dot { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--primary); }
@@ -322,13 +398,54 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 .user-name-label { font-size: 0.82rem; font-weight: 800; color: var(--text-dark); }
 
 
+/* Sidebar Styles */
+.hamburger-btn { display: none; }
+.mobile-sidebar-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6); z-index: 9999;
+  backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+}
+.mobile-sidebar {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 280px;
+  background: var(--card-bg, #ffffff); box-shadow: -5px 0 30px rgba(0,0,0,0.15);
+  display: flex; flex-direction: column; padding: 20px; z-index: 10000;
+}
+.sidebar-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+.logo-img-sidebar { height: 32px; object-fit: contain; }
+.sidebar-links { display: flex; flex-direction: column; gap: 10px; flex: 1; }
+.sidebar-item {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+  border-radius: 14px; border: none; background: transparent;
+  font-size: 1rem; font-weight: 700; color: var(--text-dark);
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.sidebar-item:hover { background: rgba(201, 76, 76, 0.05); color: var(--primary); }
+.sidebar-item.active { background: rgba(201, 76, 76, 0.1); color: var(--primary); }
+.sidebar-icon { color: inherit; }
+
+.sidebar-footer {
+  display: flex; flex-direction: column; gap: 16px;
+  padding-top: 20px; border-top: 1px solid var(--border-color);
+}
+.sidebar-tools { display: flex; gap: 10px; align-items: center; justify-content: center; }
+
+/* Transitions */
+.slide-side-enter-active, .slide-side-leave-active { transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
+.slide-side-enter-from, .slide-side-leave-to { transform: translateX(100%); }
+.slide-side-enter-to, .slide-side-leave-from { transform: translateX(0); }
+
+.fade-overlay-enter-active, .fade-overlay-leave-active { transition: opacity 0.3s; }
+.fade-overlay-enter-from, .fade-overlay-leave-to { opacity: 0; }
+
 @media (max-width: 768px) {
-  .navbar-content { height: 60px; }
-  .logo-img { height: 34px; }
-  .nav-links, .desktop-auth-area { display: none; }
-  .mobile-search-bar { display: block; }
-  .icon-pill-btn { width: 36px; height: 36px; border-radius: 12px; }
-  .search-box { display: none; }
-  .nav-auth { gap: 8px; }
+  .navbar-content { height: 60px; flex-wrap: nowrap; justify-content: space-between; }
+  .logo { display: flex; }
+  .logo-img { height: 30px; }
+  
+  .nav-links { display: none; }
+  .hamburger-btn { display: flex; margin-left: auto; }
+  
+  .desktop-auth-area, .search-wrap, .theme-toggle-btn, .lang-switcher { display: none; }
+  .mobile-search-bar { display: none; } /* keep hidden to simplify */
 }
 </style>

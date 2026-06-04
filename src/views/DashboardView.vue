@@ -356,8 +356,69 @@ const formatDate = (isoString) => {
 
 @media (max-width: 960px) {
   .metrics-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
     gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-page {
+    padding: 80px 16px 40px;
+  }
+  .dash-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .dash-title {
+    font-size: 1.5rem;
+  }
+  .dash-sub {
+    font-size: 0.9rem;
+  }
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .metric-card {
+    padding: 16px;
+    gap: 16px;
+  }
+  .metric-icon {
+    width: 48px;
+    height: 48px;
+  }
+  .metric-value {
+    font-size: 1.4rem;
+  }
+  .metric-label {
+    font-size: 0.75rem;
+  }
+  .report-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+  }
+  .report-title {
+    font-size: 1.1rem;
+  }
+  .filter-box {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .filter-select {
+    font-size: 0.85rem;
+    width: 100%;
+  }
+  .report-table th, .report-table td {
+    padding: 12px 16px;
+  }
+  .report-table th {
+    font-size: 0.75rem;
+  }
+  .report-table td {
+    font-size: 0.85rem;
   }
 }
 </style>
