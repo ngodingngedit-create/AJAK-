@@ -66,8 +66,7 @@ onUnmounted(() => {
 
 // Mock Data
 const events = [
-  { id: 1, name: 'The Sounds Project', date: 'Oct 15, 2026', dateLabel: '15 Okt 2026', time: '18:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', desc: 'Festival musik terbesar di Indonesia. Nikmati malam yang penuh musik yang menggetarkan jiwa.', seats: 42, tag: 'Shuttle Bersama' },
-  { id: 3, name: 'The Sounds Project', date: 'Nov 05, 2026', dateLabel: '5 Nov 2026', time: '20:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', desc: 'Saksikan artis favoritmu dengan energy level tertinggi malam ini.', seats: 67, tag: 'Shuttle Bersama' },
+  { id: 1, name: 'The Sounds Project', date: 'Oct 15, 2026', dateLabel: '15 Okt 2026', time: '18:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', desc: 'Festival musik terbesar di Indonesia. Nikmati malam yang penuh musik yang menggetarkan jiwa.', seats: 42, tag: 'Shuttle Bersama' }
 ];
 
 // Event Modal
