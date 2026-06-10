@@ -35,13 +35,24 @@ export const bookingStore = reactive({
     return this.adults + this.toddlers;
   },
 
-  get ridePrice() {
+  get basePrice() {
     if (!this.selectedEvent) return 0;
-    return this.selectedEvent.priceNum * this.adults;
+    let price = this.selectedEvent.priceNum;
+    if (this.selectedPickup && this.selectedPickup.region) {
+      const region = this.selectedPickup.region;
+      if (region === 'Sudirman') price = 120000;
+      else if (region === 'Bogor') price = 175000;
+      else price = 150000;
+    }
+    return price;
+  },
+
+  get ridePrice() {
+    return this.basePrice * this.adults;
   },
 
   get adminFee() {
-    return 5000;
+    return 5000 * this.adults;
   },
 
   get totalPrice() {

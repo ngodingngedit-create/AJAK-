@@ -26,7 +26,7 @@ const onSplashReady = () => {
       </router-view>
     </main>
 
-    <Footer v-if="$route.path !== '/portfolio'" />
+    <Footer v-if="$route.path !== '/portfolio' && !$route.path.startsWith('/booking')" />
   </div>
 </template>
 

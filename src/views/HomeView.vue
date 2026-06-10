@@ -10,10 +10,18 @@ const router = useRouter();
 const heroImages = [
   { src: '/busbiru.png', alt: 'Bus Biru' },
   { src: '/busputih.png', alt: 'Bus Putih' },
-  { src: '/hiace.png', alt: 'Hiace' }
+  { src: '/hiace.jpg', alt: 'Hiace' }
 ];
 const currentHeroIndex = ref(0);
 let heroInterval;
+
+const ekslusifImages = [
+  '/Toyota-Innova-Reborn-1.jpg',
+  '/Avanza.jpg',
+  '/hiace.jpg'
+];
+const currentEkslusifIndex = ref(0);
+let ekslusifInterval;
 
 // GPS & Map State
 const userCoords = ref(null);
@@ -27,6 +35,10 @@ onMounted(() => {
   heroInterval = setInterval(() => {
     currentHeroIndex.value = (currentHeroIndex.value + 1) % heroImages.length;
   }, 6000);
+
+  ekslusifInterval = setInterval(() => {
+    currentEkslusifIndex.value = (currentEkslusifIndex.value + 1) % ekslusifImages.length;
+  }, 4000);
 
   // Request user GPS location
   if (navigator.geolocation) {
@@ -49,14 +61,13 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (heroInterval) clearInterval(heroInterval);
+  if (ekslusifInterval) clearInterval(ekslusifInterval);
 });
 
 // Mock Data
 const events = [
-  { id: 1, name: 'The Sounds Project', date: 'Oct 15, 2026', dateLabel: '15 Okt 2026', time: '18:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', image: '/TSP.jpeg', desc: 'Festival musik terbesar di Indonesia. Nikmati malam yang penuh musik yang menggetarkan jiwa.', seats: 42, tag: 'Shuttle Bersama' },
-  { id: 2, name: 'The Sounds Project', date: 'Oct 22, 2026', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 1.500.000', image: '/TSP.jpeg', desc: 'Konser dengan pemandangan laut yang indah di bawah bulan purnama.', seats: 18, tag: 'Shuttle Eksklusif' },
-  { id: 3, name: 'The Sounds Project', date: 'Nov 05, 2026', dateLabel: '5 Nov 2026', time: '20:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', image: '/TSP.jpeg', desc: 'Saksikan artis favoritmu dengan energy level tertinggi malam ini.', seats: 67, tag: 'Shuttle Bersama' },
-  { id: 4, name: 'The Sounds Project', date: 'Nov 12, 2026', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 1.500.000', image: '/TSP.jpeg', desc: 'Rasakan pengalaman VIP eksklusif bersama orang-orang tersayang.', seats: 89, tag: 'Shuttle Eksklusif' },
+  { id: 1, name: 'The Sounds Project', date: 'Oct 15, 2026', dateLabel: '15 Okt 2026', time: '18:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', desc: 'Festival musik terbesar di Indonesia. Nikmati malam yang penuh musik yang menggetarkan jiwa.', seats: 42, tag: 'Shuttle Bersama' },
+  { id: 3, name: 'The Sounds Project', date: 'Nov 05, 2026', dateLabel: '5 Nov 2026', time: '20:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', desc: 'Saksikan artis favoritmu dengan energy level tertinggi malam ini.', seats: 67, tag: 'Shuttle Bersama' },
 ];
 
 // Event Modal
@@ -98,14 +109,13 @@ const facilities = [
 
 const searchQuery = ref('');
 const pickupLocations = [
-  { region: 'Jakarta Selatan', name: 'Pondok Indah Decathlon', address: 'Jakarta Selatan', lat: -6.2625, lng: 106.7824 },
+  { region: 'Pondok Indah', name: 'PIM Decathlon', address: 'Pondok Indah', lat: -6.2625, lng: 106.7824 },
   { region: 'Depok', name: 'Showroom Royal Enfield, Margonda', address: 'Depok', lat: -6.3731, lng: 106.8346 },
   { region: 'Sudirman', name: 'Jalan New Delhi, Disebelah Mall FX Sudirman', address: 'Sudirman', lat: -6.2241, lng: 106.8021 },
   { region: 'Bogor', name: 'Terminal Damri Botani Square', address: 'Bogor', lat: -6.6016, lng: 106.8062 },
   { region: 'BSD', name: 'Pasar Modern Intermoda BSD City', address: 'BSD', lat: -6.3213, lng: 106.6397 },
   { region: 'Bekasi', name: 'Gerbang Tol Bekasi Barat', address: 'Bekasi', lat: -6.2458, lng: 106.9856 },
-  { region: 'Tangerang', name: 'Bandara Soekarno Hatta', address: 'Tangerang', lat: -6.1256, lng: 106.6558 },
-  { region: 'Jakarta Pusat', name: 'Jalan Silang Merdeka Tenggara (Gerbang Monas) Gambir', address: 'Jakarta Pusat', lat: -6.1754, lng: 106.8272 }
+  { region: 'Jakarta Timur', name: 'Taman Mini Indonesia Indah', address: 'Jakarta Timur', lat: -6.3024, lng: 106.8951 }
 ];
 
 const groupedLocations = computed(() => {
@@ -385,7 +395,7 @@ const tagColors = {
             </div>
             <div class="event-card-body">
               <h3 class="event-name">{{ event.name }}</h3>
-              <p class="event-desc">{{ event.desc }}</p>
+              <!-- <p class="event-desc">{{ event.desc }}</p> -->
               <div class="event-meta">
                 <div class="meta-row">
                   <Calendar :size="13" />
@@ -448,7 +458,7 @@ const tagColors = {
         <div class="tiers-grid">
           <div class="tier-card public">
             <div class="tier-visual">
-              <img src="/shuttlebersama.png" alt="Public Shuttle" />
+              <img src="/busmerah.png" alt="Public Shuttle" />
               <div class="tier-badge">Favorit Penggemar</div>
             </div>
             <div class="tier-info">
@@ -466,9 +476,13 @@ const tagColors = {
             </div>
           </div>
 
-          <div class="tier-card dark">
+          <div class="tier-card dark" style="opacity: 0.5; pointer-events: none; filter: grayscale(100%);">
             <div class="tier-visual">
-              <img src="/shuttleekslusif.png" alt="VIP Car" />
+              <transition-group name="fade-slideshow" tag="div">
+                <div v-for="(img, index) in ekslusifImages" :key="img" v-show="currentEkslusifIndex === index" class="slide-layer">
+                  <img :src="img" alt="VIP Car" />
+                </div>
+              </transition-group>
             </div>
             <div class="tier-info">
               <div class="tier-tag">Layanan Premium</div>

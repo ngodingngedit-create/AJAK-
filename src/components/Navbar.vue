@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { authState } from '../store/auth';
 import { themeStore } from '../store/theme';
-import { User, LogOut, Search, X, Moon, Sun, Home, Calendar, Layers, MapPin, Info, Menu } from 'lucide-vue-next';
+import { User, LogOut, Search, X, Moon, Sun, Home, Calendar, Layers, MapPin, Info, Menu, FileText } from 'lucide-vue-next';
 import { useRouter, useRoute } from 'vue-router';
 
 const router = useRouter();
@@ -12,6 +12,17 @@ const scrolled = ref(false);
 const searchOpen = ref(false);
 const searchQuery = ref('');
 const sidebarOpen = ref(false);
+const showTermsModal = ref(false);
+
+const termsList = [
+  "Tiket yang sudah dibeli tidak bisa di refund, terkecuali ada pembatalan dari pihak penyelenggara konser atau force major",
+  "Customer wajib datang tepat waktu sesuai Schedule Shuttle",
+  "Keterlambatan tanpa informasi lebih dari 10 menit di anggap tidak ada / cancel otomatis",
+  "Customer dilarang merokok, menggunakan rokok elektrik/sejenisnya di dalam shuttle bus",
+  "Customer dilarang membawa senjata tajam dan senjata api atau sejenisnya di dalam shuttle bus",
+  "Tidak menerima pembelian tiket shuttle dalam pembayaran uang tunai/cash",
+  "Tidak menerima penitipan barang customer didalam shuttle bus"
+];
 
 // Language State
 const languages = [
@@ -233,6 +244,18 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
                 <X size="18" />
               </button>
             </div>
+            <div class="sidebar-search" style="margin-bottom: 16px;">
+              <div class="search-box" style="margin: 0; width: 100%; border: 1.5px solid var(--border-color); background: rgba(0,0,0,0.02);">
+                <Search size="16" class="search-box-icon" style="color: var(--text-light)" />
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Cari event..."
+                  style="width: 100%; padding: 8px 0; border: none; background: transparent; outline: none; font-weight: 600; font-size: 0.9rem;"
+                  @keydown.enter="handleSearchSubmit(); sidebarOpen = false;"
+                />
+              </div>
+            </div>
             <div class="sidebar-links">
               <button
                 v-for="link in navLinks"
@@ -243,6 +266,11 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
               >
                 <component :is="link.icon" size="18" class="sidebar-icon" />
                 <span>{{ link.label }}</span>
+              </button>
+              
+              <button class="sidebar-item" @click="showTermsModal = true; sidebarOpen = false;">
+                <FileText size="18" class="sidebar-icon" />
+                <span>Terms and Condition</span>
               </button>
             </div>
             
@@ -289,6 +317,25 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
         </div>
       </transition>
     </Teleport>
+
+    <!-- Terms Modal -->
+    <Teleport to="body">
+      <transition name="fade-overlay">
+        <div v-if="showTermsModal" class="modal-overlay" @click.self="showTermsModal = false">
+          <div class="terms-modal">
+            <div class="terms-header">
+              <h3>Syarat dan Ketentuan</h3>
+              <button class="icon-pill-btn" @click="showTermsModal = false"><X size="18" /></button>
+            </div>
+            <div class="terms-body">
+              <ol class="terms-list">
+                <li v-for="(term, index) in termsList" :key="index">{{ term }}</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </transition>
+    </Teleport>
   </header>
 </template>
 
@@ -320,11 +367,11 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 }
 
 /* Logo */
-.logo { display: flex; align-items: center; flex-shrink: 0; }
+.logo { display: flex; align-items: center; flex: 1; justify-content: flex-start; }
 .logo-img { height: 42px; width: auto; object-fit: contain; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 
 /* Nav Links */
-.nav-links { display: flex; align-items: center; gap: 4px; flex: 1; justify-content: center; }
+.nav-links { display: flex; align-items: center; gap: 4px; justify-content: center; flex: 0 1 auto; }
 .nav-item {
   position: relative; padding: 8px 16px; border-radius: 12px;
   font-weight: 600; font-size: 0.85rem; color: var(--text-dark);
@@ -337,7 +384,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 .nav-dot { position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--primary); }
 
 /* Right area */
-.nav-auth { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.nav-auth { display: flex; align-items: center; gap: 10px; flex: 1; justify-content: flex-end; }
 .desktop-auth-area { display: flex; align-items: center; gap: 10px; }
 
 /* REFINED ICON BUTTONS */
@@ -399,7 +446,8 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 
 
 /* Sidebar Styles */
-.hamburger-btn { display: none; }
+.hamburger-btn { display: flex; }
+.desktop-auth-area, .search-wrap, .theme-toggle-btn, .lang-switcher { display: none; }
 .mobile-sidebar-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.6); z-index: 9999;
@@ -437,6 +485,15 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 .fade-overlay-enter-active, .fade-overlay-leave-active { transition: opacity 0.3s; }
 .fade-overlay-enter-from, .fade-overlay-leave-to { opacity: 0; }
 
+/* Terms Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 99999; padding: 20px; }
+.terms-modal { background: var(--card-bg); width: 100%; max-width: 500px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); display: flex; flex-direction: column; max-height: 90vh; }
+.terms-header { padding: 20px 24px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; }
+.terms-header h3 { font-size: 1.2rem; font-weight: 800; color: var(--text-dark); margin: 0; }
+.terms-body { padding: 24px; overflow-y: auto; }
+.terms-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 12px; color: var(--text-dark); font-size: 0.9rem; line-height: 1.5; font-weight: 600; }
+.terms-list li { padding-left: 8px; }
+
 @media (max-width: 768px) {
   .navbar-content { height: 60px; flex-wrap: nowrap; justify-content: space-between; }
   .logo { display: flex; }
@@ -444,8 +501,6 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
   
   .nav-links { display: none; }
   .hamburger-btn { display: flex; margin-left: auto; }
-  
-  .desktop-auth-area, .search-wrap, .theme-toggle-btn, .lang-switcher { display: none; }
   .mobile-search-bar { display: none; } /* keep hidden to simplify */
 }
 </style>

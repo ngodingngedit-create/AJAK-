@@ -9,10 +9,8 @@ const router = useRouter();
 
 // All events data (same source of truth
 const allEvents = [
-  { id: 1, name: 'The Sounds Project', date: '2026-10-15', dateLabel: '15 Okt 2026', time: '18:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', tag: 'Shuttle Bersama' },
-  { id: 2, name: 'The Sounds Project', date: '2026-10-22', dateLabel: '22 Okt 2026', time: '19:30 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 1.500.000', priceNum: 1500000, image: '/TSP.jpeg', tag: 'Shuttle Eksklusif' },
-  { id: 3, name: 'The Sounds Project', date: '2026-11-05', dateLabel: '5 Nov 2026', time: '20:00 WIB', location: 'JIEXPO Kemayoran', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', tag: 'Shuttle Bersama' },
-  { id: 4, name: 'The Sounds Project', date: '2026-11-12', dateLabel: '12 Nov 2026', time: '17:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 1.500.000', priceNum: 1500000, image: '/TSP.jpeg', tag: 'Shuttle Eksklusif' },
+  { id: 1, name: 'The Sounds Project', date: '2026-10-15', dateLabel: '15 Okt 2026', time: '18:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', tag: 'Shuttle Bersama' },
+  { id: 3, name: 'The Sounds Project', date: '2026-11-05', dateLabel: '5 Nov 2026', time: '20:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', tag: 'Shuttle Bersama' },
 ];
 
 onMounted(() => {
@@ -39,14 +37,13 @@ const paymentMethods = [
 
 // ---- STEP 1: PICKUP & RETURN ----
 const pickupLocations = [
-  { region: 'Jakarta Selatan', name: 'Pondok Indah Decathlon', address: 'Jakarta Selatan', lat: -6.2625, lng: 106.7824 },
-  { region: 'Depok', name: 'Showroom Royal Enfield, Margonda', address: 'Depok', lat: -6.3731, lng: 106.8346 },
-  { region: 'Sudirman', name: 'Jalan New Delhi, Disebelah Mall FX Sudirman', address: 'Sudirman', lat: -6.2241, lng: 106.8021 },
-  { region: 'Bogor', name: 'Terminal Damri Botani Square', address: 'Bogor', lat: -6.6016, lng: 106.8062 },
-  { region: 'BSD', name: 'Pasar Modern Intermoda BSD City', address: 'BSD', lat: -6.3213, lng: 106.6397 },
-  { region: 'Bekasi', name: 'Gerbang Tol Bekasi Barat', address: 'Bekasi', lat: -6.2458, lng: 106.9856 },
-  { region: 'Tangerang', name: 'Bandara Soekarno Hatta', address: 'Tangerang', lat: -6.1256, lng: 106.6558 },
-  { region: 'Jakarta Pusat', name: 'Jalan Silang Merdeka Tenggara (Gerbang Monas) Gambir', address: 'Jakarta Pusat', lat: -6.1754, lng: 106.8272 }
+  { region: 'Pondok Indah', name: 'PIM Decathlon', address: 'Pondok Indah', lat: -6.2625, lng: 106.7824, price: 'Rp. 150.000 / Pax / Roundtrip' },
+  { region: 'Depok', name: 'Showroom Royal Enfield, Margonda', address: 'Depok', lat: -6.3731, lng: 106.8346, price: 'Rp. 150.000 / Pax / Roundtrip' },
+  { region: 'Sudirman', name: 'Jalan New Delhi, Disebelah Mall FX Sudirman', address: 'Sudirman', lat: -6.2241, lng: 106.8021, price: 'Rp. 120.000 / Pax / Roundtrip' },
+  { region: 'Bogor', name: 'Terminal Damri Botani Square', address: 'Bogor', lat: -6.6016, lng: 106.8062, price: 'Rp. 175.000 / Pax / Roundtrip' },
+  { region: 'BSD', name: 'Pasar Modern Intermoda BSD City', address: 'BSD', lat: -6.3213, lng: 106.6397, price: 'Rp. 150.000 / Pax / Roundtrip' },
+  { region: 'Bekasi', name: 'Gerbang Tol Bekasi Barat', address: 'Bekasi', lat: -6.2458, lng: 106.9856, price: 'Rp. 150.000 / Pax / Roundtrip' },
+  { region: 'Jakarta Timur', name: 'Taman Mini Indonesia Indah', address: 'Jakarta Timur', lat: -6.3024, lng: 106.8951, price: 'Rp. 150.000 / Pax / Roundtrip' }
 ];
 
 const groupedLocations = computed(() => {
@@ -173,55 +170,10 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
           </div>
         </div>
 
-        <!-- ===== SECTION 1: PICKUP & RETURN ===== -->
+        <!-- ===== SECTION 1: CUSTOMER DATA ===== -->
         <div class="form-section">
           <div class="section-heading">
-            <h2 class="sect-title"><span class="sect-num">1</span> Rute Perjalanan</h2>
-            <p class="sect-sub">Tentukan lokasi perjalanan Anda</p>
-          </div>
-          <div class="step-content">
-            <!-- PICKUP -->
-            <h4 class="sub-sect-title mb-3">Titik Jemput</h4>
-            
-            <div v-if="isEksklusif" class="custom-input-box mb-3">
-              <input type="text" v-model="customPickupInput" placeholder="Ketik alamat jemput spesifik atau pilih dari daftar di bawah..." class="form-input" />
-            </div>
-
-            <div class="locations-list mb-4">
-              <div v-for="(locs, region) in groupedLocations" :key="'p'+region" class="loc-group">
-                <div class="loc-region-label">{{ region }}</div>
-                <div v-for="loc in locs" :key="'p'+loc.name" class="loc-item" :class="{ selected: bookingStore.selectedPickup?.name === loc.name }" @click="selectPickup(loc)">
-                  <div class="loc-icon"><MapPin :size="16" /></div>
-                  <div class="loc-text">
-                    <div class="loc-name">{{ loc.name }}</div>
-                    <div class="loc-address">{{ loc.address }}</div>
-                  </div>
-                  <div class="loc-check" v-if="bookingStore.selectedPickup?.name === loc.name"><Check :size="14" /></div>
-                </div>
-              </div>
-              <div v-if="Object.keys(groupedLocations).length === 0" class="no-results">Tidak ada lokasi ditemukan.</div>
-            </div>
-
-            <hr class="my-4" style="border-color: rgba(0,0,0,0.05)" />
-
-            <!-- RETURN (FIXED TO VENUE) -->
-            <h4 class="sub-sect-title mb-3">Titik Pulang (Tujuan Akhir)</h4>
-            <div class="loc-item selected" style="cursor: default; background: rgba(21,101,192,0.04); border-color: #1565C0;">
-              <div class="loc-icon" style="background: rgba(21,101,192,0.1); color: #1565C0;"><Navigation :size="16" /></div>
-              <div class="loc-text">
-                <div class="loc-name">{{ event?.location }}</div>
-                <div class="loc-address">Lokasi Tempat Diselenggarakannya Acara</div>
-              </div>
-              <div class="loc-check" style="background: #1565C0;"><Check :size="14" /></div>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- ===== SECTION 2: CUSTOMER DATA ===== -->
-        <div class="form-section">
-          <div class="section-heading">
-            <h2 class="sect-title"><span class="sect-num">2</span> Data Pemesan</h2>
+            <h2 class="sect-title"><span class="sect-num">1</span> Data Pemesan</h2>
             <p class="sect-sub">Informasi kontak untuk pengiriman tiket dan konfirmasi</p>
           </div>
           <div class="step-content">
@@ -239,6 +191,54 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
                 <input type="tel" v-model="customer.phone" class="form-input" placeholder="08123456789" />
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- ===== SECTION 2: PICKUP & RETURN ===== -->
+        <div class="form-section">
+          <div class="section-heading">
+            <h2 class="sect-title"><span class="sect-num">2</span> Rute Perjalanan</h2>
+            <p class="sect-sub">Tentukan lokasi perjalanan Anda</p>
+          </div>
+          <div class="step-content">
+            <!-- PICKUP -->
+            <h4 class="sub-sect-title mb-1">Titik Jemput</h4>
+            <div class="mb-3" style="font-size: 0.85rem; color: var(--primary); font-weight: 700;">Jam Keberangkatan Shuttle: {{ event?.departureTime || '12:00 WIB' }}</div>
+            
+            <div v-if="isEksklusif" class="custom-input-box mb-3">
+              <input type="text" v-model="customPickupInput" placeholder="Ketik alamat jemput spesifik atau pilih dari daftar di bawah..." class="form-input" />
+            </div>
+
+            <div class="locations-list mb-4">
+              <div v-for="(locs, region) in groupedLocations" :key="'p'+region" class="loc-group">
+                <div class="loc-region-label">{{ region }}</div>
+                <div v-for="loc in locs" :key="'p'+loc.name" class="loc-item" :class="{ selected: bookingStore.selectedPickup?.name === loc.name }" @click="selectPickup(loc)">
+                  <div class="loc-icon"><MapPin :size="16" /></div>
+                  <div class="loc-text">
+                    <div class="loc-name">{{ loc.name }}</div>
+                    <div class="loc-address">{{ loc.address }}</div>
+                    <div class="loc-price" style="font-size: 0.75rem; color: var(--primary); font-weight: 700; margin-top: 4px;">{{ loc.price }}</div>
+                  </div>
+                  <div class="loc-check" v-if="bookingStore.selectedPickup?.name === loc.name"><Check :size="14" /></div>
+                </div>
+              </div>
+              <div v-if="Object.keys(groupedLocations).length === 0" class="no-results">Tidak ada lokasi ditemukan.</div>
+            </div>
+
+            <hr class="my-4" style="border-color: rgba(0,0,0,0.05)" />
+
+            <!-- RETURN (FIXED TO VENUE) -->
+            <h4 class="sub-sect-title mb-1">Titik Pulang (Tujuan Akhir)</h4>
+            <div class="mb-3" style="font-size: 0.85rem; color: var(--primary); font-weight: 700;">Jam Kepulangan Shuttle: {{ event?.returnTime || '01:00 WIB' }}</div>
+            <div class="loc-item selected" style="cursor: default; background: rgba(21,101,192,0.04); border-color: #1565C0;">
+              <div class="loc-icon" style="background: rgba(21,101,192,0.1); color: #1565C0;"><Navigation :size="16" /></div>
+              <div class="loc-text">
+                <div class="loc-name">{{ event?.location }}</div>
+                <div class="loc-address">Lokasi Tempat Diselenggarakannya Acara</div>
+              </div>
+              <div class="loc-check" style="background: #1565C0;"><Check :size="14" /></div>
+            </div>
+
           </div>
         </div>
 
@@ -288,10 +288,6 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
           </div>
         </div>
 
-        <!-- CTA Button -->
-        <button class="proceed-btn" :class="{ disabled: !canProceed }" :disabled="!canProceed" @click="handleProceed">
-          <span>Lanjutkan Pembayaran <ArrowRight :size="18" /></span>
-        </button>
       </div>
 
       <!-- RIGHT: Order Summary -->
@@ -302,7 +298,7 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
           <div class="summary-section" v-if="event">
             <div class="sum-label">Event</div>
             <div class="sum-value bold">{{ event.name }}</div>
-            <div class="sum-sub">{{ event.dateLabel }} · {{ event.time }}</div>
+            <div class="sum-sub">{{ event.dateLabel }} · 14:00 WIB</div>
           </div>
 
           <div class="summary-section">
@@ -333,7 +329,7 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 
           <div>
             <div class="price-breakdown">
-              <span>{{ event ? formatRp(event.priceNum) : 'Rp 0' }} × {{ adults }} orang</span>
+              <span>{{ event ? formatRp(bookingStore.basePrice) : 'Rp 0' }} × {{ adults }} orang</span>
               <span>{{ formatRp(rideTotal) }}</span>
             </div>
             <div class="price-breakdown" v-if="toddlers > 0">
@@ -356,6 +352,20 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
             <span>Pembatalan gratis hingga 24 jam sebelum keberangkatan</span>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM NAVBAR -->
+    <div class="bottom-navbar">
+      <div class="container bottom-navbar-inner">
+        <div class="bottom-price-info">
+          <span class="bp-label">Total Pembayaran</span>
+          <span class="bp-val">{{ formatRp(grandTotal) }}</span>
+        </div>
+        <button class="proceed-btn bottom-btn" :class="{ disabled: !canProceed }" :disabled="!canProceed" @click="handleProceed">
+          <span>Lanjutkan Pembayaran</span>
+          <ArrowRight :size="18" />
+        </button>
       </div>
     </div>
 
@@ -400,7 +410,7 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 
 <style scoped>
 /* ===== PAGE ===== */
-.booking-page { min-height: 100vh; background: var(--bg-color); padding-bottom: 80px; padding-top: 80px; }
+.booking-page { min-height: 100vh; background: var(--bg-color); padding-bottom: 140px; padding-top: 80px; }
 .booking-topbar { background: var(--navbar-bg); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-color); position: sticky; top: 80px; z-index: 100; box-shadow: var(--shadow-sm); }
 .topbar-inner { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; }
 .back-btn { display: flex; align-items: center; gap: 6px; font-family: inherit; font-size: 0.88rem; font-weight: 700; color: var(--text-light); cursor: pointer; border: none; background: none; padding: 6px 10px; border-radius: 10px; transition: all 0.2s; }
@@ -459,6 +469,22 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 .proceed-btn { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 18px; font-family: inherit; font-size: 1rem; font-weight: 800; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 24px rgba(201,76,76,0.3); }
 .proceed-btn:hover:not(.disabled) { background: #b34242; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(201,76,76,0.4); }
 .proceed-btn.disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ===== BOTTOM NAVBAR ===== */
+.bottom-navbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--navbar-bg); backdrop-filter: blur(20px); border-top: 1px solid var(--border-color); z-index: 900; padding: 16px 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.05); }
+.bottom-navbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+.bottom-price-info { display: flex; flex-direction: column; gap: 4px; }
+.bp-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); }
+.bp-val { font-size: 1.25rem; font-weight: 900; color: var(--text-dark); }
+.bottom-btn { max-width: 320px; padding: 16px; border-radius: 16px; margin: 0; }
+@media (max-width: 768px) {
+  .bottom-navbar { padding: 12px 0; }
+  .bottom-navbar-inner { flex-direction: row; justify-content: space-between; align-items: center; gap: 10px; }
+  .bottom-price-info { width: auto; flex-direction: column; align-items: flex-start; gap: 2px; flex-shrink: 0; }
+  .bp-label { font-size: 0.65rem; }
+  .bp-val { font-size: 1.1rem; }
+  .bottom-btn { width: auto; flex-grow: 0; padding: 12px 16px; font-size: 0.85rem; max-width: none; }
+}
 
 /* ===== SUMMARY CARD ===== */
 .booking-summary-col { position: sticky; top: 140px; }

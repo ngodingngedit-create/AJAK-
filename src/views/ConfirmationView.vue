@@ -23,6 +23,24 @@ const totalRide = computed(() => {
   return bookingStore.totalPrice;
 });
 
+const getNextDay = (dateStr) => {
+  if (!dateStr) return '';
+  const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const parts = dateStr.split(' ');
+  if (parts.length >= 3) {
+    const day = parseInt(parts[0]);
+    const monthStr = parts[1];
+    const year = parseInt(parts[2]);
+    const monthIdx = months.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
+    if (monthIdx !== -1) {
+      const dateObj = new Date(year, monthIdx, day);
+      dateObj.setDate(dateObj.getDate() + 1);
+      return `${dateObj.getDate()} ${months[dateObj.getMonth()]} ${dateObj.getFullYear()}`;
+    }
+  }
+  return dateStr + " (H+1)";
+};
+
 const goHome = () => {
   bookingStore.reset();
   router.push('/');
@@ -32,6 +50,16 @@ const browseMore = () => {
   bookingStore.reset();
   router.push('/events');
 };
+
+const termsList = [
+  "Tiket yang sudah dibeli tidak bisa di refund, terkecuali ada pembatalan dari pihak penyelenggara konser atau force major",
+  "Customer wajib datang tepat waktu sesuai Schedule Shuttle",
+  "Keterlambatan tanpa informasi lebih dari 10 menit di anggap tidak ada / cancel otomatis",
+  "Customer dilarang merokok, menggunakan rokok elektrik/sejenisnya di dalam shuttle bus",
+  "Customer dilarang membawa senjata tajam dan senjata api atau sejenisnya di dalam shuttle bus",
+  "Tidak menerima pembelian tiket shuttle dalam pembayaran uang tunai/cash",
+  "Tidak menerima penitipan barang customer didalam shuttle bus"
+];
 </script>
 
 <template>
@@ -67,7 +95,7 @@ const browseMore = () => {
             <h2 class="cc-event-name">{{ event.name }}</h2>
             <div class="cc-event-meta">
               <span><Calendar :size="13" /> {{ event.dateLabel }}</span>
-              <span><Clock :size="13" /> {{ event.time }}</span>
+              <span><Clock :size="13" /> 14:00 WIB</span>
               <span><MapPin :size="13" /> {{ event.location }}, {{ event.city }}</span>
             </div>
           </div>
@@ -98,8 +126,17 @@ const browseMore = () => {
             <div class="cc-detail-icon"><Clock :size="18" /></div>
             <div>
               <div class="cc-detail-label">Jadwal Keberangkatan</div>
-              <div class="cc-detail-value">15:00 WIB</div>
-              <div class="cc-detail-sub">{{ event.dateLabel }}</div>
+              <div class="cc-detail-value">12:00 WIB</div>
+              <div class="cc-detail-sub">{{ event.dateLabel || event.date }}</div>
+            </div>
+          </div>
+
+          <div class="cc-detail-item">
+            <div class="cc-detail-icon"><Clock :size="18" /></div>
+            <div>
+              <div class="cc-detail-label">Jadwal Kepulangan</div>
+              <div class="cc-detail-value">01:00 WIB</div>
+              <div class="cc-detail-sub">{{ getNextDay(event.dateLabel || event.date) }}</div>
             </div>
           </div>
 
@@ -151,42 +188,20 @@ const browseMore = () => {
               <div class="ticket-code-big">{{ code }}</div>
               <div class="ticket-event-nm">{{ event.name }}</div>
               <div class="ticket-pickup">📍 {{ pickup?.name }}</div>
-              <div class="ticket-dep">🕑 15:00 WIB</div>
+              <div class="ticket-dep">🕑 12:00 WIB</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- What's Next -->
+      <!-- Terms and Conditions -->
       <div class="whats-next">
-        <h3 class="wn-title">Yang Perlu Kamu Tahu</h3>
+        <h3 class="wn-title">Syarat dan Ketentuan</h3>
         <div class="wn-steps">
-          <div class="wn-step">
-            <div class="wn-num">01</div>
+          <div class="wn-step" v-for="(term, index) in termsList" :key="index">
+            <div class="wn-num">0{{ index + 1 }}</div>
             <div>
-              <div class="wn-step-title">Datang 15 menit lebih awal</div>
-              <div class="wn-step-desc">Ke titik jemput sebelum jadwal keberangkatan untuk memastikan kursimu.</div>
-            </div>
-          </div>
-          <div class="wn-step">
-            <div class="wn-num">02</div>
-            <div>
-              <div class="wn-step-title">Tunjukkan kode booking</div>
-              <div class="wn-step-desc">Scan QR atau tunjukkan kode <strong>{{ code }}</strong> ke petugas AJAK! di lokasi.</div>
-            </div>
-          </div>
-          <div class="wn-step">
-            <div class="wn-num">03</div>
-            <div>
-              <div class="wn-step-title">Nikmati perjalananmu!</div>
-              <div class="wn-step-desc">Duduk, relax, dan biarkan AJAK! yang mengantarmu ke {{ event.location }}.</div>
-            </div>
-          </div>
-          <div class="wn-step">
-            <div class="wn-num">04</div>
-            <div>
-              <div class="wn-step-title">Toleransi waktu tunggu</div>
-              <div class="wn-step-desc">Maksimal 10 menit dari jam keberangkatan yang sudah ditentukan.</div>
+              <div class="wn-step-desc">{{ term }}</div>
             </div>
           </div>
         </div>
