@@ -90,7 +90,106 @@ const selectedSeats = computed({
   get: () => bookingStore.selectedSeats,
   set: v => bookingStore.selectedSeats = v,
 });
-const occupiedSeats = ref(['B3', 'B5', 'C1', 'C5', 'D4', 'A7', 'C8', 'D9', 'B10']); // Mock occupied seats across 10 columns
+const occupiedSeats = ref(['A1', 'B1', 'A2', 'D2', 'A3', 'B3', 'C3', 'D3', 'D6']); // Mock occupied seats across the vertical layout
+
+const busRows = [
+  {
+    rowNum: 1,
+    left: [
+      { id: 'A1', label: '1A', isOccupied: true },
+      { id: 'B1', label: '1B', isOccupied: true }
+    ],
+    right: [
+      { id: 'C1', label: '1C' },
+      { id: 'D1', label: '1D' }
+    ]
+  },
+  {
+    rowNum: 2,
+    left: [
+      { id: 'A2', label: '2A', isOccupied: true },
+      { id: 'B2', label: '2B' }
+    ],
+    right: [
+      { id: 'C2', label: '2C' },
+      { id: 'D2', label: '2D', isOccupied: true }
+    ]
+  },
+  {
+    rowNum: 3,
+    left: [
+      { id: 'A3', label: '3A', isOccupied: true },
+      { id: 'B3', label: '3B', isOccupied: true }
+    ],
+    right: [
+      { id: 'C3', label: '3C', isOccupied: true },
+      { id: 'D3', label: '3D', isOccupied: true }
+    ]
+  },
+  {
+    rowNum: 4,
+    left: [
+      { id: 'A4', label: '4A' },
+      { id: 'B4', label: '4B' }
+    ],
+    right: [
+      { id: 'C4', label: '4C' },
+      { id: 'D4', label: '4D' }
+    ]
+  },
+  {
+    rowNum: 5,
+    left: [
+      { id: 'A5', label: '5A' },
+      { id: 'B5', label: '5B' }
+    ],
+    right: [
+      { id: 'C5', label: '5C' },
+      { id: 'D5', label: '5D' }
+    ]
+  },
+  {
+    rowNum: 6,
+    left: [
+      { id: 'A6', label: '6A' },
+      { id: 'B6', label: '6B' }
+    ],
+    right: [
+      { id: 'C6', label: '6C' },
+      { id: 'D6', label: '6D', isOccupied: true }
+    ]
+  },
+  {
+    rowNum: 7,
+    left: [
+      { id: 'A7', label: '7A' },
+      { id: 'B7', label: '7B' }
+    ],
+    right: [
+      { id: 'C7', label: '7C' },
+      { id: 'D7', label: '7D' }
+    ]
+  },
+  {
+    rowNum: 8,
+    left: [
+      { id: 'A8', label: '8A' },
+      { id: 'B8', label: '8B' }
+    ],
+    right: [
+      { id: 'C8', label: '8C' },
+      { id: 'D8', label: '8D' }
+    ]
+  },
+  {
+    rowNum: 9,
+    left: [],
+    right: [
+      { id: 'C9', label: '9C' },
+      { id: 'D9', label: '9D' }
+    ]
+  }
+];
 
 // ---- ZOOM MODAL STATE ----
 const showZoomModal = ref(false);
@@ -193,6 +292,154 @@ const adminFee = computed(() => bookingStore.adminFee);
 const grandTotal = computed(() => bookingStore.totalPrice);
 
 const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
+
+// ---- VUE KONVA SEAT MAP ----
+const hoveredSeat = ref(null);
+const tooltipActive = ref(false);
+const tooltipSeat = ref(null);
+const tooltipX = ref(0);
+const tooltipY = ref(0);
+
+const handleSeatMouseEnter = (seat, x, y, evt) => {
+  hoveredSeat.value = seat.id;
+  tooltipActive.value = true;
+  tooltipSeat.value = seat;
+  tooltipX.value = x + 16;
+  tooltipY.value = y - 4;
+
+  if (evt && evt.target) {
+    const stage = evt.target.getStage();
+    if (stage) {
+      stage.container().style.cursor = occupiedSeats.value.includes(seat.id) ? 'not-allowed' : 'pointer';
+    }
+  }
+};
+
+const handleSeatMouseLeave = (evt) => {
+  hoveredSeat.value = null;
+  tooltipActive.value = false;
+
+  if (evt && evt.target) {
+    const stage = evt.target.getStage();
+    if (stage) {
+      stage.container().style.cursor = 'default';
+    }
+  }
+};
+
+const getSeatBaseConfig = (seat) => {
+  const isOccupied = occupiedSeats.value.includes(seat.id);
+  const isSelected = selectedSeats.value.includes(seat.id);
+  const isHovered = hoveredSeat.value === seat.id;
+  
+  let bgColor = '#ffffff';
+  let borderColor = '#cbd5e1';
+  
+  if (isOccupied) {
+    bgColor = '#374151';
+    borderColor = '#1f2937';
+  } else if (isSelected) {
+    bgColor = '#ef4444';
+    borderColor = '#b91c1c';
+  } else if (isHovered) {
+    borderColor = '#94a3b8';
+  }
+
+  return {
+    x: 0,
+    y: 0,
+    width: 32,
+    height: 32,
+    cornerRadius: [6, 6, 9, 9],
+    fill: bgColor,
+    stroke: borderColor,
+    strokeWidth: 1.5
+  };
+};
+
+const getSeatCushionConfig = (seat) => {
+  const isOccupied = occupiedSeats.value.includes(seat.id);
+  const isSelected = selectedSeats.value.includes(seat.id);
+  const isHovered = hoveredSeat.value === seat.id;
+
+  let cushionColor = '#f8fafc';
+  let borderColor = '#cbd5e1';
+
+  if (isOccupied) {
+    cushionColor = '#4b5563';
+    borderColor = '#1f2937';
+  } else if (isSelected) {
+    cushionColor = '#ef4444';
+    borderColor = '#b91c1c';
+  } else if (isHovered) {
+    cushionColor = '#ffffff';
+    borderColor = '#94a3b8';
+  }
+
+  return {
+    x: 3,
+    y: 2,
+    width: 26,
+    height: 21,
+    cornerRadius: [3, 3, 1.5, 1.5],
+    fill: cushionColor,
+    stroke: borderColor,
+    strokeWidth: 1.2
+  };
+};
+
+const getSeatBackrestConfig = (seat) => {
+  const isOccupied = occupiedSeats.value.includes(seat.id);
+  const isSelected = selectedSeats.value.includes(seat.id);
+
+  let backrestColor = '#cbd5e1';
+
+  if (isOccupied) {
+    backrestColor = '#1f2937';
+  } else if (isSelected) {
+    backrestColor = '#b91c1c';
+  }
+
+  return {
+    x: 4,
+    y: 25,
+    width: 24,
+    height: 5,
+    cornerRadius: 2,
+    fill: backrestColor
+  };
+};
+
+const getSeatTextConfig = (seat) => {
+  const isOccupied = occupiedSeats.value.includes(seat.id);
+  const isSelected = selectedSeats.value.includes(seat.id);
+
+  let textColor = '#1e293b';
+  let textVal = seat.label;
+  let fontSize = 9;
+
+  if (isOccupied) {
+    textColor = '#94a3b8';
+    textVal = '✕';
+    fontSize = 11;
+  } else if (isSelected) {
+    textColor = '#ffffff';
+  }
+
+  return {
+    x: 0,
+    y: 0,
+    width: 32,
+    height: 24,
+    text: textVal,
+    fontSize: fontSize,
+    fontStyle: '800',
+    fontFamily: 'sans-serif',
+    fill: textColor,
+    align: 'center',
+    verticalAlign: 'middle'
+  };
+};
 </script>
 
 <template>
@@ -355,117 +602,177 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
                 </button>
               </div>
 
-              <!-- Visual of the bus cabin (horizontal, compact) -->
-              <div class="bus-cabin">
-                <!-- Side Doors styled as indentations in borders -->
-                <div class="bus-door top-left">Pintu</div>
-                <div class="bus-door bottom-left">Pintu</div>
-                <div class="bus-door bottom-right">Pintu</div>
+              <!-- Visual of the bus cabin (vertical, Vue-Konva) -->
+              <div class="canvas-bus-container" style="position: relative; width: 200px; height: 456px; margin: 0 auto 24px;">
+                <v-stage :config="{ width: 200, height: 456 }">
+                  <v-layer>
+                    <!-- Cockpit area -->
+                    <v-rect :config="{
+                      x: 16,
+                      y: 16,
+                      width: 72,
+                      height: 32,
+                      cornerRadius: 5,
+                      stroke: '#cbd5e1',
+                      strokeWidth: 1,
+                      dash: [3, 3]
+                    }" />
+                    <v-text :config="{
+                      x: 16,
+                      y: 16,
+                      width: 72,
+                      height: 32,
+                      text: '🚪 PINTU DEPAN',
+                      fontSize: 8,
+                      fontStyle: 'bold',
+                      fontFamily: 'sans-serif',
+                      fill: '#64748b',
+                      align: 'center',
+                      verticalAlign: 'middle'
+                    }" />
 
-                <!-- Side Mirrors sticking out on the outer left corners -->
-                <div class="side-mirror top"></div>
-                <div class="side-mirror bottom"></div>
+                    <!-- Driver Wheel Icon -->
+                    <v-group :config="{ x: 148, y: 32 }">
+                      <v-circle :config="{
+                        x: 0,
+                        y: 0,
+                        radius: 10,
+                        stroke: '#64748b',
+                        strokeWidth: 2
+                      }" />
+                      <v-circle :config="{
+                        x: 0,
+                        y: 0,
+                        radius: 2.5,
+                        stroke: '#64748b',
+                        strokeWidth: 2
+                      }" />
+                      <v-line :config="{
+                        points: [0, -10, 0, -2.5],
+                        stroke: '#64748b',
+                        strokeWidth: 2
+                      }" />
+                      <v-line :config="{
+                        points: [-7.1, 7.1, -1.8, 1.8],
+                        stroke: '#64748b',
+                        strokeWidth: 2
+                      }" />
+                      <v-line :config="{
+                        points: [7.1, 7.1, 1.8, 1.8],
+                        stroke: '#64748b',
+                        strokeWidth: 2
+                      }" />
+                    </v-group>
 
-                <!-- Cockpit / Driver Area (Far Left) -->
-                <div class="bus-left-front">
-                  <!-- Windshield glass outline -->
-                  <div class="windshield-glass-vertical"></div>
-                  <!-- Driver / Supir text badge ONLY (no 3D chair) at the top -->
-                  <div class="driver-seat-box supir-right">
-                    <div class="driver-lbl-badge">SUPIR</div>
-                  </div>
-                </div>
+                    <!-- Dashed dividing line under cockpit -->
+                    <v-line :config="{
+                      points: [16, 56, 184, 56],
+                      stroke: '#e2e8f0',
+                      strokeWidth: 1.5,
+                      dash: [4, 4]
+                    }" />
 
-                <!-- Vertical dashed line separating driver from passengers -->
-                <div class="cockpit-separator"></div>
+                    <!-- Passenger rows -->
+                    <v-group v-for="(row, rowIndex) in busRows" :key="'row-' + row.rowNum">
+                      <!-- Left column (seats or rear door) -->
+                      <template v-if="row.left.length > 0">
+                        <v-group 
+                          v-for="(seat, seatIndex) in row.left" 
+                          :key="seat.id"
+                          :config="{
+                            x: 16 + seatIndex * 40,
+                            y: 64 + rowIndex * 44
+                          }"
+                          @click="toggleSeat(seat.id)"
+                          @tap="toggleSeat(seat.id)"
+                          @mouseenter="(evt) => handleSeatMouseEnter(seat, 16 + seatIndex * 40, 64 + rowIndex * 44, evt)"
+                          @mouseleave="handleSeatMouseLeave"
+                        >
+                          <v-rect :config="getSeatBaseConfig(seat)" />
+                          <v-rect :config="getSeatCushionConfig(seat)" />
+                          <v-rect :config="getSeatBackrestConfig(seat)" />
+                          <v-text :config="getSeatTextConfig(seat)" />
+                        </v-group>
+                      </template>
+                      <template v-else-if="row.rowNum === 9">
+                        <v-rect :config="{
+                          x: 16,
+                          y: 64 + rowIndex * 44,
+                          width: 72,
+                          height: 32,
+                          cornerRadius: 5,
+                          stroke: '#cbd5e1',
+                          strokeWidth: 1,
+                          dash: [3, 3]
+                        }" />
+                        <v-text :config="{
+                          x: 16,
+                          y: 64 + rowIndex * 44,
+                          width: 72,
+                          height: 32,
+                          text: '🚪 PINTU BELAKANG',
+                          fontSize: 8,
+                          fontStyle: 'bold',
+                          fontFamily: 'sans-serif',
+                          fill: '#64748b',
+                          align: 'center',
+                          verticalAlign: 'middle'
+                        }" />
+                      </template>
 
-                <!-- Passenger Area -->
-                <div class="bus-passenger-area">
-                  <!-- Column Header numbers (1-10) above Row A -->
-                  <div class="column-headers">
-                    <span class="col-header-spacer"></span> <!-- offsets the row letter label -->
-                    <span v-for="c in 10" :key="'col-hdr-'+c" class="col-hdr-num">{{ c }}</span>
-                  </div>
+                      <!-- Row labels (center aisle) -->
+                      <v-text :config="{
+                        x: 88,
+                        y: 64 + rowIndex * 44,
+                        width: 24,
+                        height: 32,
+                        text: row.rowNum.toString(),
+                        fontSize: 11,
+                        fontStyle: '800',
+                        fontFamily: 'sans-serif',
+                        fill: '#94a3b8',
+                        align: 'center',
+                        verticalAlign: 'middle'
+                      }" />
 
-                  <!-- Row A -->
-                  <div class="bus-row-horizontal">
-                    <span class="row-label">A</span>
-                    <button 
-                      v-for="r in 10" 
-                      :key="'A'+r"
-                      class="seat-btn"
-                      :class="{
-                        occupied: occupiedSeats.includes('A' + r),
-                        selected: selectedSeats.includes('A' + r)
-                      }"
-                      :disabled="occupiedSeats.includes('A' + r)"
-                      @click="toggleSeat('A' + r)"
-                      :title="occupiedSeats.includes('A' + r) ? `Kursi A${r} (Terisi)` : `Pilih Kursi A${r}`"
-                    >
-                      <span class="seat-name">A{{ r }}</span>
-                    </button>
-                  </div>
-
-                  <!-- Row B -->
-                  <div class="bus-row-horizontal">
-                    <span class="row-label">B</span>
-                    <button 
-                      v-for="r in 10" 
-                      :key="'B'+r"
-                      class="seat-btn"
-                      :class="{
-                        occupied: occupiedSeats.includes('B' + r),
-                        selected: selectedSeats.includes('B' + r)
-                      }"
-                      :disabled="occupiedSeats.includes('B' + r)"
-                      @click="toggleSeat('B' + r)"
-                      :title="occupiedSeats.includes('B' + r) ? `Kursi B${r} (Terisi)` : `Pilih Kursi B${r}`"
-                    >
-                      <span class="seat-name">B{{ r }}</span>
-                    </button>
-                  </div>
-
-                  <!-- Horizontal walking aisle -->
-                  <div class="bus-aisle-horizontal"></div>
-
-                  <!-- Row C -->
-                  <div class="bus-row-horizontal">
-                    <span class="row-label">C</span>
-                    <button 
-                      v-for="r in 10" 
-                      :key="'C'+r"
-                      class="seat-btn"
-                      :class="{
-                        occupied: occupiedSeats.includes('C' + r),
-                        selected: selectedSeats.includes('C' + r)
-                      }"
-                      :disabled="occupiedSeats.includes('C' + r)"
-                      @click="toggleSeat('C' + r)"
-                      :title="occupiedSeats.includes('C' + r) ? `Kursi C${r} (Terisi)` : `Pilih Kursi C${r}`"
-                    >
-                      <span class="seat-name">C{{ r }}</span>
-                    </button>
-                  </div>
-
-                  <!-- Row D -->
-                  <div class="bus-row-horizontal">
-                    <span class="row-label">D</span>
-                    <button 
-                      v-for="r in 10" 
-                      :key="'D'+r"
-                      class="seat-btn"
-                      :class="{
-                        occupied: occupiedSeats.includes('D' + r),
-                        selected: selectedSeats.includes('D' + r)
-                      }"
-                      :disabled="occupiedSeats.includes('D' + r)"
-                      @click="toggleSeat('D' + r)"
-                      :title="occupiedSeats.includes('D' + r) ? `Kursi D${r} (Terisi)` : `Pilih Kursi D${r}`"
-                    >
-                      <span class="seat-name">D{{ r }}</span>
-                    </button>
-                  </div>
-                </div>
+                      <!-- Right column seats -->
+                      <v-group 
+                        v-for="(seat, seatIndex) in row.right" 
+                        :key="seat.id"
+                        :config="{
+                          x: 112 + seatIndex * 40,
+                          y: 64 + rowIndex * 44
+                        }"
+                        @click="toggleSeat(seat.id)"
+                        @tap="toggleSeat(seat.id)"
+                        @mouseenter="(evt) => handleSeatMouseEnter(seat, 112 + seatIndex * 40, 64 + rowIndex * 44, evt)"
+                        @mouseleave="handleSeatMouseLeave"
+                      >
+                        <v-rect :config="getSeatBaseConfig(seat)" />
+                        <v-rect :config="getSeatCushionConfig(seat)" />
+                        <v-rect :config="getSeatBackrestConfig(seat)" />
+                        <v-text :config="getSeatTextConfig(seat)" />
+                      </v-group>
+                    </v-group>
+                  </v-layer>
+                </v-stage>
+                
+                <!-- Floating price tooltip -->
+                <transition name="fade">
+                  <span 
+                    v-if="tooltipActive" 
+                    class="seat-tooltip" 
+                    :style="{ 
+                      left: tooltipX + 'px', 
+                      top: tooltipY + 'px', 
+                      visibility: 'visible', 
+                      opacity: 1 
+                    }"
+                  >
+                    <span class="tooltip-price" v-if="!occupiedSeats.includes(tooltipSeat.id)">{{ formatRp(bookingStore.basePrice) }}</span>
+                    <span class="tooltip-status occupied" v-else>Terisi</span>
+                  </span>
+                </transition>
               </div>
 
               <!-- Legends -->
@@ -522,112 +829,177 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
                       <div class="zm-scrollable-viewport">
                         <div class="zm-scale-container" :style="{ transform: 'scale(' + zoomLevel + ')' }">
                           
-                          <!-- Bus Cabin Replica inside Modal -->
-                          <div class="bus-cabin modal-cabin">
-                            <!-- Side Doors -->
-                            <div class="bus-door top-left">Pintu</div>
-                            <div class="bus-door bottom-left">Pintu</div>
-                            <div class="bus-door bottom-right">Pintu</div>
+                          <!-- Bus Cabin Replica inside Modal (Vue-Konva) -->
+                          <div class="canvas-bus-container modal-cabin" style="position: relative; width: 200px; height: 456px;">
+                            <v-stage :config="{ width: 200, height: 456 }">
+                              <v-layer>
+                                <!-- Cockpit area -->
+                                <v-rect :config="{
+                                  x: 16,
+                                  y: 16,
+                                  width: 72,
+                                  height: 32,
+                                  cornerRadius: 5,
+                                  stroke: '#cbd5e1',
+                                  strokeWidth: 1,
+                                  dash: [3, 3]
+                                }" />
+                                <v-text :config="{
+                                  x: 16,
+                                  y: 16,
+                                  width: 72,
+                                  height: 32,
+                                  text: '🚪 PINTU DEPAN',
+                                  fontSize: 8,
+                                  fontStyle: 'bold',
+                                  fontFamily: 'sans-serif',
+                                  fill: '#64748b',
+                                  align: 'center',
+                                  verticalAlign: 'middle'
+                                }" />
 
-                            <!-- Side Mirrors -->
-                            <div class="side-mirror top"></div>
-                            <div class="side-mirror bottom"></div>
+                                <!-- Driver Wheel Icon -->
+                                <v-group :config="{ x: 148, y: 32 }">
+                                  <v-circle :config="{
+                                    x: 0,
+                                    y: 0,
+                                    radius: 10,
+                                    stroke: '#64748b',
+                                    strokeWidth: 2
+                                  }" />
+                                  <v-circle :config="{
+                                    x: 0,
+                                    y: 0,
+                                    radius: 2.5,
+                                    stroke: '#64748b',
+                                    strokeWidth: 2
+                                  }" />
+                                  <v-line :config="{
+                                    points: [0, -10, 0, -2.5],
+                                    stroke: '#64748b',
+                                    strokeWidth: 2
+                                  }" />
+                                  <v-line :config="{
+                                    points: [-7.1, 7.1, -1.8, 1.8],
+                                    stroke: '#64748b',
+                                    strokeWidth: 2
+                                  }" />
+                                  <v-line :config="{
+                                    points: [7.1, 7.1, 1.8, 1.8],
+                                    stroke: '#64748b',
+                                    strokeWidth: 2
+                                  }" />
+                                </v-group>
 
-                            <!-- Cockpit -->
-                            <div class="bus-left-front">
-                              <div class="windshield-glass-vertical"></div>
-                              <div class="driver-seat-box supir-right">
-                                <div class="driver-lbl-badge">SUPIR</div>
-                              </div>
-                            </div>
+                                <!-- Dashed dividing line under cockpit -->
+                                <v-line :config="{
+                                  points: [16, 56, 184, 56],
+                                  stroke: '#e2e8f0',
+                                  strokeWidth: 1.5,
+                                  dash: [4, 4]
+                                }" />
 
-                            <div class="cockpit-separator"></div>
+                                <!-- Passenger rows -->
+                                <v-group v-for="(row, rowIndex) in busRows" :key="'modal-row-' + row.rowNum">
+                                  <!-- Left column (seats or rear door) -->
+                                  <template v-if="row.left.length > 0">
+                                    <v-group 
+                                      v-for="(seat, seatIndex) in row.left" 
+                                      :key="seat.id"
+                                      :config="{
+                                        x: 16 + seatIndex * 40,
+                                        y: 64 + rowIndex * 44
+                                      }"
+                                      @click="toggleSeat(seat.id)"
+                                      @tap="toggleSeat(seat.id)"
+                                      @mouseenter="(evt) => handleSeatMouseEnter(seat, 16 + seatIndex * 40, 64 + rowIndex * 44, evt)"
+                                      @mouseleave="handleSeatMouseLeave"
+                                    >
+                                      <v-rect :config="getSeatBaseConfig(seat)" />
+                                      <v-rect :config="getSeatCushionConfig(seat)" />
+                                      <v-rect :config="getSeatBackrestConfig(seat)" />
+                                      <v-text :config="getSeatTextConfig(seat)" />
+                                    </v-group>
+                                  </template>
+                                  <template v-else-if="row.rowNum === 9">
+                                    <v-rect :config="{
+                                      x: 16,
+                                      y: 64 + rowIndex * 44,
+                                      width: 72,
+                                      height: 32,
+                                      cornerRadius: 5,
+                                      stroke: '#cbd5e1',
+                                      strokeWidth: 1,
+                                      dash: [3, 3]
+                                    }" />
+                                    <v-text :config="{
+                                      x: 16,
+                                      y: 64 + rowIndex * 44,
+                                      width: 72,
+                                      height: 32,
+                                      text: '🚪 PINTU BELAKANG',
+                                      fontSize: 8,
+                                      fontStyle: 'bold',
+                                      fontFamily: 'sans-serif',
+                                      fill: '#64748b',
+                                      align: 'center',
+                                      verticalAlign: 'middle'
+                                    }" />
+                                  </template>
 
-                            <div class="bus-passenger-area">
-                              <div class="column-headers">
-                                <span class="col-header-spacer"></span>
-                                <span v-for="c in 10" :key="'modal-col-'+c" class="col-hdr-num">{{ c }}</span>
-                              </div>
+                                  <!-- Row labels (center aisle) -->
+                                  <v-text :config="{
+                                    x: 88,
+                                    y: 64 + rowIndex * 44,
+                                    width: 24,
+                                    height: 32,
+                                    text: row.rowNum.toString(),
+                                    fontSize: 11,
+                                    fontStyle: '800',
+                                    fontFamily: 'sans-serif',
+                                    fill: '#94a3b8',
+                                    align: 'center',
+                                    verticalAlign: 'middle'
+                                  }" />
 
-                              <!-- Row A -->
-                              <div class="bus-row-horizontal">
-                                <span class="row-label">A</span>
-                                <button 
-                                  v-for="r in 10" 
-                                  :key="'modal-A'+r"
-                                  class="seat-btn"
-                                  :class="{
-                                    occupied: occupiedSeats.includes('A' + r),
-                                    selected: selectedSeats.includes('A' + r)
-                                  }"
-                                  :disabled="occupiedSeats.includes('A' + r)"
-                                  @click="toggleSeat('A' + r)"
-                                  :title="occupiedSeats.includes('A' + r) ? `Kursi A${r} (Terisi)` : `Pilih Kursi A${r}`"
-                                >
-                                  <span class="seat-name">A{{ r }}</span>
-                                </button>
-                              </div>
-
-                              <!-- Row B -->
-                              <div class="bus-row-horizontal">
-                                <span class="row-label">B</span>
-                                <button 
-                                  v-for="r in 10" 
-                                  :key="'modal-B'+r"
-                                  class="seat-btn"
-                                  :class="{
-                                    occupied: occupiedSeats.includes('B' + r),
-                                    selected: selectedSeats.includes('B' + r)
-                                  }"
-                                  :disabled="occupiedSeats.includes('B' + r)"
-                                  @click="toggleSeat('B' + r)"
-                                  :title="occupiedSeats.includes('B' + r) ? `Kursi B${r} (Terisi)` : `Pilih Kursi B${r}`"
-                                >
-                                  <span class="seat-name">B{{ r }}</span>
-                                </button>
-                              </div>
-
-                              <div class="bus-aisle-horizontal"></div>
-
-                              <!-- Row C -->
-                              <div class="bus-row-horizontal">
-                                <span class="row-label">C</span>
-                                <button 
-                                  v-for="r in 10" 
-                                  :key="'modal-C'+r"
-                                  class="seat-btn"
-                                  :class="{
-                                    occupied: occupiedSeats.includes('C' + r),
-                                    selected: selectedSeats.includes('C' + r)
-                                  }"
-                                  :disabled="occupiedSeats.includes('C' + r)"
-                                  @click="toggleSeat('C' + r)"
-                                  :title="occupiedSeats.includes('C' + r) ? `Kursi C${r} (Terisi)` : `Pilih Kursi C${r}`"
-                                >
-                                  <span class="seat-name">C{{ r }}</span>
-                                </button>
-                              </div>
-
-                              <!-- Row D -->
-                              <div class="bus-row-horizontal">
-                                <span class="row-label">D</span>
-                                <button 
-                                  v-for="r in 10" 
-                                  :key="'modal-D'+r"
-                                  class="seat-btn"
-                                  :class="{
-                                    occupied: occupiedSeats.includes('D' + r),
-                                    selected: selectedSeats.includes('D' + r)
-                                  }"
-                                  :disabled="occupiedSeats.includes('D' + r)"
-                                  @click="toggleSeat('D' + r)"
-                                  :title="occupiedSeats.includes('D' + r) ? `Kursi D${r} (Terisi)` : `Pilih Kursi D${r}`"
-                                >
-                                  <span class="seat-name">D{{ r }}</span>
-                                </button>
-                              </div>
-
-                            </div>
+                                  <!-- Right column seats -->
+                                  <v-group 
+                                    v-for="(seat, seatIndex) in row.right" 
+                                    :key="seat.id"
+                                    :config="{
+                                      x: 112 + seatIndex * 40,
+                                      y: 64 + rowIndex * 44
+                                    }"
+                                    @click="toggleSeat(seat.id)"
+                                    @tap="toggleSeat(seat.id)"
+                                    @mouseenter="(evt) => handleSeatMouseEnter(seat, 112 + seatIndex * 40, 64 + rowIndex * 44, evt)"
+                                    @mouseleave="handleSeatMouseLeave"
+                                  >
+                                    <v-rect :config="getSeatBaseConfig(seat)" />
+                                    <v-rect :config="getSeatCushionConfig(seat)" />
+                                    <v-rect :config="getSeatBackrestConfig(seat)" />
+                                    <v-text :config="getSeatTextConfig(seat)" />
+                                  </v-group>
+                                </v-group>
+                              </v-layer>
+                            </v-stage>
+                            
+                            <!-- Floating price tooltip inside modal -->
+                            <transition name="fade">
+                              <span 
+                                v-if="tooltipActive" 
+                                class="seat-tooltip" 
+                                :style="{ 
+                                  left: tooltipX + 'px', 
+                                  top: tooltipY + 'px', 
+                                  visibility: 'visible', 
+                                  opacity: 1 
+                                }"
+                              >
+                                <span class="tooltip-price" v-if="!occupiedSeats.includes(tooltipSeat.id)">{{ formatRp(bookingStore.basePrice) }}</span>
+                                <span class="tooltip-status occupied" v-else>Terisi</span>
+                              </span>
+                            </transition>
                           </div>
 
                         </div>
@@ -906,6 +1278,11 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
   align-items: center;
   margin-top: 16px;
   width: 100%;
+  background: #f8fafc; /* Canvas background */
+  border: 1.5px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.01), 0 10px 30px rgba(0,0,0,0.02);
 }
 .zoom-trigger-btn {
   background: var(--card-bg);
@@ -932,178 +1309,104 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 
 .bus-cabin {
   position: relative;
-  background: #ffffff; /* White bus body */
-  border: 2px solid #334155; /* Outlined */
-  border-radius: 30px 12px 12px 30px; /* rounded nose front-left */
-  padding: 18px 22px 18px 16px;
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  gap: 16px;
   width: fit-content;
   margin: 0 auto 24px;
 }
 
-/* Door slots in borders (like real passenger/driver doors) */
-.bus-door {
-  position: absolute;
+/* Cockpit / Driver Area at the top right */
+.bus-left-front {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding-bottom: 12px;
+  border-bottom: 1.5px dashed #e2e8f0;
+  margin-bottom: 12px;
+}
+
+.bus-door-label {
+  font-size: 0.55rem;
+  font-weight: 850;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
   background: #f1f5f9;
-  border: 1.5px solid #334155;
-  z-index: 10;
+  padding: 3px 6px;
+  border-radius: 5px;
+  border: 1px dashed #cbd5e1;
+  white-space: nowrap;
+}
+
+.front-door {
+  align-self: center;
+}
+
+.rear-door {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 8px;
-  font-weight: 800;
-  color: #334155;
-  text-transform: uppercase;
-}
-.bus-door.top-left {
-  top: -6px;
-  left: 22px;
-  width: 45px;
-  height: 12px;
-  border-radius: 4px;
-}
-.bus-door.bottom-left {
-  bottom: -6px;
-  left: 22px;
-  width: 45px;
-  height: 12px;
-  border-radius: 4px;
-}
-.bus-door.bottom-right {
-  bottom: -6px;
-  right: 22px;
-  width: 45px;
-  height: 12px;
-  border-radius: 4px;
-}
-
-/* Side mirrors on the outside */
-.side-mirror {
-  position: absolute;
-  left: 20px;
-  width: 10px;
-  height: 5px;
-  background: #1e293b;
-  border-radius: 2px;
-  z-index: 10;
-}
-.side-mirror.top {
-  top: -5px;
-  transform: rotate(-15deg);
-}
-.side-mirror.top::after {
-  content: '';
-  position: absolute;
-  left: 2px;
-  top: 4px;
-  width: 2.5px;
-  height: 5px;
-  background: #1e293b;
-}
-.side-mirror.bottom {
-  bottom: -5px;
-  transform: rotate(15deg);
-}
-.side-mirror.bottom::after {
-  content: '';
-  position: absolute;
-  left: 2px;
-  bottom: 4px;
-  width: 2.5px;
-  height: 5px;
-  background: #1e293b;
-}
-
-/* Cockpit Area */
-.bus-left-front {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 10px;
-  padding-left: 4px;
-  min-height: 120px;
-}
-.windshield-glass-vertical {
-  width: 12px;
-  height: 110px;
-  background: #334155;
-  border-radius: 8px 3px 3px 8px;
-  border: 1.8px solid #1e293b;
-  box-shadow: inset -2px 0 4px rgba(0,0,0,0.3);
+  width: 72px; /* matches .seat-spacer-pair width */
+  height: 32px; /* matches seat height */
+  box-sizing: border-box;
+  font-size: 0.52rem;
+  padding: 2px 4px;
+  text-align: center;
 }
 .driver-seat-box {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  margin-left: 20px;
+  justify-content: center;
+  width: 72px; /* centered above the right column pair (32 + 8 + 32) */
 }
-/* Supir on the right side of the vehicle (which is the top side of the horizontally oriented cockpit) */
-.driver-seat-box.supir-right {
-  align-self: flex-start;
-  margin-top: 6px;
-}
-.driver-lbl-badge {
-  background: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  color: #475569;
-  font-size: 0.55rem;
-  font-weight: 900;
-  padding: 3px 8px;
-  border-radius: 5px;
-  letter-spacing: 0.5px;
-  box-shadow: 0 1.5px 3px rgba(0,0,0,0.06);
-  text-transform: uppercase;
-}
-
-/* Cockpit separator dashed line */
-.cockpit-separator {
-  width: 1px;
-  align-self: stretch;
-  border-left: 1.5px dashed #cbd5e1;
-  margin: 0 4px;
+.driver-icon-svg {
+  color: #64748b;
+  opacity: 0.85;
 }
 
 /* Passenger Area */
 .bus-passenger-area {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 10px;
 }
-.column-headers {
+.bus-row-vertical {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
+  gap: 16px;
 }
-.col-header-spacer {
-  width: 14px; /* matches .row-label space offset */
+.seat-pair {
+  display: flex;
+  gap: 8px;
 }
-.col-hdr-num {
-  width: 32px; /* matches .seat-btn width */
-  text-align: center;
-  font-size: 0.72rem;
+.bus-aisle-vertical {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 32px;
+}
+.row-num-label {
+  font-size: 0.75rem;
   font-weight: 800;
-  color: #64748b;
+  color: #94a3b8;
 }
-
-.bus-row-horizontal {
+.seat-spacer-pair {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  width: 72px;
+  height: 32px;
 }
-.row-label {
+.occupied-x {
   font-size: 0.8rem;
+  color: #94a3b8;
   font-weight: 800;
-  color: #dc2626; /* AJAK! Red */
-  width: 14px;
-  text-align: center;
-}
-.bus-aisle-horizontal {
-  height: 14px; /* horizontal aisle spacing */
+  margin-top: -1px;
 }
 
 /* Realistic 3D Chair styled seat button (facing upward) - Slightly smaller basic size */
@@ -1162,20 +1465,20 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 }
 
 /* Hover state */
-.seat-btn:not(.selected):hover:not(:disabled) {
+.seat-btn:not(.selected):hover:not(.occupied) {
   border-color: #94a3b8;
   transform: translateY(-0.5px);
   box-shadow: 0 2px 0 #cbd5e1, 0 4px 8px rgba(0,0,0,0.05);
 }
-.seat-btn:not(.selected):hover:not(:disabled)::before {
+.seat-btn:not(.selected):hover:not(.occupied)::before {
   background: #ffffff;
 }
 
-.seat-btn.selected:hover:not(:disabled) {
+.seat-btn.selected:hover:not(.occupied) {
   transform: translateY(-0.5px);
   box-shadow: 0 2px 0 #b91c1c, 0 4px 8px rgba(239, 68, 68, 0.3);
 }
-.seat-btn.selected:hover:not(:disabled)::before {
+.seat-btn.selected:hover:not(.occupied)::before {
   background: #f87171;
 }
 
@@ -1195,7 +1498,7 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 }
 
 /* Occupied state (Terisi - Dark Grey) */
-.seat-btn:disabled {
+.seat-btn.occupied {
   background: #374151;
   border-color: #1f2937;
   color: #ffffff;
@@ -1203,12 +1506,80 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
   cursor: not-allowed;
   opacity: 1; /* keep colors vivid even if disabled */
 }
-.seat-btn:disabled::before {
+.seat-btn.occupied::before {
   background: #4b5563;
   border-color: #374151;
 }
-.seat-btn:disabled::after {
+.seat-btn.occupied::after {
   background: #1f2937;
+}
+
+/* Tooltip styles */
+.seat-tooltip {
+  position: absolute;
+  transform: translateX(-50%) translateY(-100%);
+  margin-top: -8px; /* Offset to float nicely above the seat */
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #0f172a;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+  z-index: 100;
+  pointer-events: none;
+  line-height: 1;
+}
+
+/* Tooltip arrow border */
+.seat-tooltip::before {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #cbd5e1 transparent transparent transparent;
+  z-index: -1;
+}
+
+/* Tooltip arrow fill */
+.seat-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: -1.5px; /* shift up to overlay the border */
+  border-width: 5px;
+  border-style: solid;
+  border-color: #ffffff transparent transparent transparent;
+  z-index: 1;
+}
+
+.tooltip-price {
+  color: #ef4444; /* Clean theme red for price */
+}
+
+.tooltip-status.occupied {
+  color: #64748b; /* Slate-500 for occupied */
+  font-weight: 700;
+}
+
+/* Fade transition for Vue tooltip */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-95%);
 }
 
 /* Legends with 3D Chair Silhouettes */
@@ -1453,7 +1824,11 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 }
 .modal-cabin {
   margin: 0 !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
 }
 .zm-footer {
   display: flex;
@@ -1480,72 +1855,44 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 
 /* Responsive adjust for mobile screens */
 @media (max-width: 580px) {
+  .bus-container {
+    padding: 16px;
+    border-radius: 18px;
+  }
   .bus-cabin {
-    padding: 12px 14px 12px 10px;
-    gap: 8px;
-    border-radius: 20px 8px 8px 20px;
-    max-width: 100%;
-    overflow-x: auto;
+    margin-bottom: 16px;
   }
-  .side-mirror {
-    width: 8px;
-    height: 4px;
-    left: 14px;
-  }
-  .side-mirror.top { top: -4px; }
-  .side-mirror.bottom { bottom: -4px; }
-  .bus-door.top-left { left: 18px; width: 36px; height: 10px; top: -5px; font-size: 6.5px; }
-  .bus-door.bottom-left { left: 18px; width: 36px; height: 10px; bottom: -5px; font-size: 6.5px; }
-  .bus-door.bottom-right { right: 18px; width: 36px; height: 10px; bottom: -5px; font-size: 6.5px; }
-
   .bus-left-front {
-    gap: 6px;
-    padding-left: 2px;
-    min-height: 90px;
-  }
-  .windshield-glass-vertical {
-    width: 10px;
-    height: 85px;
+    padding-bottom: 8px;
+    margin-bottom: 2px;
   }
   .driver-seat-box {
-    margin-left: 10px;
+    width: 54px;
   }
-  .driver-seat-box.supir-right {
-    margin-top: 3px;
-  }
-  .driver-lbl-badge {
-    font-size: 0.45rem;
-    padding: 2px 5px;
-  }
-  .cockpit-separator {
-    margin: 0 2px;
-  }
-  
   .bus-passenger-area {
-    gap: 4px;
+    gap: 8px;
   }
-  .column-headers {
-    margin-bottom: 2px;
-    gap: 4px;
+  .bus-row-vertical {
+    gap: 10px;
   }
-  .col-header-spacer {
-    width: 10px;
+  .seat-pair {
+    gap: 6px;
   }
-  .col-hdr-num {
-    width: 24px;
+  .bus-aisle-vertical {
+    width: 18px;
+    height: 24px;
+  }
+  .row-num-label {
     font-size: 0.65rem;
   }
-  .bus-row-horizontal {
-    gap: 4px;
+  .seat-spacer-pair {
+    width: 54px;
+    height: 24px;
   }
-  .row-label {
-    font-size: 0.7rem;
-    width: 10px;
+  .occupied-x {
+    font-size: 0.65rem;
   }
-  .bus-aisle-horizontal {
-    height: 10px;
-  }
-  
+
   .seat-btn {
     width: 24px;
     height: 24px;
@@ -1576,7 +1923,7 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
   .seat-btn.selected {
     box-shadow: 0 1.5px 0 #b91c1c;
   }
-  .seat-btn:disabled {
+  .seat-btn.occupied {
     box-shadow: 0 1.5px 0 #1f2937;
   }
   .zoom-trigger-btn {
