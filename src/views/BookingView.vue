@@ -85,10 +85,61 @@ const toddlers = computed({
   set: v => bookingStore.toddlers = v,
 });
 
+// ---- STEP 4: SEAT SELECTION ----
+const selectedSeats = computed({
+  get: () => bookingStore.selectedSeats,
+  set: v => bookingStore.selectedSeats = v,
+});
+const occupiedSeats = ref(['B3', 'B5', 'C1', 'C5', 'D4', 'A7', 'C8', 'D9', 'B10']); // Mock occupied seats across 10 columns
+
+// ---- ZOOM MODAL STATE ----
+const showZoomModal = ref(false);
+const zoomLevel = ref(1.0);
+
+const zoomIn = () => {
+  if (zoomLevel.value < 2.0) zoomLevel.value = parseFloat((zoomLevel.value + 0.1).toFixed(1));
+};
+const zoomOut = () => {
+  if (zoomLevel.value > 0.5) zoomLevel.value = parseFloat((zoomLevel.value - 0.1).toFixed(1));
+};
+const resetZoom = () => {
+  zoomLevel.value = 1.0;
+};
+
+watch(adults, (newVal) => {
+  if (selectedSeats.value.length > newVal) {
+    selectedSeats.value = selectedSeats.value.slice(0, newVal);
+  }
+});
+
+const toggleSeat = (seatId) => {
+  if (occupiedSeats.value.includes(seatId)) return;
+  const idx = selectedSeats.value.indexOf(seatId);
+  const arr = [...selectedSeats.value];
+  if (idx !== -1) {
+    arr.splice(idx, 1);
+    selectedSeats.value = arr;
+  } else {
+    if (arr.length < adults.value) {
+      arr.push(seatId);
+      selectedSeats.value = arr;
+    } else {
+      if (adults.value === 1) {
+        selectedSeats.value = [seatId];
+      } else {
+        arr.shift();
+        arr.push(seatId);
+        selectedSeats.value = arr;
+      }
+    }
+  }
+};
+
 // ---- NAVIGATION ----
 const canProceed = computed(() => {
   return !!bookingStore.selectedPickup && 
          adults.value >= 1 &&
+         selectedSeats.value.length === adults.value &&
          customer.name.trim() !== '' &&
          customer.email.trim() !== '' &&
          customer.phone.trim() !== '';
@@ -119,6 +170,7 @@ const confirmBooking = () => {
     customer: { ...customer },
     adults: adults.value,
     toddlers: toddlers.value,
+    selectedSeats: [...selectedSeats.value],
     totalPrice: grandTotal.value,
     paymentMethod: selectedPayment.value
   };
@@ -288,6 +340,310 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
           </div>
         </div>
 
+        <!-- ===== SECTION 4: SEAT SELECTION ===== -->
+        <div class="form-section">
+          <div class="section-heading">
+            <h2 class="sect-title"><span class="sect-num">4</span> Pilih Kursi / Seat Map</h2>
+            <p class="sect-sub">Pilih posisi kursi Anda di dalam bus</p>
+          </div>
+          <div class="step-content">
+            <div class="bus-container">
+              <!-- Detail View Zoom Button -->
+              <div class="bus-zoom-trigger-row" style="margin-bottom: 16px; width: 100%; display: flex; justify-content: flex-end;">
+                <button type="button" class="zoom-trigger-btn" @click="showZoomModal = true">
+                  🔍 Lihat Detail & Perbesar Kursi
+                </button>
+              </div>
+
+              <!-- Visual of the bus cabin (horizontal, compact) -->
+              <div class="bus-cabin">
+                <!-- Side Doors styled as indentations in borders -->
+                <div class="bus-door top-left">Pintu</div>
+                <div class="bus-door bottom-left">Pintu</div>
+                <div class="bus-door bottom-right">Pintu</div>
+
+                <!-- Side Mirrors sticking out on the outer left corners -->
+                <div class="side-mirror top"></div>
+                <div class="side-mirror bottom"></div>
+
+                <!-- Cockpit / Driver Area (Far Left) -->
+                <div class="bus-left-front">
+                  <!-- Windshield glass outline -->
+                  <div class="windshield-glass-vertical"></div>
+                  <!-- Driver / Supir text badge ONLY (no 3D chair) at the top -->
+                  <div class="driver-seat-box supir-right">
+                    <div class="driver-lbl-badge">SUPIR</div>
+                  </div>
+                </div>
+
+                <!-- Vertical dashed line separating driver from passengers -->
+                <div class="cockpit-separator"></div>
+
+                <!-- Passenger Area -->
+                <div class="bus-passenger-area">
+                  <!-- Column Header numbers (1-10) above Row A -->
+                  <div class="column-headers">
+                    <span class="col-header-spacer"></span> <!-- offsets the row letter label -->
+                    <span v-for="c in 10" :key="'col-hdr-'+c" class="col-hdr-num">{{ c }}</span>
+                  </div>
+
+                  <!-- Row A -->
+                  <div class="bus-row-horizontal">
+                    <span class="row-label">A</span>
+                    <button 
+                      v-for="r in 10" 
+                      :key="'A'+r"
+                      class="seat-btn"
+                      :class="{
+                        occupied: occupiedSeats.includes('A' + r),
+                        selected: selectedSeats.includes('A' + r)
+                      }"
+                      :disabled="occupiedSeats.includes('A' + r)"
+                      @click="toggleSeat('A' + r)"
+                      :title="occupiedSeats.includes('A' + r) ? `Kursi A${r} (Terisi)` : `Pilih Kursi A${r}`"
+                    >
+                      <span class="seat-name">A{{ r }}</span>
+                    </button>
+                  </div>
+
+                  <!-- Row B -->
+                  <div class="bus-row-horizontal">
+                    <span class="row-label">B</span>
+                    <button 
+                      v-for="r in 10" 
+                      :key="'B'+r"
+                      class="seat-btn"
+                      :class="{
+                        occupied: occupiedSeats.includes('B' + r),
+                        selected: selectedSeats.includes('B' + r)
+                      }"
+                      :disabled="occupiedSeats.includes('B' + r)"
+                      @click="toggleSeat('B' + r)"
+                      :title="occupiedSeats.includes('B' + r) ? `Kursi B${r} (Terisi)` : `Pilih Kursi B${r}`"
+                    >
+                      <span class="seat-name">B{{ r }}</span>
+                    </button>
+                  </div>
+
+                  <!-- Horizontal walking aisle -->
+                  <div class="bus-aisle-horizontal"></div>
+
+                  <!-- Row C -->
+                  <div class="bus-row-horizontal">
+                    <span class="row-label">C</span>
+                    <button 
+                      v-for="r in 10" 
+                      :key="'C'+r"
+                      class="seat-btn"
+                      :class="{
+                        occupied: occupiedSeats.includes('C' + r),
+                        selected: selectedSeats.includes('C' + r)
+                      }"
+                      :disabled="occupiedSeats.includes('C' + r)"
+                      @click="toggleSeat('C' + r)"
+                      :title="occupiedSeats.includes('C' + r) ? `Kursi C${r} (Terisi)` : `Pilih Kursi C${r}`"
+                    >
+                      <span class="seat-name">C{{ r }}</span>
+                    </button>
+                  </div>
+
+                  <!-- Row D -->
+                  <div class="bus-row-horizontal">
+                    <span class="row-label">D</span>
+                    <button 
+                      v-for="r in 10" 
+                      :key="'D'+r"
+                      class="seat-btn"
+                      :class="{
+                        occupied: occupiedSeats.includes('D' + r),
+                        selected: selectedSeats.includes('D' + r)
+                      }"
+                      :disabled="occupiedSeats.includes('D' + r)"
+                      @click="toggleSeat('D' + r)"
+                      :title="occupiedSeats.includes('D' + r) ? `Kursi D${r} (Terisi)` : `Pilih Kursi D${r}`"
+                    >
+                      <span class="seat-name">D{{ r }}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Legends -->
+              <div class="bus-legends">
+                <div class="legend-item">
+                  <span class="legend-dot available"></span>
+                  <span>Tersedia</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot selected"></span>
+                  <span>Pilihanmu</span>
+                </div>
+                <div class="legend-item">
+                  <span class="legend-dot occupied"></span>
+                  <span>Terisi</span>
+                </div>
+              </div>
+
+              <!-- Status Box -->
+              <div class="seat-selection-status" :class="{ complete: selectedSeats.length === adults }">
+                <div class="status-summary">
+                  <span class="status-lbl">Kursi Terpilih:</span>
+                  <div class="selected-seats-badges">
+                    <span v-for="seat in selectedSeats" :key="seat" class="seat-badge">{{ seat }}</span>
+                    <span v-if="selectedSeats.length === 0" class="no-seats-selected">Belum ada kursi yang dipilih</span>
+                  </div>
+                </div>
+                <div class="status-counter">
+                  <span>Jumlah: <strong>{{ selectedSeats.length }}</strong> dari <strong>{{ adults }}</strong> Dewasa</span>
+                </div>
+              </div>
+              
+              <div class="seat-error-msg" v-if="selectedSeats.length < adults">
+                ⚠️ Silakan pilih {{ adults - selectedSeats.length }} kursi lagi sebelum melanjutkan pembayaran.
+              </div>
+
+              <!-- ZOOM MODAL POPUP -->
+              <transition name="modal-fade">
+                <div v-if="showZoomModal" class="zoom-modal-overlay" @click.self="showZoomModal = false">
+                  <div class="zoom-modal-content">
+                    <div class="zm-header">
+                      <h3>Peta Kursi Bus (Detail & Zoom)</h3>
+                      <button type="button" class="zm-close" @click="showZoomModal = false">✕</button>
+                    </div>
+                    
+                    <div class="zm-toolbar">
+                      <button type="button" class="zoom-ctrl-btn" @click="zoomIn">Perbesar (+)</button>
+                      <button type="button" class="zoom-ctrl-btn" @click="zoomOut">Perkecil (-)</button>
+                      <button type="button" class="zoom-ctrl-btn" @click="resetZoom">Reset</button>
+                      <span class="zoom-indicator">Skala: {{ Math.round(zoomLevel * 100) }}%</span>
+                    </div>
+
+                    <div class="zm-body">
+                      <div class="zm-scrollable-viewport">
+                        <div class="zm-scale-container" :style="{ transform: 'scale(' + zoomLevel + ')' }">
+                          
+                          <!-- Bus Cabin Replica inside Modal -->
+                          <div class="bus-cabin modal-cabin">
+                            <!-- Side Doors -->
+                            <div class="bus-door top-left">Pintu</div>
+                            <div class="bus-door bottom-left">Pintu</div>
+                            <div class="bus-door bottom-right">Pintu</div>
+
+                            <!-- Side Mirrors -->
+                            <div class="side-mirror top"></div>
+                            <div class="side-mirror bottom"></div>
+
+                            <!-- Cockpit -->
+                            <div class="bus-left-front">
+                              <div class="windshield-glass-vertical"></div>
+                              <div class="driver-seat-box supir-right">
+                                <div class="driver-lbl-badge">SUPIR</div>
+                              </div>
+                            </div>
+
+                            <div class="cockpit-separator"></div>
+
+                            <div class="bus-passenger-area">
+                              <div class="column-headers">
+                                <span class="col-header-spacer"></span>
+                                <span v-for="c in 10" :key="'modal-col-'+c" class="col-hdr-num">{{ c }}</span>
+                              </div>
+
+                              <!-- Row A -->
+                              <div class="bus-row-horizontal">
+                                <span class="row-label">A</span>
+                                <button 
+                                  v-for="r in 10" 
+                                  :key="'modal-A'+r"
+                                  class="seat-btn"
+                                  :class="{
+                                    occupied: occupiedSeats.includes('A' + r),
+                                    selected: selectedSeats.includes('A' + r)
+                                  }"
+                                  :disabled="occupiedSeats.includes('A' + r)"
+                                  @click="toggleSeat('A' + r)"
+                                  :title="occupiedSeats.includes('A' + r) ? `Kursi A${r} (Terisi)` : `Pilih Kursi A${r}`"
+                                >
+                                  <span class="seat-name">A{{ r }}</span>
+                                </button>
+                              </div>
+
+                              <!-- Row B -->
+                              <div class="bus-row-horizontal">
+                                <span class="row-label">B</span>
+                                <button 
+                                  v-for="r in 10" 
+                                  :key="'modal-B'+r"
+                                  class="seat-btn"
+                                  :class="{
+                                    occupied: occupiedSeats.includes('B' + r),
+                                    selected: selectedSeats.includes('B' + r)
+                                  }"
+                                  :disabled="occupiedSeats.includes('B' + r)"
+                                  @click="toggleSeat('B' + r)"
+                                  :title="occupiedSeats.includes('B' + r) ? `Kursi B${r} (Terisi)` : `Pilih Kursi B${r}`"
+                                >
+                                  <span class="seat-name">B{{ r }}</span>
+                                </button>
+                              </div>
+
+                              <div class="bus-aisle-horizontal"></div>
+
+                              <!-- Row C -->
+                              <div class="bus-row-horizontal">
+                                <span class="row-label">C</span>
+                                <button 
+                                  v-for="r in 10" 
+                                  :key="'modal-C'+r"
+                                  class="seat-btn"
+                                  :class="{
+                                    occupied: occupiedSeats.includes('C' + r),
+                                    selected: selectedSeats.includes('C' + r)
+                                  }"
+                                  :disabled="occupiedSeats.includes('C' + r)"
+                                  @click="toggleSeat('C' + r)"
+                                  :title="occupiedSeats.includes('C' + r) ? `Kursi C${r} (Terisi)` : `Pilih Kursi C${r}`"
+                                >
+                                  <span class="seat-name">C{{ r }}</span>
+                                </button>
+                              </div>
+
+                              <!-- Row D -->
+                              <div class="bus-row-horizontal">
+                                <span class="row-label">D</span>
+                                <button 
+                                  v-for="r in 10" 
+                                  :key="'modal-D'+r"
+                                  class="seat-btn"
+                                  :class="{
+                                    occupied: occupiedSeats.includes('D' + r),
+                                    selected: selectedSeats.includes('D' + r)
+                                  }"
+                                  :disabled="occupiedSeats.includes('D' + r)"
+                                  @click="toggleSeat('D' + r)"
+                                  :title="occupiedSeats.includes('D' + r) ? `Kursi D${r} (Terisi)` : `Pilih Kursi D${r}`"
+                                >
+                                  <span class="seat-name">D{{ r }}</span>
+                                </button>
+                              </div>
+
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div class="zm-footer">
+                      <button type="button" class="zm-close-btn" @click="showZoomModal = false">Tutup</button>
+                    </div>
+                  </div>
+                </div>
+              </transition>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <!-- RIGHT: Order Summary -->
@@ -323,6 +679,12 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
           <div class="summary-section">
             <div class="sum-label">Penumpang</div>
             <div class="sum-value bold">{{ adults }} Dewasa{{ toddlers > 0 ? ` + ${toddlers} Balita` : '' }}</div>
+          </div>
+
+          <div class="summary-section">
+            <div class="sum-label">Nomor Kursi</div>
+            <div class="sum-value bold" v-if="selectedSeats.length > 0">{{ selectedSeats.join(', ') }}</div>
+            <div class="sum-value muted" v-else>Belum memilih kursi</div>
           </div>
 
           <div class="summary-divider"></div>
@@ -407,7 +769,6 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
     </transition>
   </div>
 </template>
-
 <style scoped>
 /* ===== PAGE ===== */
 .booking-page { min-height: 100vh; background: var(--bg-color); padding-bottom: 140px; padding-top: 80px; }
@@ -416,6 +777,17 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 .back-btn { display: flex; align-items: center; gap: 6px; font-family: inherit; font-size: 0.88rem; font-weight: 700; color: var(--text-light); cursor: pointer; border: none; background: none; padding: 6px 10px; border-radius: 10px; transition: all 0.2s; }
 .back-btn:hover { background: #f0f0f0; color: var(--text-dark); }
 .booking-layout { display: grid; grid-template-columns: 1fr 360px; gap: 32px; padding-top: 40px; align-items: start; }
+
+@media (max-width: 992px) {
+  .booking-layout {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding-top: 20px;
+  }
+  .booking-summary-col {
+    position: static;
+  }
+}
 
 /* ===== EVENT PREVIEW ===== */
 .event-preview-card { display: flex; align-items: center; gap: 16px; background: var(--card-bg); border-radius: 18px; padding: 16px; margin-bottom: 28px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
@@ -526,12 +898,696 @@ const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
 .pm-submit-btn { width: 100%; padding: 16px; border-radius: 16px; background: var(--primary); color: white; border: none; font-family: inherit; font-size: 1rem; font-weight: 800; cursor: pointer; transition: all 0.3s; box-shadow: 0 8px 24px rgba(201,76,76,0.25); }
 .pm-submit-btn:disabled { background: #e0e0e0; color: #aaa; box-shadow: none; cursor: not-allowed; }
 .pm-submit-btn:hover:not(:disabled) { background: #b34242; transform: translateY(-2px); box-shadow: 0 12px 30px rgba(201,76,76,0.35); }
-.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.3s ease; }
-.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
-.modal-fade-enter-active .payment-modal, .modal-fade-leave-active .payment-modal { transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
-.modal-fade-enter-from .payment-modal, .modal-fade-leave-to .payment-modal { transform: scale(0.95) translateY(20px); }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 900px) { .booking-layout { grid-template-columns: 1fr; } .booking-summary-col { position: static; order: -1; } }
-@media (max-width: 600px) { .booking-topbar { top: 0; } }
+/* ===== BUS SEAT SELECTION ===== */
+.bus-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 16px;
+  width: 100%;
+}
+.zoom-trigger-btn {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border-color);
+  color: var(--text-dark);
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.85rem;
+  padding: 10px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+}
+.zoom-trigger-btn:hover {
+  background: var(--input-bg);
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.bus-cabin {
+  position: relative;
+  background: #ffffff; /* White bus body */
+  border: 2px solid #334155; /* Outlined */
+  border-radius: 30px 12px 12px 30px; /* rounded nose front-left */
+  padding: 18px 22px 18px 16px;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  width: fit-content;
+  margin: 0 auto 24px;
+}
+
+/* Door slots in borders (like real passenger/driver doors) */
+.bus-door {
+  position: absolute;
+  background: #f1f5f9;
+  border: 1.5px solid #334155;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 800;
+  color: #334155;
+  text-transform: uppercase;
+}
+.bus-door.top-left {
+  top: -6px;
+  left: 22px;
+  width: 45px;
+  height: 12px;
+  border-radius: 4px;
+}
+.bus-door.bottom-left {
+  bottom: -6px;
+  left: 22px;
+  width: 45px;
+  height: 12px;
+  border-radius: 4px;
+}
+.bus-door.bottom-right {
+  bottom: -6px;
+  right: 22px;
+  width: 45px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+/* Side mirrors on the outside */
+.side-mirror {
+  position: absolute;
+  left: 20px;
+  width: 10px;
+  height: 5px;
+  background: #1e293b;
+  border-radius: 2px;
+  z-index: 10;
+}
+.side-mirror.top {
+  top: -5px;
+  transform: rotate(-15deg);
+}
+.side-mirror.top::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 4px;
+  width: 2.5px;
+  height: 5px;
+  background: #1e293b;
+}
+.side-mirror.bottom {
+  bottom: -5px;
+  transform: rotate(15deg);
+}
+.side-mirror.bottom::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  bottom: 4px;
+  width: 2.5px;
+  height: 5px;
+  background: #1e293b;
+}
+
+/* Cockpit Area */
+.bus-left-front {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding-left: 4px;
+  min-height: 120px;
+}
+.windshield-glass-vertical {
+  width: 12px;
+  height: 110px;
+  background: #334155;
+  border-radius: 8px 3px 3px 8px;
+  border: 1.8px solid #1e293b;
+  box-shadow: inset -2px 0 4px rgba(0,0,0,0.3);
+}
+.driver-seat-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-left: 20px;
+}
+/* Supir on the right side of the vehicle (which is the top side of the horizontally oriented cockpit) */
+.driver-seat-box.supir-right {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+.driver-lbl-badge {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #475569;
+  font-size: 0.55rem;
+  font-weight: 900;
+  padding: 3px 8px;
+  border-radius: 5px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 1.5px 3px rgba(0,0,0,0.06);
+  text-transform: uppercase;
+}
+
+/* Cockpit separator dashed line */
+.cockpit-separator {
+  width: 1px;
+  align-self: stretch;
+  border-left: 1.5px dashed #cbd5e1;
+  margin: 0 4px;
+}
+
+/* Passenger Area */
+.bus-passenger-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.column-headers {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.col-header-spacer {
+  width: 14px; /* matches .row-label space offset */
+}
+.col-hdr-num {
+  width: 32px; /* matches .seat-btn width */
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.bus-row-horizontal {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.row-label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #dc2626; /* AJAK! Red */
+  width: 14px;
+  text-align: center;
+}
+.bus-aisle-horizontal {
+  height: 14px; /* horizontal aisle spacing */
+}
+
+/* Realistic 3D Chair styled seat button (facing upward) - Slightly smaller basic size */
+.seat-btn {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 6px 6px 9px 9px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.65rem;
+  color: #1e293b;
+  box-shadow: 0 2px 0 #cbd5e1, 0 3px 5px rgba(0,0,0,0.04);
+  transition: all 0.1s ease;
+  padding: 0;
+}
+/* Cushion inside the seat (upper part) */
+.seat-btn::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  right: 3px;
+  bottom: 9px; /* leaves room for the backrest at the bottom */
+  background: #f8fafc;
+  border: 1.2px solid #cbd5e1;
+  border-radius: 3px 3px 1.5px 1.5px;
+  z-index: 1;
+  transition: all 0.1s ease;
+}
+/* Backrest part at the bottom */
+.seat-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 4px;
+  right: 4px;
+  height: 5px;
+  background: #cbd5e1;
+  border-radius: 2px;
+  z-index: 1;
+  transition: all 0.1s ease;
+}
+.seat-name {
+  position: relative;
+  z-index: 2; /* display text above cushion */
+  margin-top: -5px;
+  font-weight: 850;
+  pointer-events: none;
+}
+
+/* Hover state */
+.seat-btn:not(.selected):hover:not(:disabled) {
+  border-color: #94a3b8;
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 0 #cbd5e1, 0 4px 8px rgba(0,0,0,0.05);
+}
+.seat-btn:not(.selected):hover:not(:disabled)::before {
+  background: #ffffff;
+}
+
+.seat-btn.selected:hover:not(:disabled) {
+  transform: translateY(-0.5px);
+  box-shadow: 0 2px 0 #b91c1c, 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+.seat-btn.selected:hover:not(:disabled)::before {
+  background: #f87171;
+}
+
+/* Selected state (Pilihanmu - Red) */
+.seat-btn.selected {
+  background: #ef4444;
+  border-color: #b91c1c;
+  color: #ffffff;
+  box-shadow: 0 2px 0 #b91c1c, 0 4px 8px rgba(239, 68, 68, 0.2);
+}
+.seat-btn.selected::before {
+  background: #ef4444;
+  border-color: #b91c1c;
+}
+.seat-btn.selected::after {
+  background: #b91c1c;
+}
+
+/* Occupied state (Terisi - Dark Grey) */
+.seat-btn:disabled {
+  background: #374151;
+  border-color: #1f2937;
+  color: #ffffff;
+  box-shadow: 0 2px 0 #1f2937;
+  cursor: not-allowed;
+  opacity: 1; /* keep colors vivid even if disabled */
+}
+.seat-btn:disabled::before {
+  background: #4b5563;
+  border-color: #374151;
+}
+.seat-btn:disabled::after {
+  background: #1f2937;
+}
+
+/* Legends with 3D Chair Silhouettes */
+.bus-legends {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+.legend-dot {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  box-shadow: 0 1px 0 #cbd5e1;
+}
+.legend-dot::before {
+  content: '';
+  position: absolute;
+  top: 1px;
+  left: 2px;
+  right: 2px;
+  bottom: 4px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 1.5px;
+}
+.legend-dot::after {
+  content: '';
+  position: absolute;
+  bottom: 1px;
+  left: 3px;
+  right: 3px;
+  height: 1.8px;
+  background: #cbd5e1;
+  border-radius: 1px;
+}
+
+/* Legend items colors mapping */
+.legend-dot.available {
+  background: #ffffff;
+  border: 1.2px solid #cbd5e1;
+  box-shadow: 0 1px 0 #cbd5e1;
+}
+.legend-dot.selected {
+  background: #ef4444;
+  border: 1.2px solid #b91c1c;
+  box-shadow: 0 1px 0 #b91c1c;
+}
+.legend-dot.selected::before {
+  background: #ef4444;
+  border-color: #b91c1c;
+}
+.legend-dot.selected::after {
+  background: #b91c1c;
+}
+.legend-dot.occupied {
+  background: #374151;
+  border: 1.2px solid #1f2937;
+  box-shadow: 0 1px 0 #1f2937;
+}
+.legend-dot.occupied::before {
+  background: #4b5563;
+  border-color: #374151;
+}
+.legend-dot.occupied::after {
+  background: #1f2937;
+}
+
+/* Status Box */
+.seat-selection-status {
+  width: 100%;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
+}
+.status-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.status-lbl {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.selected-seats-badges {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.seat-badge {
+  background: #ef4444;
+  color: white;
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 5px;
+  box-shadow: 0 2px 4px rgba(239,68,68,0.2);
+}
+.no-seats-selected {
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-light);
+}
+.status-counter {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  border-top: 1.5px solid #f1f5f9;
+  padding-top: 10px;
+}
+.status-counter strong {
+  color: var(--text-dark);
+  font-weight: 800;
+}
+.seat-error-msg {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+  margin-top: 4px;
+}
+
+/* ===== ZOOM MODAL ===== */
+.zoom-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(6px);
+  padding: 20px;
+}
+.zoom-modal-content {
+  background: #ffffff;
+  width: 100%;
+  max-width: 900px;
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+.zm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.zm-header h3 {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0;
+}
+.zm-close {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  color: #64748b;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+.zm-close:hover {
+  color: #dc2626;
+}
+.zm-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 24px;
+  background: #f8fafc;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+}
+.zoom-ctrl-btn {
+  background: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  color: #334155;
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.zoom-ctrl-btn:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+.zoom-indicator {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #475569;
+  margin-left: auto;
+}
+.zm-body {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f1f5f9;
+  padding: 40px 20px;
+}
+.zm-scrollable-viewport {
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.zm-scale-container {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.modal-cabin {
+  margin: 0 !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+.zm-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 24px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+.zm-close-btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.9rem;
+  padding: 10px 24px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.zm-close-btn:hover {
+  background: #b34242;
+}
+
+/* Responsive adjust for mobile screens */
+@media (max-width: 580px) {
+  .bus-cabin {
+    padding: 12px 14px 12px 10px;
+    gap: 8px;
+    border-radius: 20px 8px 8px 20px;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .side-mirror {
+    width: 8px;
+    height: 4px;
+    left: 14px;
+  }
+  .side-mirror.top { top: -4px; }
+  .side-mirror.bottom { bottom: -4px; }
+  .bus-door.top-left { left: 18px; width: 36px; height: 10px; top: -5px; font-size: 6.5px; }
+  .bus-door.bottom-left { left: 18px; width: 36px; height: 10px; bottom: -5px; font-size: 6.5px; }
+  .bus-door.bottom-right { right: 18px; width: 36px; height: 10px; bottom: -5px; font-size: 6.5px; }
+
+  .bus-left-front {
+    gap: 6px;
+    padding-left: 2px;
+    min-height: 90px;
+  }
+  .windshield-glass-vertical {
+    width: 10px;
+    height: 85px;
+  }
+  .driver-seat-box {
+    margin-left: 10px;
+  }
+  .driver-seat-box.supir-right {
+    margin-top: 3px;
+  }
+  .driver-lbl-badge {
+    font-size: 0.45rem;
+    padding: 2px 5px;
+  }
+  .cockpit-separator {
+    margin: 0 2px;
+  }
+  
+  .bus-passenger-area {
+    gap: 4px;
+  }
+  .column-headers {
+    margin-bottom: 2px;
+    gap: 4px;
+  }
+  .col-header-spacer {
+    width: 10px;
+  }
+  .col-hdr-num {
+    width: 24px;
+    font-size: 0.65rem;
+  }
+  .bus-row-horizontal {
+    gap: 4px;
+  }
+  .row-label {
+    font-size: 0.7rem;
+    width: 10px;
+  }
+  .bus-aisle-horizontal {
+    height: 10px;
+  }
+  
+  .seat-btn {
+    width: 24px;
+    height: 24px;
+    border-width: 1.2px;
+    border-radius: 4px 4px 6px 6px;
+    box-shadow: 0 1.5px 0 #cbd5e1;
+  }
+  .seat-btn::before {
+    top: 1.5px;
+    left: 2px;
+    right: 2px;
+    bottom: 6px;
+    border-radius: 2px 2px 1px 1px;
+    border-width: 0.8px;
+  }
+  .seat-btn::after {
+    bottom: 1.5px;
+    left: 3px;
+    right: 3px;
+    height: 3px;
+    border-radius: 1px;
+  }
+  .seat-name {
+    font-size: 0.55rem;
+    margin-top: -4px;
+  }
+
+  .seat-btn.selected {
+    box-shadow: 0 1.5px 0 #b91c1c;
+  }
+  .seat-btn:disabled {
+    box-shadow: 0 1.5px 0 #1f2937;
+  }
+  .zoom-trigger-btn {
+    padding: 8px 14px;
+    font-size: 0.75rem;
+  }
+  .zoom-indicator {
+    margin-left: 0;
+    width: 100%;
+    margin-top: 6px;
+    text-align: center;
+  }
+}
 </style>

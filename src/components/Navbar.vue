@@ -275,28 +275,6 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
             </div>
             
             <div class="sidebar-footer">
-              <div class="sidebar-tools">
-                <!-- Theme Toggle -->
-                <button
-                  class="icon-pill-btn"
-                  @click="themeStore.toggle()"
-                >
-                  <Moon v-if="!themeStore.isDark" size="17" />
-                  <Sun v-else size="17" />
-                </button>
-                
-                <!-- Language Switcher -->
-                <button class="icon-pill-btn" @click="langDropdownOpen = !langDropdownOpen" style="position:relative;">
-                  <img :src="currentLang.flag" class="flag-img" />
-                  <div v-if="langDropdownOpen" class="lang-dropdown" style="bottom: 110%; top: auto;">
-                    <button v-for="lang in languages" :key="lang.code" class="lang-opt" @click="selectLang(lang)">
-                      <img :src="lang.flag" class="flag-img" />
-                      <span>{{ lang.name }}</span>
-                    </button>
-                  </div>
-                </button>
-              </div>
-              
               <!-- Auth -->
               <div style="display:flex; flex-direction:column; gap:8px;">
                 <template v-if="!authState.isLoggedIn">
@@ -447,7 +425,8 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 
 /* Sidebar Styles */
 .hamburger-btn { display: flex; }
-.desktop-auth-area, .search-wrap, .theme-toggle-btn, .lang-switcher { display: none; }
+.desktop-auth-area, .search-wrap { display: none; }
+.lang-switcher { display: block; }
 .mobile-sidebar-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0,0,0,0.6); z-index: 9999;
@@ -475,7 +454,6 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
   display: flex; flex-direction: column; gap: 16px;
   padding-top: 20px; border-top: 1px solid var(--border-color);
 }
-.sidebar-tools { display: flex; gap: 10px; align-items: center; justify-content: center; }
 
 /* Transitions */
 .slide-side-enter-active, .slide-side-leave-active { transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1); }
@@ -502,5 +480,6 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
   .nav-links { display: none; }
   .hamburger-btn { display: flex; margin-left: auto; }
   .mobile-search-bar { display: none; } /* keep hidden to simplify */
+  .lang-switcher, .theme-toggle-btn { display: none; }
 }
 </style>

@@ -27,6 +27,7 @@ const onSplashReady = () => {
     </main>
 
     <Footer v-if="$route.path !== '/portfolio' && !$route.path.startsWith('/booking')" />
+    <MobileNav v-if="$route.path !== '/portfolio' && !$route.path.startsWith('/booking')" />
   </div>
 </template>
 

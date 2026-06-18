@@ -148,6 +148,14 @@ const termsList = [
             </div>
           </div>
 
+          <div class="cc-detail-item" v-if="bookingStore.selectedSeats && bookingStore.selectedSeats.length > 0">
+            <div class="cc-detail-icon">💺</div>
+            <div>
+              <div class="cc-detail-label">Nomor Kursi</div>
+              <div class="cc-detail-value">{{ bookingStore.selectedSeats.join(', ') }}</div>
+            </div>
+          </div>
+
           <div class="cc-detail-item">
             <div class="cc-detail-icon">💳</div>
             <div>
@@ -188,6 +196,7 @@ const termsList = [
               <div class="ticket-code-big">{{ code }}</div>
               <div class="ticket-event-nm">{{ event.name }}</div>
               <div class="ticket-pickup">📍 {{ pickup?.name }}</div>
+              <div class="ticket-dep" v-if="bookingStore.selectedSeats && bookingStore.selectedSeats.length > 0">💺 Kursi: {{ bookingStore.selectedSeats.join(', ') }}</div>
               <div class="ticket-dep">🕑 12:00 WIB</div>
             </div>
           </div>

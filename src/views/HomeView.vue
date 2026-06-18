@@ -586,7 +586,7 @@ const tagColors = {
     </section>
 
     <!-- ===== MARQUEE 4 — WHITE ===== -->
-    <div class="logo-marquee-wrap white-marquee">
+    <!-- <div class="logo-marquee-wrap white-marquee">
       <div class="logo-marquee-track">
         <div class="logo-marquee-inner">
           <div v-for="i in marqueeCount" :key="'d'+i" class="logo-marquee-item">
@@ -597,7 +597,7 @@ const tagColors = {
           </div>
         </div>
       </div>
-    </div>
+    </div> -->
 
     <!-- ===== THE HEART (ABOUT) ===== -->
     <section class="section heart-section" id="about">
@@ -1398,7 +1398,7 @@ const tagColors = {
   .amenity-box h4 { font-size: 0.85rem; }
   .amenity-box p { font-size: 0.75rem; }
 
-  .heart-section { padding: 60px 0; }
+  .heart-section { padding: 20px 0 20px; }
   .main-para { font-size: 1.2rem; line-height: 1.5; }
   .sub-para { font-size: 0.95rem; line-height: 1.6; }
   .stats-row { gap: 12px; }
@@ -1406,7 +1406,7 @@ const tagColors = {
   .stat-circle .val { font-size: 1.2rem; }
   .stat-circle .lab { font-size: 0.55rem; }
 
-  .reviews-section { padding: 40px 0 0; }
+  .reviews-section { padding: 20px 0 0; }
   .review-card { width: 280px; padding: 18px; }
   .review-text { font-size: 0.82rem; }
 
@@ -1497,7 +1497,7 @@ const tagColors = {
 .hub-label { font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; }
 
 /* ===== AMENITIES ===== */
-.amenities-section { background: var(--primary); padding: 100px 0; }
+.amenities-section { background: var(--primary); padding: 100px 0 40px; }
 .amenities-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 36px; margin-top: 56px; color: white; }
 .amenity-icon { width: 68px; height: 68px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 22px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; transition: var(--transition); }
 .amenity-box:hover .amenity-icon { background: white; color: var(--primary); transform: translateY(-4px); }
@@ -1505,7 +1505,7 @@ const tagColors = {
 .amenity-box p { font-size: 0.88rem; opacity: 0.75; }
 
 /* ===== HEART SECTION ===== */
-.heart-section { padding: 140px 0; background-image: radial-gradient(ellipse at 50% 0%, rgba(201,76,76,0.06) 0%, transparent 60%); }
+.heart-section { padding: 40px 0 40px; background-image: radial-gradient(ellipse at 50% 0%, rgba(201,76,76,0.06) 0%, transparent 60%); }
 .heart-container { max-width: 800px; margin: 0 auto; text-align: center; }
 .main-para { font-size: 1.85rem; font-weight: 800; line-height: 1.45; color: var(--text-dark); }
 .sub-para { font-size: 1.1rem; line-height: 1.85; color: var(--text-light); }
@@ -1520,7 +1520,7 @@ const tagColors = {
 .stat-circle .lab { font-size: 0.65rem; text-transform: uppercase; font-weight: 800; letter-spacing: 1.5px; opacity: 0.7; }
 
 /* ===== REVIEWS — HORIZONTAL MARQUEE ===== */
-.reviews-section { background: var(--bg-color); padding: 100px 0 0; }
+.reviews-section { background: var(--bg-color); padding: 40px 0 0; }
 .reviews-marquee-outer {
   overflow: hidden;
   padding: 40px 0 80px;
@@ -1608,15 +1608,15 @@ const tagColors = {
   .map-panel { min-height: 350px; height: 350px; border-radius: 20px; }
 
   .amenities-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
-  .amenities-section { padding: 60px 0; }
+  .amenities-section { padding: 60px 0 20px; }
 
-  .heart-section { padding: 80px 0; }
+  .heart-section { padding: 20px 0 20px; }
   .main-para { font-size: 1.3rem; }
   .stats-row { gap: 16px; }
   .stat-circle { width: 100px; height: 100px; }
   .stat-circle .val { font-size: 1.3rem; }
 
-  .reviews-section { padding: 60px 0 0; }
+  .reviews-section { padding: 20px 0 0; }
   .review-card { width: 290px; padding: 20px; }
 
   .marquee-logo-img { height: 48px; }

@@ -288,7 +288,7 @@ const exportExcel = () => {
   padding: 100px 0 60px;
 }
 .dashboard-container {
-  max-width: 1200px;
+  max-width: 1400px;
 }
 
 .dash-header {
