@@ -2179,7 +2179,7 @@ const getSeatTextConfig = (seat) => {
   }
 
   .sm-modal-content {
-    height: 100vh; /* Make it take up 100% of the screen height */
+    height: 98vh; /* Make it go almost all the way to the top of the screen */
     max-height: 100vh;
     border-radius: 24px 24px 0 0; /* Rounded top corners only */
     border: none;
