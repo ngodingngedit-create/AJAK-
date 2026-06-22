@@ -678,6 +678,7 @@ const getSeatTextConfig = (seat) => {
               <transition name="modal-fade">
                 <div v-if="showSeatModal" class="sm-modal-overlay" @click.self="showSeatModal = false">
                   <div class="sm-modal-content">
+                    <div class="sm-drag-handle"></div>
                     <div class="sm-header">
                       <h3 class="sm-title">Pilih Kursi</h3>
                       <button type="button" class="sm-close" @click="showSeatModal = false">✕</button>
@@ -1777,6 +1778,10 @@ const getSeatTextConfig = (seat) => {
   border: 1px solid var(--border-color);
 }
 
+.sm-drag-handle {
+  display: none;
+}
+
 .sm-header {
   display: flex;
   align-items: center;
@@ -2132,31 +2137,106 @@ const getSeatTextConfig = (seat) => {
   transform: translateY(-1px);
 }
 
-/* Responsive adjust for mobile */
-@media (max-width: 580px) {
-  .sm-modal-content {
-    max-height: 100vh;
-    height: 100%;
-    border-radius: 0;
-    overflow-y: auto;
+/* Transition effects */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+/* Modal Content Transition */
+.modal-fade-enter-active .sm-modal-content {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+}
+.modal-fade-leave-active .sm-modal-content {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+}
+
+/* Desktop transition state: scale slightly */
+@media (min-width: 581px) {
+  .modal-fade-enter-from .sm-modal-content,
+  .modal-fade-leave-to .sm-modal-content {
+    transform: scale(0.95);
+    opacity: 0;
   }
+}
+
+/* Responsive adjust for mobile (Bottom Sheet Layout) */
+@media (max-width: 580px) {
+  /* Mobile transition state: slide up from bottom */
+  .modal-fade-enter-from .sm-modal-content,
+  .modal-fade-leave-to .sm-modal-content {
+    transform: translateY(100%);
+    opacity: 1;
+  }
+
   .sm-modal-overlay {
+    align-items: flex-end; /* Sit sheet at the bottom */
     padding: 0;
   }
+
+  .sm-modal-content {
+    height: 100vh; /* Make it take up 100% of the screen height */
+    max-height: 100vh;
+    border-radius: 24px 24px 0 0; /* Rounded top corners only */
+    border: none;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .sm-drag-handle {
+    display: block;
+    width: 36px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    margin: 8px auto 8px;
+    flex-shrink: 0;
+  }
+
+  .sm-header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 8px 20px 12px;
+    border-bottom: none; /* Clean layout with no hard separators */
+  }
+
+  .sm-title {
+    font-size: 1.45rem;
+    font-weight: 900;
+    order: 2; /* Put title under the close button */
+  }
+
+  .sm-close {
+    order: 1; /* Put close button on top */
+    align-self: flex-start;
+    font-size: 1.4rem;
+  }
+
   .sm-trip-card {
-    padding: 12px 16px;
+    padding: 4px 20px 10px;
+    border-bottom: none;
   }
+
   .sm-passengers-tabs {
-    padding: 12px 16px;
+    padding: 6px 20px 12px;
+    border-bottom: none;
   }
+
   .sm-legends {
-    padding: 10px 16px;
+    padding: 10px 20px;
   }
+
   .sm-grid-container {
-    padding: 16px 10px;
+    padding: 14px 20px;
   }
+
   .sm-footer {
-    padding: 12px 16px;
+    padding: 14px 20px 28px; /* Extra bottom padding for mobile viewports */
   }
 }
 </style>
