@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { MapPin, Clock, Users, Baby, ArrowRight, Check, ChevronLeft, Calendar, Tag, Navigation, User, Mail, Phone } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
@@ -220,6 +220,7 @@ watch(adults, (newVal) => {
 
 watch(showSeatModal, (isOpen) => {
   if (isOpen) {
+    document.body.style.overflow = 'hidden';
     offsetY.value = 0;
     const firstEmpty = selectedSeats.value.findIndex(s => !s);
     if (firstEmpty !== -1) {
@@ -227,7 +228,13 @@ watch(showSeatModal, (isOpen) => {
     } else {
       activePassengerIndex.value = Math.min(selectedSeats.value.length, adults.value - 1);
     }
+  } else {
+    document.body.style.overflow = '';
   }
+});
+
+onUnmounted(() => {
+  document.body.style.overflow = '';
 });
 
 // ---- DRAGGABLE BOTTOM SHEET FOR MOBILE ----
@@ -708,7 +715,7 @@ const getSeatTextConfig = (seat) => {
 
               <!-- SEAT MAP MODAL POPUP -->
               <transition name="modal-fade">
-                <div v-if="showSeatModal" class="sm-modal-overlay" @click.self="showSeatModal = false">
+                <div v-if="showSeatModal" class="sm-modal-overlay" @click.self="showSeatModal = false" @touchmove.self.prevent>
                   <div 
                     class="sm-modal-content"
                     :style="{ 
