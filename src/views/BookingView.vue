@@ -25,6 +25,10 @@ onMounted(() => {
 const event = computed(() => bookingStore.selectedEvent);
 const isEksklusif = computed(() => event.value?.tag === 'Shuttle Eksklusif');
 
+// ---- SEAT MODAL STATE ----
+const showSeatModal = ref(false);
+const activePassengerIndex = ref(0);
+
 // ---- PAYMENT MODAL STATE ----
 const showPaymentModal = ref(false);
 const selectedPayment = ref('');
@@ -209,7 +213,60 @@ watch(adults, (newVal) => {
   if (selectedSeats.value.length > newVal) {
     selectedSeats.value = selectedSeats.value.slice(0, newVal);
   }
+  if (activePassengerIndex.value >= newVal) {
+    activePassengerIndex.value = newVal - 1;
+  }
 });
+
+watch(showSeatModal, (isOpen) => {
+  if (isOpen) {
+    const firstEmpty = selectedSeats.value.findIndex(s => !s);
+    if (firstEmpty !== -1) {
+      activePassengerIndex.value = firstEmpty;
+    } else {
+      activePassengerIndex.value = Math.min(selectedSeats.value.length, adults.value - 1);
+    }
+  }
+});
+
+const selectSeatInModal = (seatId) => {
+  if (occupiedSeats.value.includes(seatId)) return;
+  
+  const idx = selectedSeats.value.indexOf(seatId);
+  let arr = [...selectedSeats.value];
+  
+  if (idx !== -1) {
+    // Already selected, deselect it
+    arr.splice(idx, 1);
+    selectedSeats.value = arr;
+    // Set active passenger to the first slot that has no seat
+    activePassengerIndex.value = Math.min(arr.length, adults.value - 1);
+  } else {
+    // Not selected yet
+    if (arr.length < adults.value) {
+      // We have empty slots. Let's insert the seat.
+      if (activePassengerIndex.value < arr.length) {
+        arr[activePassengerIndex.value] = seatId;
+      } else {
+        arr.push(seatId);
+      }
+      selectedSeats.value = arr;
+      // Auto focus the next empty slot
+      const firstEmpty = arr.findIndex(s => !s);
+      if (firstEmpty !== -1) {
+        activePassengerIndex.value = firstEmpty;
+      } else if (arr.length < adults.value) {
+        activePassengerIndex.value = arr.length;
+      } else {
+        activePassengerIndex.value = adults.value - 1;
+      }
+    } else {
+      // Already full, replace the seat at the activePassengerIndex
+      arr[activePassengerIndex.value] = seatId;
+      selectedSeats.value = arr;
+    }
+  }
+};
 
 const toggleSeat = (seatId) => {
   if (occupiedSeats.value.includes(seatId)) return;
@@ -590,432 +647,174 @@ const getSeatTextConfig = (seat) => {
         <!-- ===== SECTION 4: SEAT SELECTION ===== -->
         <div class="form-section">
           <div class="section-heading">
-            <h2 class="sect-title"><span class="sect-num">4</span> Pilih Kursi / Seat Map</h2>
-            <p class="sect-sub">Pilih posisi kursi Anda di dalam bus</p>
+            <h2 class="sect-title"><span class="sect-num">4</span> Pilih Kursi</h2>
+            <p class="sect-sub">Tentukan posisi duduk Anda dalam bus</p>
           </div>
           <div class="step-content">
-            <div class="bus-container">
-              <!-- Detail View Zoom Button -->
-              <div class="bus-zoom-trigger-row" style="margin-bottom: 16px; width: 100%; display: flex; justify-content: flex-end;">
-                <button type="button" class="zoom-trigger-btn" @click="showZoomModal = true">
-                  🔍 Lihat Detail & Perbesar Kursi
+            <div class="seat-selection-placeholder">
+              <div v-if="selectedSeats.length > 0" class="selected-seats-info-box">
+                <div class="ss-info-title" style="font-weight: 800; font-size: 0.95rem; color: var(--text-dark); margin-bottom: 8px;">Kursi Terpilih:</div>
+                <div class="selected-seats-badges" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+                  <span v-for="seat in selectedSeats" :key="seat" class="seat-badge" style="background: var(--primary); color: white; font-size: 0.85rem; font-weight: 800; padding: 6px 12px; border-radius: 8px; box-shadow: 0 2px 4px rgba(201,76,76,0.2);">{{ seat }}</span>
+                </div>
+                <button type="button" class="btn btn-outline" @click="showSeatModal = true" style="width: 100%;">
+                  Ubah Pilihan Kursi
                 </button>
               </div>
-
-              <!-- Visual of the bus cabin (vertical, Vue-Konva) -->
-              <div class="canvas-bus-container" style="position: relative; width: 200px; height: 456px; margin: 0 auto 24px;">
-                <v-stage :config="{ width: 200, height: 456 }">
-                  <v-layer>
-                    <!-- Cockpit area -->
-                    <v-rect :config="{
-                      x: 16,
-                      y: 16,
-                      width: 72,
-                      height: 32,
-                      cornerRadius: 5,
-                      stroke: '#cbd5e1',
-                      strokeWidth: 1,
-                      dash: [3, 3]
-                    }" />
-                    <v-text :config="{
-                      x: 16,
-                      y: 16,
-                      width: 72,
-                      height: 32,
-                      text: '🚪 PINTU DEPAN',
-                      fontSize: 8,
-                      fontStyle: 'bold',
-                      fontFamily: 'sans-serif',
-                      fill: '#64748b',
-                      align: 'center',
-                      verticalAlign: 'middle'
-                    }" />
-
-                    <!-- Driver Wheel Icon -->
-                    <v-group :config="{ x: 148, y: 32 }">
-                      <v-circle :config="{
-                        x: 0,
-                        y: 0,
-                        radius: 10,
-                        stroke: '#64748b',
-                        strokeWidth: 2
-                      }" />
-                      <v-circle :config="{
-                        x: 0,
-                        y: 0,
-                        radius: 2.5,
-                        stroke: '#64748b',
-                        strokeWidth: 2
-                      }" />
-                      <v-line :config="{
-                        points: [0, -10, 0, -2.5],
-                        stroke: '#64748b',
-                        strokeWidth: 2
-                      }" />
-                      <v-line :config="{
-                        points: [-7.1, 7.1, -1.8, 1.8],
-                        stroke: '#64748b',
-                        strokeWidth: 2
-                      }" />
-                      <v-line :config="{
-                        points: [7.1, 7.1, 1.8, 1.8],
-                        stroke: '#64748b',
-                        strokeWidth: 2
-                      }" />
-                    </v-group>
-
-                    <!-- Dashed dividing line under cockpit -->
-                    <v-line :config="{
-                      points: [16, 56, 184, 56],
-                      stroke: '#e2e8f0',
-                      strokeWidth: 1.5,
-                      dash: [4, 4]
-                    }" />
-
-                    <!-- Passenger rows -->
-                    <v-group v-for="(row, rowIndex) in busRows" :key="'row-' + row.rowNum">
-                      <!-- Left column (seats or rear door) -->
-                      <template v-if="row.left.length > 0">
-                        <v-group 
-                          v-for="(seat, seatIndex) in row.left" 
-                          :key="seat.id"
-                          :config="{
-                            x: 16 + seatIndex * 40,
-                            y: 64 + rowIndex * 44
-                          }"
-                          @click="toggleSeat(seat.id)"
-                          @tap="toggleSeat(seat.id)"
-                          @mouseenter="(evt) => handleSeatMouseEnter(seat, 16 + seatIndex * 40, 64 + rowIndex * 44, evt)"
-                          @mouseleave="handleSeatMouseLeave"
-                        >
-                          <v-rect :config="getSeatBaseConfig(seat)" />
-                          <v-rect :config="getSeatCushionConfig(seat)" />
-                          <v-rect :config="getSeatBackrestConfig(seat)" />
-                          <v-text :config="getSeatTextConfig(seat)" />
-                        </v-group>
-                      </template>
-                      <template v-else-if="row.rowNum === 9">
-                        <v-rect :config="{
-                          x: 16,
-                          y: 64 + rowIndex * 44,
-                          width: 72,
-                          height: 32,
-                          cornerRadius: 5,
-                          stroke: '#cbd5e1',
-                          strokeWidth: 1,
-                          dash: [3, 3]
-                        }" />
-                        <v-text :config="{
-                          x: 16,
-                          y: 64 + rowIndex * 44,
-                          width: 72,
-                          height: 32,
-                          text: '🚪 PINTU BELAKANG',
-                          fontSize: 8,
-                          fontStyle: 'bold',
-                          fontFamily: 'sans-serif',
-                          fill: '#64748b',
-                          align: 'center',
-                          verticalAlign: 'middle'
-                        }" />
-                      </template>
-
-                      <!-- Row labels (center aisle) -->
-                      <v-text :config="{
-                        x: 88,
-                        y: 64 + rowIndex * 44,
-                        width: 24,
-                        height: 32,
-                        text: row.rowNum.toString(),
-                        fontSize: 11,
-                        fontStyle: '800',
-                        fontFamily: 'sans-serif',
-                        fill: '#94a3b8',
-                        align: 'center',
-                        verticalAlign: 'middle'
-                      }" />
-
-                      <!-- Right column seats -->
-                      <v-group 
-                        v-for="(seat, seatIndex) in row.right" 
-                        :key="seat.id"
-                        :config="{
-                          x: 112 + seatIndex * 40,
-                          y: 64 + rowIndex * 44
-                        }"
-                        @click="toggleSeat(seat.id)"
-                        @tap="toggleSeat(seat.id)"
-                        @mouseenter="(evt) => handleSeatMouseEnter(seat, 112 + seatIndex * 40, 64 + rowIndex * 44, evt)"
-                        @mouseleave="handleSeatMouseLeave"
-                      >
-                        <v-rect :config="getSeatBaseConfig(seat)" />
-                        <v-rect :config="getSeatCushionConfig(seat)" />
-                        <v-rect :config="getSeatBackrestConfig(seat)" />
-                        <v-text :config="getSeatTextConfig(seat)" />
-                      </v-group>
-                    </v-group>
-                  </v-layer>
-                </v-stage>
-                
-                <!-- Floating price tooltip -->
-                <transition name="fade">
-                  <span 
-                    v-if="tooltipActive" 
-                    class="seat-tooltip" 
-                    :style="{ 
-                      left: tooltipX + 'px', 
-                      top: tooltipY + 'px', 
-                      visibility: 'visible', 
-                      opacity: 1 
-                    }"
-                  >
-                    <span class="tooltip-price" v-if="!occupiedSeats.includes(tooltipSeat.id)">{{ formatRp(bookingStore.basePrice) }}</span>
-                    <span class="tooltip-status occupied" v-else>Terisi</span>
-                  </span>
-                </transition>
+              <div v-else class="no-seats-placeholder">
+                <div class="pax-note-box mb-3" style="background: rgba(201, 76, 76, 0.05); border-color: rgba(201, 76, 76, 0.2); color: var(--primary); display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 12px; font-size: 0.88rem;">
+                  <span style="font-size: 1.25rem;">💺</span>
+                  <span>Anda belum memilih kursi. Silakan klik tombol di bawah untuk memilih kursi Anda di dalam bus.</span>
+                </div>
+                <button type="button" class="btn btn-primary" @click="showSeatModal = true" style="width: 100%;">
+                  Pilih Kursi
+                </button>
               </div>
-
-              <!-- Legends -->
-              <div class="bus-legends">
-                <div class="legend-item">
-                  <span class="legend-dot available"></span>
-                  <span>Tersedia</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-dot selected"></span>
-                  <span>Pilihanmu</span>
-                </div>
-                <div class="legend-item">
-                  <span class="legend-dot occupied"></span>
-                  <span>Terisi</span>
-                </div>
-              </div>
-
-              <!-- Status Box -->
-              <div class="seat-selection-status" :class="{ complete: selectedSeats.length === adults }">
-                <div class="status-summary">
-                  <span class="status-lbl">Kursi Terpilih:</span>
-                  <div class="selected-seats-badges">
-                    <span v-for="seat in selectedSeats" :key="seat" class="seat-badge">{{ seat }}</span>
-                    <span v-if="selectedSeats.length === 0" class="no-seats-selected">Belum ada kursi yang dipilih</span>
-                  </div>
-                </div>
-                <div class="status-counter">
-                  <span>Jumlah: <strong>{{ selectedSeats.length }}</strong> dari <strong>{{ adults }}</strong> Dewasa</span>
-                </div>
-              </div>
-              
-              <div class="seat-error-msg" v-if="selectedSeats.length < adults">
-                ⚠️ Silakan pilih {{ adults - selectedSeats.length }} kursi lagi sebelum melanjutkan pembayaran.
-              </div>
-
-              <!-- ZOOM MODAL POPUP -->
-              <transition name="modal-fade">
-                <div v-if="showZoomModal" class="zoom-modal-overlay" @click.self="showZoomModal = false">
-                  <div class="zoom-modal-content">
-                    <div class="zm-header">
-                      <h3>Peta Kursi Bus (Detail & Zoom)</h3>
-                      <button type="button" class="zm-close" @click="showZoomModal = false">✕</button>
-                    </div>
-                    
-                    <div class="zm-toolbar">
-                      <button type="button" class="zoom-ctrl-btn" @click="zoomIn">Perbesar (+)</button>
-                      <button type="button" class="zoom-ctrl-btn" @click="zoomOut">Perkecil (-)</button>
-                      <button type="button" class="zoom-ctrl-btn" @click="resetZoom">Reset</button>
-                      <span class="zoom-indicator">Skala: {{ Math.round(zoomLevel * 100) }}%</span>
-                    </div>
-
-                    <div class="zm-body">
-                      <div class="zm-scrollable-viewport">
-                        <div class="zm-scale-container" :style="{ transform: 'scale(' + zoomLevel + ')' }">
-                          
-                          <!-- Bus Cabin Replica inside Modal (Vue-Konva) -->
-                          <div class="canvas-bus-container modal-cabin" style="position: relative; width: 200px; height: 456px;">
-                            <v-stage :config="{ width: 200, height: 456 }">
-                              <v-layer>
-                                <!-- Cockpit area -->
-                                <v-rect :config="{
-                                  x: 16,
-                                  y: 16,
-                                  width: 72,
-                                  height: 32,
-                                  cornerRadius: 5,
-                                  stroke: '#cbd5e1',
-                                  strokeWidth: 1,
-                                  dash: [3, 3]
-                                }" />
-                                <v-text :config="{
-                                  x: 16,
-                                  y: 16,
-                                  width: 72,
-                                  height: 32,
-                                  text: '🚪 PINTU DEPAN',
-                                  fontSize: 8,
-                                  fontStyle: 'bold',
-                                  fontFamily: 'sans-serif',
-                                  fill: '#64748b',
-                                  align: 'center',
-                                  verticalAlign: 'middle'
-                                }" />
-
-                                <!-- Driver Wheel Icon -->
-                                <v-group :config="{ x: 148, y: 32 }">
-                                  <v-circle :config="{
-                                    x: 0,
-                                    y: 0,
-                                    radius: 10,
-                                    stroke: '#64748b',
-                                    strokeWidth: 2
-                                  }" />
-                                  <v-circle :config="{
-                                    x: 0,
-                                    y: 0,
-                                    radius: 2.5,
-                                    stroke: '#64748b',
-                                    strokeWidth: 2
-                                  }" />
-                                  <v-line :config="{
-                                    points: [0, -10, 0, -2.5],
-                                    stroke: '#64748b',
-                                    strokeWidth: 2
-                                  }" />
-                                  <v-line :config="{
-                                    points: [-7.1, 7.1, -1.8, 1.8],
-                                    stroke: '#64748b',
-                                    strokeWidth: 2
-                                  }" />
-                                  <v-line :config="{
-                                    points: [7.1, 7.1, 1.8, 1.8],
-                                    stroke: '#64748b',
-                                    strokeWidth: 2
-                                  }" />
-                                </v-group>
-
-                                <!-- Dashed dividing line under cockpit -->
-                                <v-line :config="{
-                                  points: [16, 56, 184, 56],
-                                  stroke: '#e2e8f0',
-                                  strokeWidth: 1.5,
-                                  dash: [4, 4]
-                                }" />
-
-                                <!-- Passenger rows -->
-                                <v-group v-for="(row, rowIndex) in busRows" :key="'modal-row-' + row.rowNum">
-                                  <!-- Left column (seats or rear door) -->
-                                  <template v-if="row.left.length > 0">
-                                    <v-group 
-                                      v-for="(seat, seatIndex) in row.left" 
-                                      :key="seat.id"
-                                      :config="{
-                                        x: 16 + seatIndex * 40,
-                                        y: 64 + rowIndex * 44
-                                      }"
-                                      @click="toggleSeat(seat.id)"
-                                      @tap="toggleSeat(seat.id)"
-                                      @mouseenter="(evt) => handleSeatMouseEnter(seat, 16 + seatIndex * 40, 64 + rowIndex * 44, evt)"
-                                      @mouseleave="handleSeatMouseLeave"
-                                    >
-                                      <v-rect :config="getSeatBaseConfig(seat)" />
-                                      <v-rect :config="getSeatCushionConfig(seat)" />
-                                      <v-rect :config="getSeatBackrestConfig(seat)" />
-                                      <v-text :config="getSeatTextConfig(seat)" />
-                                    </v-group>
-                                  </template>
-                                  <template v-else-if="row.rowNum === 9">
-                                    <v-rect :config="{
-                                      x: 16,
-                                      y: 64 + rowIndex * 44,
-                                      width: 72,
-                                      height: 32,
-                                      cornerRadius: 5,
-                                      stroke: '#cbd5e1',
-                                      strokeWidth: 1,
-                                      dash: [3, 3]
-                                    }" />
-                                    <v-text :config="{
-                                      x: 16,
-                                      y: 64 + rowIndex * 44,
-                                      width: 72,
-                                      height: 32,
-                                      text: '🚪 PINTU BELAKANG',
-                                      fontSize: 8,
-                                      fontStyle: 'bold',
-                                      fontFamily: 'sans-serif',
-                                      fill: '#64748b',
-                                      align: 'center',
-                                      verticalAlign: 'middle'
-                                    }" />
-                                  </template>
-
-                                  <!-- Row labels (center aisle) -->
-                                  <v-text :config="{
-                                    x: 88,
-                                    y: 64 + rowIndex * 44,
-                                    width: 24,
-                                    height: 32,
-                                    text: row.rowNum.toString(),
-                                    fontSize: 11,
-                                    fontStyle: '800',
-                                    fontFamily: 'sans-serif',
-                                    fill: '#94a3b8',
-                                    align: 'center',
-                                    verticalAlign: 'middle'
-                                  }" />
-
-                                  <!-- Right column seats -->
-                                  <v-group 
-                                    v-for="(seat, seatIndex) in row.right" 
-                                    :key="seat.id"
-                                    :config="{
-                                      x: 112 + seatIndex * 40,
-                                      y: 64 + rowIndex * 44
-                                    }"
-                                    @click="toggleSeat(seat.id)"
-                                    @tap="toggleSeat(seat.id)"
-                                    @mouseenter="(evt) => handleSeatMouseEnter(seat, 112 + seatIndex * 40, 64 + rowIndex * 44, evt)"
-                                    @mouseleave="handleSeatMouseLeave"
-                                  >
-                                    <v-rect :config="getSeatBaseConfig(seat)" />
-                                    <v-rect :config="getSeatCushionConfig(seat)" />
-                                    <v-rect :config="getSeatBackrestConfig(seat)" />
-                                    <v-text :config="getSeatTextConfig(seat)" />
-                                  </v-group>
-                                </v-group>
-                              </v-layer>
-                            </v-stage>
-                            
-                            <!-- Floating price tooltip inside modal -->
-                            <transition name="fade">
-                              <span 
-                                v-if="tooltipActive" 
-                                class="seat-tooltip" 
-                                :style="{ 
-                                  left: tooltipX + 'px', 
-                                  top: tooltipY + 'px', 
-                                  visibility: 'visible', 
-                                  opacity: 1 
-                                }"
-                              >
-                                <span class="tooltip-price" v-if="!occupiedSeats.includes(tooltipSeat.id)">{{ formatRp(bookingStore.basePrice) }}</span>
-                                <span class="tooltip-status occupied" v-else>Terisi</span>
-                              </span>
-                            </transition>
-                          </div>
-
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div class="zm-footer">
-                      <button type="button" class="zm-close-btn" @click="showZoomModal = false">Tutup</button>
-                    </div>
-                  </div>
-                </div>
-              </transition>
             </div>
           </div>
         </div>
 
+              <!-- SEAT MAP MODAL POPUP -->
+              <transition name="modal-fade">
+                <div v-if="showSeatModal" class="sm-modal-overlay" @click.self="showSeatModal = false">
+                  <div class="sm-modal-content">
+                    <div class="sm-header">
+                      <h3 class="sm-title">Pilih Kursi</h3>
+                      <button type="button" class="sm-close" @click="showSeatModal = false">✕</button>
+                    </div>
+
+                    <!-- Trip / Vendor info card -->
+                    <div class="sm-trip-card" v-if="event">
+                      <div class="sm-vendor-icon">🚌</div>
+                      <div class="sm-trip-info">
+                        <div class="sm-vendor-name">
+                          {{ event.name }} <span class="sm-vendor-tag">• Shuttle Bersama</span>
+                        </div>
+                        <div class="sm-trip-time">
+                          {{ event.dateLabel }} · {{ event.departureTime || '12:00 WIB' }} - {{ event.returnTime || '01:00 WIB' }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Passenger tabs for seat selection -->
+                    <div class="sm-passengers-tabs">
+                      <div 
+                        v-for="index in adults" 
+                        :key="index" 
+                        class="sm-passenger-tab"
+                        :class="{ active: activePassengerIndex === index - 1 }"
+                        @click="activePassengerIndex = index - 1"
+                      >
+                        <div class="sm-passenger-lbl">Penumpang {{ index }}</div>
+                        <div class="sm-passenger-seat" :class="{ assigned: selectedSeats[index - 1] }">
+                          {{ selectedSeats[index - 1] ? `Kursi ${selectedSeats[index - 1]}` : 'Pilih Kursi' }}
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Legends -->
+                    <div class="sm-legends">
+                      <div class="sm-legend-item">
+                        <span class="sm-legend-box selected"></span>
+                        <span>Dipilih</span>
+                      </div>
+                      <div class="sm-legend-item">
+                        <span class="sm-legend-box available"></span>
+                        <span>Tersedia</span>
+                      </div>
+                      <div class="sm-legend-item">
+                        <span class="sm-legend-box occupied"></span>
+                        <span>Tidak Tersedia</span>
+                      </div>
+                    </div>
+
+                    <!-- Scrollable Cabin Area -->
+                    <div class="sm-grid-container">
+                      <div class="sm-grid-scroll">
+                        <div class="sm-cabin">
+                          <!-- Cockpit / Driver Row -->
+                          <div class="sm-cockpit-row">
+                            <div class="sm-driver-wheel">
+                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" />
+                                <circle cx="12" cy="12" r="2.5" />
+                                <line x1="12" y1="2" x2="12" y2="9.5" />
+                                <line x1="4.9" y1="19.1" x2="10.2" y2="13.8" />
+                                <line x1="19.1" y1="19.1" x2="13.8" y2="13.8" />
+                              </svg>
+                            </div>
+                          </div>
+
+                          <!-- Bus rows -->
+                          <div v-for="row in busRows" :key="'modal-row-' + row.rowNum" class="sm-row">
+                            <!-- Left Seats (A & B) or back door -->
+                            <div class="sm-seat-pair">
+                              <template v-if="row.left.length > 0">
+                                <button 
+                                  v-for="seat in row.left"
+                                  :key="seat.id"
+                                  type="button"
+                                  class="sm-seat"
+                                  :class="{ 
+                                    selected: selectedSeats.includes(seat.id),
+                                    occupied: occupiedSeats.includes(seat.id),
+                                    'current-active': selectedSeats[activePassengerIndex] === seat.id
+                                  }"
+                                  :disabled="occupiedSeats.includes(seat.id)"
+                                  @click="selectSeatInModal(seat.id)"
+                                >
+                                  <span v-if="occupiedSeats.includes(seat.id)" class="sm-cross">✕</span>
+                                  <span v-else>{{ seat.label }}</span>
+                                </button>
+                              </template>
+                              <template v-else-if="row.rowNum === 9">
+                                <div class="sm-door-placeholder">
+                                  <span>🚪 PINTU BELAKANG</span>
+                                </div>
+                              </template>
+                            </div>
+
+                            <!-- Row Number -->
+                            <div class="sm-row-number">{{ row.rowNum }}</div>
+
+                            <!-- Right Seats (C & D) -->
+                            <div class="sm-seat-pair">
+                              <button 
+                                v-for="seat in row.right"
+                                :key="seat.id"
+                                type="button"
+                                class="sm-seat"
+                                :class="{ 
+                                  selected: selectedSeats.includes(seat.id),
+                                  occupied: occupiedSeats.includes(seat.id),
+                                  'current-active': selectedSeats[activePassengerIndex] === seat.id
+                                }"
+                                :disabled="occupiedSeats.includes(seat.id)"
+                                @click="selectSeatInModal(seat.id)"
+                              >
+                                <span v-if="occupiedSeats.includes(seat.id)" class="sm-cross">✕</span>
+                                <span v-else>{{ seat.label }}</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Footer of Modal -->
+                    <div class="sm-footer">
+                      <div class="sm-footer-total">
+                        <div class="sm-total-lbl">Total <span class="sm-total-sub">(Setelah cashback)</span></div>
+                        <div class="sm-total-val">{{ formatRp(grandTotal) }}</div>
+                      </div>
+                      <button type="button" class="sm-continue-btn" @click="showSeatModal = false">
+                        Lanjut
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </transition>
+            
       </div>
 
       <!-- RIGHT: Order Summary -->
@@ -1096,7 +895,21 @@ const getSeatTextConfig = (seat) => {
           <span class="bp-label">Total Pembayaran</span>
           <span class="bp-val">{{ formatRp(grandTotal) }}</span>
         </div>
-        <button class="proceed-btn bottom-btn" :class="{ disabled: !canProceed }" :disabled="!canProceed" @click="handleProceed">
+        <button 
+          v-if="selectedSeats.length < adults" 
+          class="proceed-btn bottom-btn" 
+          @click="showSeatModal = true"
+        >
+          <span>Pilih Kursi</span>
+          <ArrowRight :size="18" />
+        </button>
+        <button 
+          v-else 
+          class="proceed-btn bottom-btn" 
+          :class="{ disabled: !canProceed }" 
+          :disabled="!canProceed" 
+          @click="handleProceed"
+        >
           <span>Lanjutkan Pembayaran</span>
           <ArrowRight :size="18" />
         </button>
@@ -1935,6 +1748,415 @@ const getSeatTextConfig = (seat) => {
     width: 100%;
     margin-top: 6px;
     text-align: center;
+  }
+}
+
+/* ===== NEW SEAT MODAL ===== */
+.sm-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  padding: 20px;
+}
+
+.sm-modal-content {
+  background: var(--card-bg);
+  width: 100%;
+  max-width: 720px;
+  border-radius: 24px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh; /* Keep it compact on laptop screens */
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+}
+
+.sm-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.sm-title {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+.sm-close {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.sm-close:hover {
+  color: var(--primary);
+}
+
+/* Trip card style */
+.sm-trip-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 20px;
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.sm-vendor-icon {
+  font-size: 1.3rem;
+}
+
+.sm-trip-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.sm-vendor-name {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+
+.sm-vendor-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.sm-trip-time {
+  font-size: 0.72rem;
+  color: var(--text-light);
+  margin-top: 1px;
+}
+
+/* Passenger tabs */
+.sm-passengers-tabs {
+  display: flex;
+  gap: 10px;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+  flex-shrink: 0;
+}
+
+.sm-passengers-tabs::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
+
+.sm-passenger-tab {
+  flex: 1;
+  max-width: 220px;
+  min-width: 120px;
+  padding: 6px 12px;
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--card-bg);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sm-passenger-tab.active {
+  border-color: var(--primary);
+  background: rgba(201, 76, 76, 0.04);
+}
+
+.sm-passenger-lbl {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+.sm-passenger-tab.active .sm-passenger-lbl {
+  color: var(--primary);
+}
+
+.sm-passenger-seat {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin-top: 2px;
+}
+
+.sm-passenger-seat.assigned {
+  color: var(--primary);
+}
+
+/* Legends */
+.sm-legends {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 6px 20px;
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+  flex-shrink: 0;
+}
+
+.sm-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+.sm-legend-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1.2px solid #cbd5e1;
+}
+
+.sm-legend-box.selected {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.sm-legend-box.available {
+  background-color: #ffffff;
+}
+
+.sm-legend-box.occupied {
+  background-color: #f1f5f9;
+  border-color: #e2e8f0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sm-legend-box.occupied::after {
+  content: "✕";
+  font-size: 8px;
+  color: #cbd5e1;
+}
+
+/* Grid layout */
+.sm-grid-container {
+  flex: 1;
+  background: #f1f5f9;
+  padding: 10px 20px;
+  display: flex;
+  justify-content: center;
+  overflow-y: auto;
+}
+
+[data-theme="dark"] .sm-grid-container {
+  background: #121212;
+}
+
+.sm-grid-scroll {
+  width: 100%;
+  max-width: 240px;
+}
+
+.sm-cabin {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sm-cockpit-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-bottom: 4px;
+  border-bottom: 1.5px dashed #cbd5e1;
+  margin-bottom: 4px;
+}
+
+.sm-driver-wheel {
+  color: var(--text-light);
+  display: flex;
+  align-items: center;
+}
+
+.sm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sm-seat-pair {
+  display: flex;
+  gap: 4px;
+}
+
+.sm-seat {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  border: 1.2px solid #cbd5e1;
+  background: #ffffff;
+  color: #1e293b;
+  font-weight: 800;
+  font-size: 0.68rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+[data-theme="dark"] .sm-seat {
+  background: #1e1e1e;
+  color: #f1f5f9;
+  border-color: #475569;
+}
+
+.sm-seat:hover:not(:disabled) {
+  border-color: var(--primary);
+  background: rgba(201, 76, 76, 0.04);
+}
+
+.sm-seat.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #ffffff;
+}
+
+.sm-seat.current-active {
+  box-shadow: 0 0 0 2.5px rgba(201, 76, 76, 0.25);
+}
+
+.sm-seat.occupied {
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+[data-theme="dark"] .sm-seat.occupied {
+  background-color: #2d2d2d;
+  border-color: #3d3d3d;
+  color: #555555;
+}
+
+.sm-cross {
+  font-size: 0.7rem;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .sm-cross {
+  color: #555555;
+}
+
+.sm-door-placeholder {
+  width: 58px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.2px dashed #cbd5e1;
+  border-radius: 5px;
+  font-size: 0.48rem;
+  color: var(--text-light);
+  text-align: center;
+}
+
+.sm-row-number {
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--text-light);
+  width: 24px;
+  text-align: center;
+}
+
+/* Footer styling */
+.sm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  border-top: 1px solid var(--border-color);
+  background: var(--card-bg);
+  flex-shrink: 0;
+}
+
+.sm-footer-total {
+  display: flex;
+  flex-direction: column;
+}
+
+.sm-total-lbl {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+.sm-total-sub {
+  font-size: 0.58rem;
+  font-weight: 500;
+}
+
+.sm-total-val {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: var(--text-dark);
+  margin-top: 1px;
+}
+
+.sm-continue-btn {
+  background: var(--primary);
+  color: #ffffff;
+  padding: 8px 18px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  box-shadow: 0 4px 12px rgba(201, 76, 76, 0.2);
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+}
+
+.sm-continue-btn:hover {
+  background: #b34242;
+  transform: translateY(-1px);
+}
+
+/* Responsive adjust for mobile */
+@media (max-width: 580px) {
+  .sm-modal-content {
+    max-height: 100vh;
+    height: 100%;
+    border-radius: 0;
+    overflow-y: auto;
+  }
+  .sm-modal-overlay {
+    padding: 0;
+  }
+  .sm-trip-card {
+    padding: 12px 16px;
+  }
+  .sm-passengers-tabs {
+    padding: 12px 16px;
+  }
+  .sm-legends {
+    padding: 10px 16px;
+  }
+  .sm-grid-container {
+    padding: 16px 10px;
+  }
+  .sm-footer {
+    padding: 12px 16px;
   }
 }
 </style>
