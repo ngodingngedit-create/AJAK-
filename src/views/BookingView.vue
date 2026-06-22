@@ -220,6 +220,7 @@ watch(adults, (newVal) => {
 
 watch(showSeatModal, (isOpen) => {
   if (isOpen) {
+    offsetY.value = 0;
     const firstEmpty = selectedSeats.value.findIndex(s => !s);
     if (firstEmpty !== -1) {
       activePassengerIndex.value = firstEmpty;
@@ -228,6 +229,37 @@ watch(showSeatModal, (isOpen) => {
     }
   }
 });
+
+// ---- DRAGGABLE BOTTOM SHEET FOR MOBILE ----
+const isDragging = ref(false);
+const startY = ref(0);
+const offsetY = ref(0);
+
+const handleTouchStart = (e) => {
+  if (window.innerWidth > 580) return;
+  isDragging.value = true;
+  startY.value = e.touches[0].clientY;
+};
+
+const handleTouchMove = (e) => {
+  if (!isDragging.value) return;
+  const clientY = e.touches[0].clientY;
+  const deltaY = clientY - startY.value;
+  if (deltaY < 0) {
+    offsetY.value = deltaY * 0.15; // Resistance when dragging up
+  } else {
+    offsetY.value = deltaY; // Dragging down
+  }
+};
+
+const handleTouchEnd = () => {
+  if (!isDragging.value) return;
+  isDragging.value = false;
+  if (offsetY.value > 120) {
+    showSeatModal.value = false;
+  }
+  offsetY.value = 0;
+};
 
 const selectSeatInModal = (seatId) => {
   if (occupiedSeats.value.includes(seatId)) return;
@@ -677,9 +709,25 @@ const getSeatTextConfig = (seat) => {
               <!-- SEAT MAP MODAL POPUP -->
               <transition name="modal-fade">
                 <div v-if="showSeatModal" class="sm-modal-overlay" @click.self="showSeatModal = false">
-                  <div class="sm-modal-content">
-                    <div class="sm-drag-handle"></div>
-                    <div class="sm-header">
+                  <div 
+                    class="sm-modal-content"
+                    :style="{ 
+                      transform: `translateY(${offsetY}px)`, 
+                      transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)' 
+                    }"
+                  >
+                    <div 
+                      class="sm-drag-handle"
+                      @touchstart="handleTouchStart"
+                      @touchmove="handleTouchMove"
+                      @touchend="handleTouchEnd"
+                    ></div>
+                    <div 
+                      class="sm-header"
+                      @touchstart="handleTouchStart"
+                      @touchmove="handleTouchMove"
+                      @touchend="handleTouchEnd"
+                    >
                       <h3 class="sm-title">Pilih Kursi</h3>
                       <button type="button" class="sm-close" @click="showSeatModal = false">✕</button>
                     </div>
@@ -2179,8 +2227,8 @@ const getSeatTextConfig = (seat) => {
   }
 
   .sm-modal-content {
-    height: 98vh; /* Make it go almost all the way to the top of the screen */
-    max-height: 100vh;
+    height: 82vh; /* Sits slightly lower on mobile screen by default, draggable down to close */
+    max-height: 90vh;
     border-radius: 24px 24px 0 0; /* Rounded top corners only */
     border: none;
     border-top: 1px solid var(--border-color);
