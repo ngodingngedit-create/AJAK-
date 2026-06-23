@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { MapPin, Clock, Users, Baby, ArrowRight, Check, ChevronLeft, Calendar, Tag, Navigation, User, Mail, Phone } from 'lucide-vue-next';
+import { MapPin, Clock, Users, Baby, ArrowRight, Check, ChevronLeft, ChevronDown, Calendar, Tag, Navigation, User, Mail, Phone, Ticket } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
 
 const route = useRoute();
@@ -79,6 +79,19 @@ watch(customPickupInput, (val) => {
 // ---- STEP 2: CUSTOMER DATA ----
 const customer = bookingStore.customer;
 
+const customerErrors = ref({
+  name: '',
+  email: '',
+  phone: ''
+});
+
+// ---- SECTION ACCORDION STATE ----
+const sectionDataPemesanOpen = ref(true);
+const sectionJumlahPenumpangOpen = ref(true);
+const sectionDetailPenumpangOpen = ref(true);
+const sectionRutePerjalananOpen = ref(true);
+const sectionPilihKursiOpen = ref(true);
+
 // ---- STEP 3: PASSENGERS ----
 const adults = computed({
   get: () => bookingStore.adults,
@@ -88,6 +101,206 @@ const toddlers = computed({
   get: () => bookingStore.toddlers,
   set: v => bookingStore.toddlers = v,
 });
+
+// ---- PASSENGERS DETAILS STATE ----
+const passengers = ref([]);
+
+const syncPassengers = () => {
+  const targetAdults = adults.value || 0;
+  const targetToddlers = toddlers.value || 0;
+  
+  const currentPassengers = [...passengers.value];
+  const newPassengers = [];
+  
+  // 1. Adults
+  for (let i = 0; i < targetAdults; i++) {
+    const existing = currentPassengers.find(p => p.type === 'dewasa' && p.index === i);
+    newPassengers.push(existing || {
+      id: `adult-${i}`,
+      type: 'dewasa',
+      index: i,
+      label: `Penumpang ${i + 1} (Dewasa)`,
+      name: '',
+      email: '',
+      phone: '',
+      phoneCode: '+62',
+      identityType: 'KTP',
+      identityNumber: '',
+      useBuyerData: false,
+      isExpanded: i === 0, // Expand the first one by default
+      errorName: '',
+      errorEmail: '',
+      errorPhone: '',
+      errorIdentity: ''
+    });
+  }
+  
+  // 2. Toddlers
+  for (let i = 0; i < targetToddlers; i++) {
+    const existing = currentPassengers.find(p => p.type === 'balita' && p.index === i);
+    newPassengers.push(existing || {
+      id: `toddler-${i}`,
+      type: 'balita',
+      index: i,
+      label: `Penumpang ${targetAdults + i + 1} (Balita)`,
+      name: '',
+      identityType: 'KTP',
+      identityNumber: '',
+      isExpanded: false,
+      errorName: '',
+      errorIdentity: ''
+    });
+  }
+  
+  passengers.value = newPassengers;
+};
+
+// Sync passengers when counts change
+watch([adults, toddlers], () => {
+  syncPassengers();
+}, { immediate: true });
+
+// Sync customer changes to passengers who have enabled "Gunakan Data Pemesan"
+watch(
+  () => [customer.name, customer.email, customer.phone],
+  ([newName, newEmail, newPhone]) => {
+    passengers.value.forEach(p => {
+      if (p.useBuyerData && p.type === 'dewasa') {
+        p.name = newName || '';
+        p.email = newEmail || '';
+        p.phone = newPhone || '';
+        
+        // Trigger validation on passenger
+        validatePassengerName(p);
+        validatePassengerEmail(p);
+        validatePassengerPhone(p);
+      }
+    });
+  }
+);
+
+const validateCustomerName = () => {
+  const name = customer.name ? customer.name.trim() : '';
+  if (!name) {
+    customerErrors.value.name = 'Nama lengkap wajib diisi.';
+  } else if (name.length < 3) {
+    customerErrors.value.name = 'Nama terlalu pendek. Minimal 3 karakter.';
+  } else {
+    customerErrors.value.name = '';
+  }
+};
+
+const validateCustomerEmail = () => {
+  const email = customer.email ? customer.email.trim() : '';
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email) {
+    customerErrors.value.email = 'Email wajib diisi.';
+  } else if (!emailRegex.test(email)) {
+    customerErrors.value.email = 'Format email tidak valid (contoh: nama@email.com).';
+  } else {
+    customerErrors.value.email = '';
+  }
+};
+
+const validateCustomerPhone = () => {
+  let phone = customer.phone ? customer.phone.trim() : '';
+  if (!phone) {
+    customerErrors.value.phone = 'Nomor telepon wajib diisi.';
+  } else if (phone.startsWith('0')) {
+    customerErrors.value.phone = 'Nomor telepon tidak boleh diawali angka 0. Silakan langsung mulai dengan angka 8.';
+  } else if (!/^\d+$/.test(phone)) {
+    customerErrors.value.phone = 'Nomor telepon hanya boleh berisi angka.';
+  } else if (phone.length < 8 || phone.length > 13) {
+    customerErrors.value.phone = 'Nomor telepon tidak valid. Harus antara 8-13 digit.';
+  } else {
+    customerErrors.value.phone = '';
+  }
+};
+
+const validatePassengerName = (p) => {
+  const name = p.name ? p.name.trim() : '';
+  if (!name) {
+    p.errorName = 'Nama lengkap wajib diisi.';
+  } else if (name.length < 3) {
+    p.errorName = 'Nama terlalu pendek. Minimal 3 karakter.';
+  } else {
+    p.errorName = '';
+  }
+};
+
+const validatePassengerEmail = (p) => {
+  if (p.type !== 'dewasa') return;
+  const email = p.email ? p.email.trim() : '';
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email) {
+    p.errorEmail = 'Email wajib diisi.';
+  } else if (!emailRegex.test(email)) {
+    p.errorEmail = 'Format email tidak valid (contoh: nama@email.com).';
+  } else {
+    p.errorEmail = '';
+  }
+};
+
+const validatePassengerPhone = (p) => {
+  if (p.type !== 'dewasa') return;
+  let phone = p.phone ? p.phone.trim() : '';
+  if (!phone) {
+    p.errorPhone = 'Nomor telepon wajib diisi.';
+  } else if (phone.startsWith('0')) {
+    p.errorPhone = 'Nomor telepon tidak boleh diawali angka 0. Silakan langsung mulai dengan angka 8.';
+  } else if (!/^\d+$/.test(phone)) {
+    p.errorPhone = 'Nomor telepon hanya boleh berisi angka.';
+  } else if (phone.length < 8 || phone.length > 13) {
+    p.errorPhone = 'Nomor telepon tidak valid. Harus antara 8-13 digit.';
+  } else {
+    p.errorPhone = '';
+  }
+};
+
+const validatePassengerIdentity = (p) => {
+  const idNum = p.identityNumber ? p.identityNumber.trim() : '';
+  if (!idNum) {
+    p.errorIdentity = 'Nomor identitas wajib diisi.';
+  } else if (p.identityType === 'KTP') {
+    if (!/^\d+$/.test(idNum)) {
+      p.errorIdentity = 'Nomor NIK hanya boleh berisi angka.';
+    } else if (idNum.length !== 16) {
+      p.errorIdentity = 'Format NIK tidak valid. Harus berupa 16 digit angka.';
+    } else {
+      p.errorIdentity = '';
+    }
+  } else if (p.identityType === 'Paspor') {
+    if (!/^[a-zA-Z0-9]+$/.test(idNum)) {
+      p.errorIdentity = 'Nomor paspor hanya boleh berisi huruf dan angka.';
+    } else if (idNum.length < 7 || idNum.length > 9) {
+      p.errorIdentity = 'Format nomor paspor tidak valid. Harus terdiri dari 7-9 karakter alfanumerik.';
+    } else {
+      p.errorIdentity = '';
+    }
+  } else {
+    p.errorIdentity = '';
+  }
+};
+
+const toggleUseBuyerData = (passenger) => {
+  passenger.useBuyerData = !passenger.useBuyerData;
+  if (passenger.useBuyerData) {
+    passenger.name = customer.name;
+    passenger.email = customer.email;
+    passenger.phone = customer.phone;
+    
+    // Trigger validation
+    validatePassengerName(passenger);
+    validatePassengerEmail(passenger);
+    validatePassengerPhone(passenger);
+  }
+};
+
+const handlePassengerInput = (passenger, field) => {
+  if (passenger.useBuyerData) {
+    passenger.useBuyerData = false;
+  }
+};
 
 // ---- STEP 4: SEAT SELECTION ----
 const selectedSeats = computed({
@@ -332,12 +545,30 @@ const toggleSeat = (seatId) => {
 
 // ---- NAVIGATION ----
 const canProceed = computed(() => {
-  return !!bookingStore.selectedPickup && 
+  const basicFilled = !!bookingStore.selectedPickup && 
          adults.value >= 1 &&
          selectedSeats.value.length === adults.value &&
          customer.name.trim() !== '' &&
          customer.email.trim() !== '' &&
          customer.phone.trim() !== '';
+         
+  if (!basicFilled) return false;
+  
+  // Check customer error states
+  if (customerErrors.value.name || customerErrors.value.email || customerErrors.value.phone) return false;
+  
+  // Validate passenger fields not empty and check error states
+  for (const p of passengers.value) {
+    if (!p.name || !p.name.trim() || p.errorName) return false;
+    if (!p.identityNumber || !p.identityNumber.trim() || p.errorIdentity) return false;
+    
+    if (p.type === 'dewasa') {
+      if (!p.email || !p.email.trim() || p.errorEmail) return false;
+      if (!p.phone || !p.phone.trim() || p.errorPhone) return false;
+    }
+  }
+  
+  return true;
 });
 
 const goBack = () => {
@@ -366,6 +597,14 @@ const confirmBooking = () => {
     adults: adults.value,
     toddlers: toddlers.value,
     selectedSeats: [...selectedSeats.value],
+    passengers: passengers.value.map(p => ({
+      type: p.type,
+      name: p.name,
+      email: p.email || null,
+      phone: p.phone ? `${p.phoneCode}${p.phone}` : null,
+      identityType: p.identityType,
+      identityNumber: p.identityNumber
+    })),
     totalPrice: grandTotal.value,
     paymentMethod: selectedPayment.value
   };
@@ -566,151 +805,363 @@ const getSeatTextConfig = (seat) => {
         </div>
 
         <!-- ===== SECTION 1: CUSTOMER DATA ===== -->
-        <div class="form-section">
-          <div class="section-heading">
-            <h2 class="sect-title"><span class="sect-num">1</span> Data Pemesan</h2>
-            <p class="sect-sub">Informasi kontak untuk pengiriman tiket dan konfirmasi</p>
+        <div class="form-section accordion-section" :class="{ expanded: sectionDataPemesanOpen }">
+          <div class="section-heading accordion-trigger" @click="sectionDataPemesanOpen = !sectionDataPemesanOpen">
+            <div class="section-heading-left">
+              <h2 class="sect-title"><span class="sect-num">1</span> Data Pemesan</h2>
+              <p class="sect-sub">Informasi kontak untuk pengiriman tiket dan konfirmasi</p>
+            </div>
+            <ChevronDown :class="{ rotated: sectionDataPemesanOpen }" :size="18" class="section-chevron" />
           </div>
-          <div class="step-content">
-            <div class="customer-form">
-              <div class="form-group mb-3">
-                <label class="form-label"><User :size="14"/> Nama Lengkap</label>
-                <input type="text" v-model="customer.name" class="form-input" placeholder="Masukkan nama lengkap" />
-              </div>
-              <div class="form-group mb-3">
-                <label class="form-label"><Mail :size="14"/> Email</label>
-                <input type="email" v-model="customer.email" class="form-input" placeholder="contoh@email.com" />
-              </div>
-              <div class="form-group mb-3">
-                <label class="form-label"><Phone :size="14"/> Nomor Telepon / WhatsApp</label>
-                <input type="tel" v-model="customer.phone" class="form-input" placeholder="08123456789" />
+          <transition name="accordion-slide">
+            <div v-show="sectionDataPemesanOpen" class="step-content">
+              <div class="customer-form">
+                <div class="form-group mb-3">
+                  <label class="form-label"><User :size="14"/> Nama Lengkap</label>
+                  <input 
+                    type="text" 
+                    v-model="customer.name" 
+                    @input="validateCustomerName" 
+                    @blur="validateCustomerName"
+                    class="form-input" 
+                    :class="{ 'input-error': customerErrors.name }"
+                    placeholder="Masukkan nama lengkap" 
+                  />
+                  <span v-if="customerErrors.name" class="error-msg-small">{{ customerErrors.name }}</span>
+                </div>
+                <div class="form-group mb-3">
+                  <label class="form-label"><Mail :size="14"/> Email</label>
+                  <input 
+                    type="email" 
+                    v-model="customer.email" 
+                    @input="validateCustomerEmail" 
+                    @blur="validateCustomerEmail"
+                    class="form-input" 
+                    :class="{ 'input-error': customerErrors.email }"
+                    placeholder="contoh@email.com" 
+                  />
+                  <span v-if="customerErrors.email" class="error-msg-small">{{ customerErrors.email }}</span>
+                </div>
+                <div class="form-group mb-3">
+                  <label class="form-label"><Phone :size="14"/> Nomor Telepon / WhatsApp</label>
+                  <input 
+                    type="tel" 
+                    v-model="customer.phone" 
+                    @input="validateCustomerPhone" 
+                    @blur="validateCustomerPhone"
+                    class="form-input" 
+                    :class="{ 'input-error': customerErrors.phone }"
+                    placeholder="08123456789" 
+                  />
+                  <span v-if="customerErrors.phone" class="error-msg-small">{{ customerErrors.phone }}</span>
+                </div>
               </div>
             </div>
-          </div>
+          </transition>
         </div>
 
-        <!-- ===== SECTION 2: PICKUP & RETURN ===== -->
-        <div class="form-section">
-          <div class="section-heading">
-            <h2 class="sect-title"><span class="sect-num">2</span> Rute Perjalanan</h2>
-            <p class="sect-sub">Tentukan lokasi perjalanan Anda</p>
-          </div>
-          <div class="step-content">
-            <!-- PICKUP -->
-            <h4 class="sub-sect-title mb-1">Titik Jemput</h4>
-            <div class="mb-3" style="font-size: 0.85rem; color: var(--primary); font-weight: 700;">Jam Keberangkatan Shuttle: {{ event?.departureTime || '12:00 WIB' }}</div>
-            
-            <div v-if="isEksklusif" class="custom-input-box mb-3">
-              <input type="text" v-model="customPickupInput" placeholder="Ketik alamat jemput spesifik atau pilih dari daftar di bawah..." class="form-input" />
+        <!-- ===== SECTION 2: PASSENGERS ===== -->
+        <div class="form-section accordion-section" :class="{ expanded: sectionJumlahPenumpangOpen }">
+          <div class="section-heading accordion-trigger" @click="sectionJumlahPenumpangOpen = !sectionJumlahPenumpangOpen">
+            <div class="section-heading-left">
+              <h2 class="sect-title"><span class="sect-num">2</span> Jumlah Penumpang</h2>
+              <p class="sect-sub">Berapa orang yang akan berangkat?</p>
             </div>
-
-            <div class="locations-list mb-4">
-              <div v-for="(locs, region) in groupedLocations" :key="'p'+region" class="loc-group">
-                <div class="loc-region-label">{{ region }}</div>
-                <div v-for="loc in locs" :key="'p'+loc.name" class="loc-item" :class="{ selected: bookingStore.selectedPickup?.name === loc.name }" @click="selectPickup(loc)">
-                  <div class="loc-icon"><MapPin :size="16" /></div>
-                  <div class="loc-text">
-                    <div class="loc-name">{{ loc.name }}</div>
-                    <div class="loc-address">{{ loc.address }}</div>
-                    <div class="loc-price" style="font-size: 0.75rem; color: var(--primary); font-weight: 700; margin-top: 4px;">{{ loc.price }}</div>
+            <ChevronDown :class="{ rotated: sectionJumlahPenumpangOpen }" :size="18" class="section-chevron" />
+          </div>
+          <transition name="accordion-slide">
+            <div v-show="sectionJumlahPenumpangOpen" class="step-content">
+              <div class="passengers-form">
+                <div class="passenger-row">
+                  <div class="passenger-info">
+                    <div class="pax-icon"><Users :size="22" /></div>
+                    <div>
+                      <div class="pax-type">Dewasa</div>
+                      <div class="pax-note">Usia 12 tahun ke atas</div>
+                    </div>
                   </div>
-                  <div class="loc-check" v-if="bookingStore.selectedPickup?.name === loc.name"><Check :size="14" /></div>
+                  <div class="counter-ctrl">
+                    <button class="cnt-btn" :class="{ faded: adults <= 1 }" @click="adults > 1 ? adults-- : null">−</button>
+                    <span class="cnt-val">{{ adults }}</span>
+                    <button class="cnt-btn" @click="adults++">+</button>
+                  </div>
+                </div>
+
+                <div class="passenger-row">
+                  <div class="passenger-info">
+                    <div class="pax-icon"><Baby :size="22" /></div>
+                    <div>
+                      <div class="pax-type">Balita</div>
+                      <div class="pax-note">Usia di bawah 5 tahun (gratis)</div>
+                    </div>
+                  </div>
+                  <div class="counter-ctrl">
+                    <button class="cnt-btn" :class="{ faded: toddlers <= 0 }" @click="toddlers > 0 ? toddlers-- : null">−</button>
+                    <span class="cnt-val">{{ toddlers }}</span>
+                    <button class="cnt-btn" @click="toddlers++">+</button>
+                  </div>
+                </div>
+
+                <div class="pax-note-box">
+                  <span>🎟️</span>
+                  <span>Tiket event <strong>tidak termasuk</strong> dalam harga shuttle ini. Pastikan kamu sudah punya tiket event sebelum memesan.</span>
                 </div>
               </div>
-              <div v-if="Object.keys(groupedLocations).length === 0" class="no-results">Tidak ada lokasi ditemukan.</div>
             </div>
-
-            <hr class="my-4" style="border-color: rgba(0,0,0,0.05)" />
-
-            <!-- RETURN (FIXED TO VENUE) -->
-            <h4 class="sub-sect-title mb-1">Titik Pulang (Tujuan Akhir)</h4>
-            <div class="mb-3" style="font-size: 0.85rem; color: var(--primary); font-weight: 700;">Jam Kepulangan Shuttle: {{ event?.returnTime || '01:00 WIB' }}</div>
-            <div class="loc-item selected" style="cursor: default; background: rgba(21,101,192,0.04); border-color: #1565C0;">
-              <div class="loc-icon" style="background: rgba(21,101,192,0.1); color: #1565C0;"><Navigation :size="16" /></div>
-              <div class="loc-text">
-                <div class="loc-name">{{ event?.location }}</div>
-                <div class="loc-address">Lokasi Tempat Diselenggarakannya Acara</div>
-              </div>
-              <div class="loc-check" style="background: #1565C0;"><Check :size="14" /></div>
-            </div>
-
-          </div>
+          </transition>
         </div>
 
-        <!-- ===== SECTION 3: PASSENGERS ===== -->
-        <div class="form-section">
-          <div class="section-heading">
-            <h2 class="sect-title"><span class="sect-num">3</span> Jumlah Penumpang</h2>
-            <p class="sect-sub">Berapa orang yang akan berangkat?</p>
+        <!-- ===== SECTION 3: DETAIL PENUMPANG ===== -->
+        <div class="form-section accordion-section" :class="{ expanded: sectionDetailPenumpangOpen }">
+          <div class="section-heading accordion-trigger" @click="sectionDetailPenumpangOpen = !sectionDetailPenumpangOpen">
+            <div class="section-heading-left">
+              <h2 class="sect-title"><span class="sect-num">3</span> Detail Penumpang</h2>
+              <p class="sect-sub">Isi informasi identitas sesuai dengan tanda pengenal resmi</p>
+            </div>
+            <ChevronDown :class="{ rotated: sectionDetailPenumpangOpen }" :size="18" class="section-chevron" />
           </div>
-          <div class="step-content">
-            <div class="passengers-form">
-              <div class="passenger-row">
-                <div class="passenger-info">
-                  <div class="pax-icon"><Users :size="22" /></div>
-                  <div>
-                    <div class="pax-type">Dewasa</div>
-                    <div class="pax-note">Usia 12 tahun ke atas</div>
+          <transition name="accordion-slide">
+            <div v-show="sectionDetailPenumpangOpen" class="step-content">
+              <div class="passenger-cards-list">
+                <div 
+                  v-for="(passenger, idx) in passengers" 
+                  :key="passenger.id" 
+                  class="passenger-card-accordion"
+                  :class="{ expanded: passenger.isExpanded }"
+                >
+                  <!-- Accordion Header -->
+                  <div class="pca-header" @click.stop="passenger.isExpanded = !passenger.isExpanded">
+                    <div class="pca-header-left">
+                      <div class="pca-icon">
+                        <Ticket v-if="passenger.type === 'dewasa'" :size="18" />
+                        <Baby v-else :size="18" />
+                      </div>
+                      <div class="pca-title-block">
+                        <h4 class="pca-title">{{ passenger.label }}</h4>
+                        <p class="pca-subtitle">
+                          1 Tiket x {{ passenger.type === 'dewasa' ? formatRp(bookingStore.basePrice) : 'Rp 0' }}
+                        </p>
+                      </div>
+                    </div>
+                    <div class="pca-header-right">
+                      <!-- Gunakan Data Pemesan Toggle in Header (only for adult) -->
+                      <div v-if="passenger.type === 'dewasa'" class="header-toggle-wrapper" @click.stop>
+                        <span class="header-toggle-label">
+                          <span class="desktop-text">Gunakan Data Pemesan</span>
+                          <span class="mobile-text">Gunakan Data</span>
+                        </span>
+                        <label class="toggle-switch">
+                          <input 
+                            type="checkbox" 
+                            :checked="passenger.useBuyerData"
+                            @change="toggleUseBuyerData(passenger)"
+                          />
+                          <span class="slider round"></span>
+                        </label>
+                      </div>
+                      <ChevronDown :class="{ rotated: passenger.isExpanded }" :size="18" class="pca-chevron" />
+                    </div>
                   </div>
-                </div>
-                <div class="counter-ctrl">
-                  <button class="cnt-btn" :class="{ faded: adults <= 1 }" @click="adults > 1 ? adults-- : null">−</button>
-                  <span class="cnt-val">{{ adults }}</span>
-                  <button class="cnt-btn" @click="adults++">+</button>
-                </div>
-              </div>
 
-              <div class="passenger-row">
-                <div class="passenger-info">
-                  <div class="pax-icon"><Baby :size="22" /></div>
-                  <div>
-                    <div class="pax-type">Balita</div>
-                    <div class="pax-note">Usia di bawah 5 tahun (gratis)</div>
-                  </div>
-                </div>
-                <div class="counter-ctrl">
-                  <button class="cnt-btn" :class="{ faded: toddlers <= 0 }" @click="toddlers > 0 ? toddlers-- : null">−</button>
-                  <span class="cnt-val">{{ toddlers }}</span>
-                  <button class="cnt-btn" @click="toddlers++">+</button>
-                </div>
-              </div>
+                  <!-- Accordion Body -->
+                  <transition name="accordion-slide">
+                    <div v-show="passenger.isExpanded" class="pca-body">
+                      <!-- Passenger fields -->
+                      <div class="passenger-fields">
+                        <div class="form-group mb-3">
+                          <label class="form-label">Nama Lengkap</label>
+                          <input 
+                            type="text" 
+                            v-model="passenger.name" 
+                            @input="handlePassengerInput(passenger, 'name'); validatePassengerName(passenger)"
+                            @blur="validatePassengerName(passenger)"
+                            class="form-input" 
+                            :class="{ 'input-error': passenger.errorName }"
+                            placeholder="Nama Lengkap" 
+                          />
+                          <span v-if="passenger.errorName" class="error-msg-small">{{ passenger.errorName }}</span>
+                        </div>
 
-              <div class="pax-note-box">
-                <span>🎟️</span>
-                <span>Tiket event <strong>tidak termasuk</strong> dalam harga shuttle ini. Pastikan kamu sudah punya tiket event sebelum memesan.</span>
+                        <!-- Email & Phone only for Adult -->
+                        <template v-if="passenger.type === 'dewasa'">
+                          <div class="form-group mb-3">
+                            <label class="form-label">Email</label>
+                            <input 
+                              type="email" 
+                              v-model="passenger.email" 
+                              @input="handlePassengerInput(passenger, 'email'); validatePassengerEmail(passenger)"
+                              @blur="validatePassengerEmail(passenger)"
+                              class="form-input" 
+                              :class="{ 'input-error': passenger.errorEmail }"
+                              placeholder="Contoh: example@example.com" 
+                            />
+                            <span v-if="passenger.errorEmail" class="error-msg-small">{{ passenger.errorEmail }}</span>
+                          </div>
+
+                          <div class="form-group mb-3">
+                            <label class="form-label">No Telepon</label>
+                            <div class="phone-input-group">
+                              <div class="phone-code-select-wrapper">
+                                <select 
+                                  v-model="passenger.phoneCode" 
+                                  @change="handlePassengerInput(passenger, 'phoneCode'); validatePassengerPhone(passenger)"
+                                  class="phone-code-select"
+                                >
+                                  <option value="+62">+62</option>
+                                  <option value="+65">+65</option>
+                                  <option value="+1">+1</option>
+                                </select>
+                                <ChevronDown :size="14" class="select-chevron" />
+                              </div>
+                              <input 
+                                type="tel" 
+                                v-model="passenger.phone" 
+                                @input="handlePassengerInput(passenger, 'phone'); validatePassengerPhone(passenger)"
+                                @blur="validatePassengerPhone(passenger)"
+                                class="form-input phone-number-input" 
+                                :class="{ 'input-error': passenger.errorPhone }"
+                                placeholder="Contoh: 8123456789" 
+                              />
+                            </div>
+                            <span v-if="passenger.errorPhone" class="error-msg-small">{{ passenger.errorPhone }}</span>
+                          </div>
+                        </template>
+
+                        <!-- Info Identitas -->
+                        <div class="identity-info-section">
+                          <h4 class="identity-title">Info Identitas</h4>
+                          <div class="identity-radios">
+                            <label class="identity-radio-label">
+                              <input 
+                                type="radio" 
+                                value="KTP" 
+                                v-model="passenger.identityType" 
+                                @change="validatePassengerIdentity(passenger)"
+                                class="identity-radio-input"
+                              />
+                              <span class="custom-radio"></span>
+                              <span class="radio-text">KTP</span>
+                            </label>
+                            <label class="identity-radio-label">
+                              <input 
+                                type="radio" 
+                                value="Paspor" 
+                                v-model="passenger.identityType" 
+                                @change="validatePassengerIdentity(passenger)"
+                                class="identity-radio-input"
+                              />
+                              <span class="custom-radio"></span>
+                              <span class="radio-text">Paspor</span>
+                            </label>
+                          </div>
+
+                          <div class="form-group mt-3">
+                            <input 
+                              type="text" 
+                              v-model="passenger.identityNumber" 
+                              @input="validatePassengerIdentity(passenger)"
+                              @blur="validatePassengerIdentity(passenger)"
+                              class="form-input" 
+                              :class="{ 'input-error': passenger.errorIdentity }"
+                              :placeholder="passenger.identityType === 'KTP' ? 'Nomor NIK' : 'Nomor Paspor'" 
+                            />
+                            <span v-if="passenger.errorIdentity" class="error-msg-small">{{ passenger.errorIdentity }}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </transition>
+                </div>
               </div>
             </div>
-          </div>
+          </transition>
         </div>
 
-        <!-- ===== SECTION 4: SEAT SELECTION ===== -->
-        <div class="form-section">
-          <div class="section-heading">
-            <h2 class="sect-title"><span class="sect-num">4</span> Pilih Kursi</h2>
-            <p class="sect-sub">Tentukan posisi duduk Anda dalam bus</p>
+        <!-- ===== SECTION 4: RUTE PERJALANAN ===== -->
+        <div class="form-section accordion-section" :class="{ expanded: sectionRutePerjalananOpen }">
+          <div class="section-heading accordion-trigger" @click="sectionRutePerjalananOpen = !sectionRutePerjalananOpen">
+            <div class="section-heading-left">
+              <h2 class="sect-title"><span class="sect-num">4</span> Rute Perjalanan</h2>
+              <p class="sect-sub">Tentukan lokasi perjalanan Anda</p>
+            </div>
+            <ChevronDown :class="{ rotated: sectionRutePerjalananOpen }" :size="18" class="section-chevron" />
           </div>
-          <div class="step-content">
-            <div class="seat-selection-placeholder">
-              <div v-if="selectedSeats.length > 0" class="selected-seats-info-box">
-                <div class="ss-info-title" style="font-weight: 800; font-size: 0.95rem; color: var(--text-dark); margin-bottom: 8px;">Kursi Terpilih:</div>
-                <div class="selected-seats-badges" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
-                  <span v-for="seat in selectedSeats" :key="seat" class="seat-badge" style="background: var(--primary); color: white; font-size: 0.85rem; font-weight: 800; padding: 6px 12px; border-radius: 8px; box-shadow: 0 2px 4px rgba(201,76,76,0.2);">{{ seat }}</span>
-                </div>
-                <button type="button" class="btn btn-outline" @click="showSeatModal = true" style="width: 100%;">
-                  Ubah Pilihan Kursi
-                </button>
+          <transition name="accordion-slide">
+            <div v-show="sectionRutePerjalananOpen" class="step-content">
+              <!-- PICKUP -->
+              <h4 class="sub-sect-title mb-1">Titik Jemput</h4>
+              <div class="mb-3" style="font-size: 0.85rem; color: var(--primary); font-weight: 700;">Jam Keberangkatan Shuttle: {{ event?.departureTime || '12:00 WIB' }}</div>
+              
+              <div v-if="isEksklusif" class="custom-input-box mb-3">
+                <input type="text" v-model="customPickupInput" placeholder="Ketik alamat jemput spesifik atau pilih dari daftar di bawah..." class="form-input" />
               </div>
-              <div v-else class="no-seats-placeholder">
-                <div class="pax-note-box mb-3" style="background: rgba(201, 76, 76, 0.05); border-color: rgba(201, 76, 76, 0.2); color: var(--primary); display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 12px; font-size: 0.88rem;">
-                  <span style="font-size: 1.25rem;">💺</span>
-                  <span>Anda belum memilih kursi. Silakan klik tombol di bawah untuk memilih kursi Anda di dalam bus.</span>
+
+              <div class="locations-list mb-4">
+                <div v-for="(locs, region) in groupedLocations" :key="'p'+region" class="loc-group">
+                  <div class="loc-region-label">{{ region }}</div>
+                  <div v-for="loc in locs" :key="'p'+loc.name" class="loc-item" :class="{ selected: bookingStore.selectedPickup?.name === loc.name }" @click="selectPickup(loc)">
+                    <div class="loc-icon"><MapPin :size="16" /></div>
+                    <div class="loc-text">
+                      <div class="loc-name">{{ loc.name }}</div>
+                      <div class="loc-address">{{ loc.address }}</div>
+                      <div class="loc-price" style="font-size: 0.75rem; color: var(--primary); font-weight: 700; margin-top: 4px;">{{ loc.price }}</div>
+                    </div>
+                    <div class="loc-check" v-if="bookingStore.selectedPickup?.name === loc.name"><Check :size="14" /></div>
+                  </div>
                 </div>
-                <button type="button" class="btn btn-primary" @click="showSeatModal = true" style="width: 100%;">
-                  Pilih Kursi
-                </button>
+                <div v-if="Object.keys(groupedLocations).length === 0" class="no-results">Tidak ada lokasi ditemukan.</div>
+              </div>
+
+              <hr class="my-4" style="border-color: rgba(0,0,0,0.05)" />
+
+              <!-- RETURN (FIXED TO VENUE) -->
+              <h4 class="sub-sect-title mb-1">Titik Pulang (Tujuan Akhir)</h4>
+              <div class="mb-3" style="font-size: 0.85rem; color: var(--primary); font-weight: 700;">Jam Kepulangan Shuttle: {{ event?.returnTime || '01:00 WIB' }}</div>
+              <div class="loc-item selected" style="cursor: default; background: rgba(21,101,192,0.04); border-color: #1565C0;">
+                <div class="loc-icon" style="background: rgba(21,101,192,0.1); color: #1565C0;"><Navigation :size="16" /></div>
+                <div class="loc-text">
+                  <div class="loc-name">{{ event?.location }}</div>
+                  <div class="loc-address">Lokasi Tempat Diselenggarakannya Acara</div>
+                </div>
+                <div class="loc-check" style="background: #1565C0;"><Check :size="14" /></div>
               </div>
             </div>
+          </transition>
+        </div>
+
+        <!-- ===== SECTION 5: PILIH KURSI ===== -->
+        <div class="form-section accordion-section" :class="{ expanded: sectionPilihKursiOpen }">
+          <div class="section-heading accordion-trigger" @click="sectionPilihKursiOpen = !sectionPilihKursiOpen">
+            <div class="section-heading-left">
+              <h2 class="sect-title"><span class="sect-num">5</span> Pilih Kursi</h2>
+              <p class="sect-sub">Tentukan posisi duduk Anda dalam bus</p>
+            </div>
+            <ChevronDown :class="{ rotated: sectionPilihKursiOpen }" :size="18" class="section-chevron" />
           </div>
+          <transition name="accordion-slide">
+            <div v-show="sectionPilihKursiOpen" class="step-content">
+              <div class="seat-selection-placeholder">
+                <div v-if="selectedSeats.length > 0" class="selected-seats-info-box">
+                  <div class="ss-info-title" style="font-weight: 800; font-size: 0.95rem; color: var(--text-dark); margin-bottom: 8px;">Kursi Terpilih:</div>
+                  <div class="selected-seats-badges" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
+                    <span v-for="seat in selectedSeats" :key="seat" class="seat-badge" style="background: var(--primary); color: white; font-size: 0.85rem; font-weight: 800; padding: 6px 12px; border-radius: 8px; box-shadow: 0 2px 4px rgba(201,76,76,0.2);">{{ seat }}</span>
+                  </div>
+                  <button type="button" class="btn btn-outline" @click="showSeatModal = true" style="width: 100%;">
+                    Ubah Pilihan Kursi
+                  </button>
+                </div>
+                <div v-else class="no-seats-placeholder">
+                  <div class="pax-note-box mb-3" style="background: rgba(201, 76, 76, 0.05); border-color: rgba(201, 76, 76, 0.2); color: var(--primary); display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 12px; font-size: 0.88rem;">
+                    <span style="font-size: 1.25rem;">💺</span>
+                    <span>Anda belum memilih kursi. Silakan klik tombol di bawah untuk memilih kursi Anda di dalam bus.</span>
+                  </div>
+                  <button type="button" class="btn btn-primary" @click="showSeatModal = true" style="width: 100%;">
+                    Pilih Kursi
+                  </button>
+                </div>
+              </div>
+            </div>
+          </transition>
         </div>
 
               <!-- SEAT MAP MODAL POPUP -->
@@ -2292,6 +2743,415 @@ const getSeatTextConfig = (seat) => {
 
   .sm-footer {
     padding: 14px 20px 28px; /* Extra bottom padding for mobile viewports */
+  }
+}
+
+/* ===== PASSENGER ACCORDION CARDS ===== */
+.passenger-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.passenger-card-accordion {
+  background: var(--card-bg);
+  border: 1.5px solid var(--border-color);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.passenger-card-accordion.expanded {
+  border-color: rgba(201, 76, 76, 0.3);
+  box-shadow: var(--shadow-md);
+}
+
+.pca-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+  background: var(--card-bg);
+  transition: background-color 0.2s;
+}
+
+.pca-header:hover {
+  background: var(--input-bg);
+}
+
+.pca-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pca-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(201, 76, 76, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.pca-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pca-title {
+  font-size: 0.95rem;
+  font-weight: 850;
+  color: var(--text-dark);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+
+.pca-subtitle {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-light);
+  margin: 0;
+}
+
+.pca-chevron {
+  color: var(--text-light);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pca-chevron.rotated {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+.pca-body {
+  padding: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  background: var(--card-bg);
+}
+
+.pca-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-toggle-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-light);
+  user-select: none;
+}
+
+.mobile-text {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .desktop-text {
+    display: none;
+  }
+  .mobile-text {
+    display: inline;
+  }
+  .pca-header-right {
+    gap: 8px;
+  }
+  .header-toggle-wrapper {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 420px) {
+  .header-toggle-label {
+    display: none;
+  }
+}
+
+.ub-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-light);
+}
+
+/* Toggle Switch Styling */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 46px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #e2e8f0;
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+input:checked + .slider {
+  background-color: var(--primary);
+}
+
+input:checked + .slider:before {
+  transform: translateX(22px);
+}
+
+/* Phone input group */
+.phone-input-group {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.phone-code-select-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.phone-code-select {
+  appearance: none;
+  background: var(--input-bg);
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px 32px 14px 16px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: var(--text-dark);
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.phone-code-select:focus {
+  border-color: var(--primary);
+  background: var(--card-bg);
+  box-shadow: 0 0 0 3px rgba(201,76,76,0.08);
+}
+
+.select-chevron {
+  position: absolute;
+  right: 12px;
+  pointer-events: none;
+  color: var(--text-light);
+}
+
+.phone-number-input {
+  flex: 1;
+}
+
+/* Identity Info section */
+.identity-info-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.identity-title {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: var(--text-dark);
+  margin-bottom: 16px;
+}
+
+.identity-radios {
+  display: flex;
+  gap: 28px;
+  margin-bottom: 18px;
+}
+
+.identity-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-dark);
+}
+
+.identity-info-section .form-group {
+  margin-top: 18px;
+}
+
+.identity-radio-input {
+  display: none;
+}
+
+.custom-radio {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-color);
+  border-radius: 50%;
+  display: inline-block;
+  position: relative;
+  transition: all 0.2s;
+  background: var(--card-bg);
+}
+
+.identity-radio-input:checked + .custom-radio {
+  border-color: #1565C0;
+}
+
+.identity-radio-input:checked + .custom-radio::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: #1565C0;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+[data-theme="dark"] .custom-radio {
+  background: #1e1e1e;
+  border-color: #3d3d3d;
+}
+
+/* Accordion Transition */
+.accordion-slide-enter-active,
+.accordion-slide-leave-active {
+  transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease-out;
+  overflow: hidden;
+}
+
+.accordion-slide-enter-from,
+.accordion-slide-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+.accordion-slide-enter-to,
+.accordion-slide-leave-from {
+  max-height: 1000px;
+  opacity: 1;
+}
+
+/* ===== PARENT ACCORDION SECTIONS ===== */
+.accordion-section {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.accordion-section.expanded {
+  box-shadow: var(--shadow-md);
+}
+
+.accordion-trigger {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.accordion-section .section-heading {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0;
+  border-bottom: none;
+  padding-bottom: 0;
+  transition: all 0.2s ease;
+}
+
+.accordion-section.expanded .section-heading {
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding-bottom: 16px;
+}
+
+.section-heading-left {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.section-chevron {
+  color: var(--text-light);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  flex-shrink: 0;
+  margin-left: 16px;
+}
+
+.section-chevron.rotated {
+  transform: rotate(180deg);
+  color: var(--primary);
+}
+
+/* ===== VALIDATION ERRORS ===== */
+.form-input.input-error {
+  border-color: #ef4444 !important;
+  background-color: rgba(239, 68, 68, 0.01) !important;
+}
+
+[data-theme="dark"] .form-input.input-error {
+  background-color: rgba(239, 68, 68, 0.05) !important;
+}
+
+.form-input.input-error:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
+}
+
+.error-msg-small {
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: #ef4444;
+  margin-top: 6px;
+  animation: fadeInError 0.2s ease-out;
+}
+
+@keyframes fadeInError {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>
