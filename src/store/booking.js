@@ -54,6 +54,7 @@ export const bookingStore = reactive({
   },
 
   get adminFee() {
+    if (this.selectedEvent && this.selectedEvent.id === 107) return 0;
     return 5000 * this.adults;
   },
 

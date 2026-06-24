@@ -1,37 +1,186 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { MapPin, Clock, Users, Baby, ArrowRight, Check, ChevronLeft, ChevronDown, Calendar, Tag, Navigation, User, Mail, Phone, Ticket } from 'lucide-vue-next';
+import { MapPin, Clock, Calendar, ChevronLeft, ChevronDown, Check, Info, User, Mail, Phone, Wind, Zap, Music, ShieldCheck } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
 
 const route = useRoute();
 const router = useRouter();
 
-// All events data (same source of truth
+// Events data with Seatmap BTS (id: 107) matching the user's API payload
 const allEvents = [
-  { id: 1, name: 'The Sounds Project', date: '2026-10-15', dateLabel: '15 Okt 2026', time: '18:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', tag: 'Shuttle Bersama' },
-  { id: 3, name: 'The Sounds Project', date: '2026-11-05', dateLabel: '5 Nov 2026', time: '20:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', tag: 'Shuttle Bersama' },
+  { 
+    id: 1, 
+    name: 'The Sounds Project', 
+    date: '2026-10-15', 
+    dateLabel: '15 Okt 2026', 
+    time: '18:00 WIB', 
+    departureTime: '12:00 WIB', 
+    returnTime: '01:00 WIB', 
+    location: 'Ancol Ecovention & Ecopark', 
+    city: 'Jakarta', 
+    price: 'Rp 150.000', 
+    priceNum: 150000, 
+    image: '/TSP.jpeg', 
+    tag: 'Shuttle Bersama',
+    has_event_ticket: [
+      {
+        id: 1,
+        name: 'Regular Shuttle',
+        ticket_category: 'Shuttle',
+        description: 'Shuttle bersahabat menuju venue event.',
+        price: 150000,
+        available_seat_number: 'B1,B2,B3,B4,B5',
+        ticket_end: '2026-10-14',
+        ending_time: '23:59:00'
+      }
+    ]
+  },
+  {
+    id: 107,
+    name: "Seatmap BTS",
+    slug: "seatmap-bts",
+    image: "https://api.kolektix.my.id/storage/uploads/event/AeF56LoVpWz0z9iDFAjn.jpg",
+    start_date: "2026-05-05",
+    end_date: "2027-05-06",
+    start_time: "00:00",
+    end_time: "01:00",
+    zone_time: "WIB",
+    location_name: "Tes",
+    location_city: "Tes",
+    location_address: "Tes",
+    location_map: "https://maps.google.com",
+    description: "<p>tes</p>",
+    term_condition: "<p>tes</p>",
+    price: "Rp 10.000",
+    priceNum: 10000,
+    tag: "Musik",
+    has_creator: {
+      name: "moofeet",
+      image_url: "https://api.kolektix.my.id/storage/uploads/creator/logo-k.png"
+    },
+    has_event_ticket: [
+      {
+        id: 227,
+        event_id: "107",
+        name: "Seat A",
+        ticket_category: "Seated",
+        description: "tes",
+        price: 10000,
+        available_seat_number: "A3,A4,A6,A7,A1",
+        taken_seat_number: "A2,A8,A9,A5,A10",
+        ticket_end: "2029-12-31",
+        ending_time: "00:00:00"
+      }
+    ]
+  }
 ];
 
-onMounted(() => {
-  const id = parseInt(route.params.id);
-  if (!bookingStore.selectedEvent || bookingStore.selectedEvent.id !== id) {
-    const found = allEvents.find(e => e.id === id);
-    if (found) bookingStore.selectedEvent = found;
-    else router.push('/events');
-  }
+const event = ref(null);
+const activeTab = ref('tiket'); // 'deskripsi', 'tiket', 'terms'
+const selectedTicket = ref(null);
+const expandedTicketId = ref(null);
+const currentStep = ref(1); // 1 = Select seat, 2 = Buyer details form
+
+// Booking states (Quantity, selected seats, and buyer information)
+const quantity = ref(1);
+const selectedSeats = ref([]);
+const buyer = ref({
+  name: '',
+  email: '',
+  phone: ''
 });
 
-const event = computed(() => bookingStore.selectedEvent);
-const isEksklusif = computed(() => event.value?.tag === 'Shuttle Eksklusif');
+// Interactive canvas state
+const zoom = ref(1);
+const panX = ref(0);
+const panY = ref(0);
+const isPanning = ref(false);
+const isCanvasOpen = ref(false);
+const isFullscreen = ref(false);
+const isTabsSticky = ref(false);
+const tabsBarRef = ref(null);
+const showMobileDetailSheet = ref(false);
 
-// ---- SEAT MODAL STATE ----
-const showSeatModal = ref(false);
-const activePassengerIndex = ref(0);
+const handleScrollTabs = () => {
+  if (!tabsBarRef.value) return;
+  const rect = tabsBarRef.value.getBoundingClientRect();
+  const threshold = window.innerWidth <= 768 ? 60 : 80;
+  isTabsSticky.value = rect.top <= threshold + 2;
+};
 
-// ---- PAYMENT MODAL STATE ----
+let startX = 0;
+let startY = 0;
+let touchStartX = 0;
+let touchStartY = 0;
+
+const startPan = (e) => {
+  if (e.button !== 0) return;
+  isPanning.value = true;
+  startX = e.clientX - panX.value;
+  startY = e.clientY - panY.value;
+};
+
+const onPan = (e) => {
+  if (!isPanning.value) return;
+  panX.value = e.clientX - startX;
+  panY.value = e.clientY - startY;
+};
+
+const endPan = () => {
+  isPanning.value = false;
+};
+
+const startPanTouch = (e) => {
+  if (e.touches.length !== 1) return;
+  isPanning.value = true;
+  touchStartX = e.touches[0].clientX;
+  touchStartY = e.touches[0].clientY;
+  startX = e.touches[0].clientX - panX.value;
+  startY = e.touches[0].clientY - panY.value;
+};
+
+const onPanTouch = (e) => {
+  if (!isPanning.value || e.touches.length !== 1) return;
+  const currentX = e.touches[0].clientX;
+  const currentY = e.touches[0].clientY;
+  const dist = Math.hypot(currentX - touchStartX, currentY - touchStartY);
+  if (dist > 6) {
+    panX.value = currentX - startX;
+    panY.value = currentY - startY;
+  }
+};
+
+const onWheel = (e) => {
+  const zoomFactor = 0.05;
+  let newZoom = zoom.value + (e.deltaY < 0 ? zoomFactor : -zoomFactor);
+  zoom.value = Math.min(Math.max(newZoom, 0.5), 2.5);
+};
+
+const zoomIn = () => {
+  zoom.value = Math.min(zoom.value + 0.15, 2.5);
+};
+
+const zoomOut = () => {
+  zoom.value = Math.max(zoom.value - 0.15, 0.5);
+};
+
+const resetZoomPan = () => {
+  zoom.value = 1;
+  panX.value = 0;
+  panY.value = 0;
+};
+
+const errors = ref({
+  name: '',
+  email: '',
+  phone: '',
+  seats: ''
+});
+
 const showPaymentModal = ref(false);
 const selectedPayment = ref('');
+
 const paymentMethods = [
   { id: 'qris', name: 'QRIS', icon: '📱' },
   { id: 'gopay', name: 'GoPay', icon: '🟢' },
@@ -39,544 +188,364 @@ const paymentMethods = [
   { id: 'bca', name: 'BCA Virtual Account', icon: '🏦' }
 ];
 
-// ---- STEP 1: PICKUP & RETURN ----
-const pickupLocations = [
-  { region: 'Pondok Indah', name: 'PIM Decathlon', address: 'Pondok Indah', lat: -6.2625, lng: 106.7824, price: 'Rp. 150.000 / Pax / Roundtrip' },
-  { region: 'Depok', name: 'Showroom Royal Enfield, Margonda', address: 'Depok', lat: -6.3731, lng: 106.8346, price: 'Rp. 150.000 / Pax / Roundtrip' },
-  { region: 'Sudirman', name: 'Jalan New Delhi, Disebelah Mall FX Sudirman', address: 'Sudirman', lat: -6.2241, lng: 106.8021, price: 'Rp. 120.000 / Pax / Roundtrip' },
-  { region: 'Bogor', name: 'Terminal Damri Botani Square', address: 'Bogor', lat: -6.6016, lng: 106.8062, price: 'Rp. 175.000 / Pax / Roundtrip' },
-  { region: 'BSD', name: 'Pasar Modern Intermoda BSD City', address: 'BSD', lat: -6.3213, lng: 106.6397, price: 'Rp. 150.000 / Pax / Roundtrip' },
-  { region: 'Bekasi', name: 'Gerbang Tol Bekasi Barat', address: 'Bekasi', lat: -6.2458, lng: 106.9856, price: 'Rp. 150.000 / Pax / Roundtrip' },
-  { region: 'Jakarta Timur', name: 'Taman Mini Indonesia Indah', address: 'Jakarta Timur', lat: -6.3024, lng: 106.8951, price: 'Rp. 150.000 / Pax / Roundtrip' }
-];
-
-const groupedLocations = computed(() => {
-  const groups = {};
-  pickupLocations.forEach(loc => {
-    if (!groups[loc.region]) groups[loc.region] = [];
-    groups[loc.region].push(loc);
-  });
-  return groups;
-});
-
-const customPickupInput = ref('');
-const customReturnInput = ref('');
-
-const selectPickup = (loc) => {
-  if (bookingStore.selectedPickup?.name === loc.name) {
-    bookingStore.selectedPickup = null;
-  } else {
-    bookingStore.selectedPickup = loc;
-    customPickupInput.value = ''; // clear custom
-  }
-};
-
-watch(customPickupInput, (val) => {
-  if (val.trim()) bookingStore.selectedPickup = { name: 'Custom', address: val };
-  else if (bookingStore.selectedPickup?.name === 'Custom') bookingStore.selectedPickup = null;
-});
-
-// ---- STEP 2: CUSTOMER DATA ----
-const customer = bookingStore.customer;
-
-const customerErrors = ref({
-  name: '',
-  email: '',
-  phone: ''
-});
-
-// ---- SECTION ACCORDION STATE ----
-const sectionDataPemesanOpen = ref(true);
-const sectionJumlahPenumpangOpen = ref(true);
-const sectionDetailPenumpangOpen = ref(true);
-const sectionRutePerjalananOpen = ref(true);
-const sectionPilihKursiOpen = ref(true);
-
-// ---- STEP 3: PASSENGERS ----
-const adults = computed({
-  get: () => bookingStore.adults,
-  set: v => bookingStore.adults = v,
-});
-const toddlers = computed({
-  get: () => bookingStore.toddlers,
-  set: v => bookingStore.toddlers = v,
-});
-
-// ---- PASSENGERS DETAILS STATE ----
-const passengers = ref([]);
-
-const syncPassengers = () => {
-  const targetAdults = adults.value || 0;
-  const targetToddlers = toddlers.value || 0;
-  
-  const currentPassengers = [...passengers.value];
-  const newPassengers = [];
-  
-  // 1. Adults
-  for (let i = 0; i < targetAdults; i++) {
-    const existing = currentPassengers.find(p => p.type === 'dewasa' && p.index === i);
-    newPassengers.push(existing || {
-      id: `adult-${i}`,
-      type: 'dewasa',
-      index: i,
-      label: `Penumpang ${i + 1} (Dewasa)`,
-      name: '',
-      email: '',
-      phone: '',
-      phoneCode: '+62',
-      identityType: 'KTP',
-      identityNumber: '',
-      useBuyerData: false,
-      isExpanded: i === 0, // Expand the first one by default
-      errorName: '',
-      errorEmail: '',
-      errorPhone: '',
-      errorIdentity: ''
-    });
-  }
-  
-  // 2. Toddlers
-  for (let i = 0; i < targetToddlers; i++) {
-    const existing = currentPassengers.find(p => p.type === 'balita' && p.index === i);
-    newPassengers.push(existing || {
-      id: `toddler-${i}`,
-      type: 'balita',
-      index: i,
-      label: `Penumpang ${targetAdults + i + 1} (Balita)`,
-      name: '',
-      identityType: 'KTP',
-      identityNumber: '',
-      isExpanded: false,
-      errorName: '',
-      errorIdentity: ''
-    });
-  }
-  
-  passengers.value = newPassengers;
-};
-
-// Sync passengers when counts change
-watch([adults, toddlers], () => {
-  syncPassengers();
-}, { immediate: true });
-
-// Sync customer changes to passengers who have enabled "Gunakan Data Pemesan"
-watch(
-  () => [customer.name, customer.email, customer.phone],
-  ([newName, newEmail, newPhone]) => {
-    passengers.value.forEach(p => {
-      if (p.useBuyerData && p.type === 'dewasa') {
-        p.name = newName || '';
-        p.email = newEmail || '';
-        p.phone = newPhone || '';
-        
-        // Trigger validation on passenger
-        validatePassengerName(p);
-        validatePassengerEmail(p);
-        validatePassengerPhone(p);
-      }
-    });
-  }
-);
-
-const validateCustomerName = () => {
-  const name = customer.name ? customer.name.trim() : '';
-  if (!name) {
-    customerErrors.value.name = 'Nama lengkap wajib diisi.';
-  } else if (name.length < 3) {
-    customerErrors.value.name = 'Nama terlalu pendek. Minimal 3 karakter.';
-  } else {
-    customerErrors.value.name = '';
-  }
-};
-
-const validateCustomerEmail = () => {
-  const email = customer.email ? customer.email.trim() : '';
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email) {
-    customerErrors.value.email = 'Email wajib diisi.';
-  } else if (!emailRegex.test(email)) {
-    customerErrors.value.email = 'Format email tidak valid (contoh: nama@email.com).';
-  } else {
-    customerErrors.value.email = '';
-  }
-};
-
-const validateCustomerPhone = () => {
-  let phone = customer.phone ? customer.phone.trim() : '';
-  if (!phone) {
-    customerErrors.value.phone = 'Nomor telepon wajib diisi.';
-  } else if (phone.startsWith('0')) {
-    customerErrors.value.phone = 'Nomor telepon tidak boleh diawali angka 0. Silakan langsung mulai dengan angka 8.';
-  } else if (!/^\d+$/.test(phone)) {
-    customerErrors.value.phone = 'Nomor telepon hanya boleh berisi angka.';
-  } else if (phone.length < 8 || phone.length > 13) {
-    customerErrors.value.phone = 'Nomor telepon tidak valid. Harus antara 8-13 digit.';
-  } else {
-    customerErrors.value.phone = '';
-  }
-};
-
-const validatePassengerName = (p) => {
-  const name = p.name ? p.name.trim() : '';
-  if (!name) {
-    p.errorName = 'Nama lengkap wajib diisi.';
-  } else if (name.length < 3) {
-    p.errorName = 'Nama terlalu pendek. Minimal 3 karakter.';
-  } else {
-    p.errorName = '';
-  }
-};
-
-const validatePassengerEmail = (p) => {
-  if (p.type !== 'dewasa') return;
-  const email = p.email ? p.email.trim() : '';
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!email) {
-    p.errorEmail = 'Email wajib diisi.';
-  } else if (!emailRegex.test(email)) {
-    p.errorEmail = 'Format email tidak valid (contoh: nama@email.com).';
-  } else {
-    p.errorEmail = '';
-  }
-};
-
-const validatePassengerPhone = (p) => {
-  if (p.type !== 'dewasa') return;
-  let phone = p.phone ? p.phone.trim() : '';
-  if (!phone) {
-    p.errorPhone = 'Nomor telepon wajib diisi.';
-  } else if (phone.startsWith('0')) {
-    p.errorPhone = 'Nomor telepon tidak boleh diawali angka 0. Silakan langsung mulai dengan angka 8.';
-  } else if (!/^\d+$/.test(phone)) {
-    p.errorPhone = 'Nomor telepon hanya boleh berisi angka.';
-  } else if (phone.length < 8 || phone.length > 13) {
-    p.errorPhone = 'Nomor telepon tidak valid. Harus antara 8-13 digit.';
-  } else {
-    p.errorPhone = '';
-  }
-};
-
-const validatePassengerIdentity = (p) => {
-  const idNum = p.identityNumber ? p.identityNumber.trim() : '';
-  if (!idNum) {
-    p.errorIdentity = 'Nomor identitas wajib diisi.';
-  } else if (p.identityType === 'KTP') {
-    if (!/^\d+$/.test(idNum)) {
-      p.errorIdentity = 'Nomor NIK hanya boleh berisi angka.';
-    } else if (idNum.length !== 16) {
-      p.errorIdentity = 'Format NIK tidak valid. Harus berupa 16 digit angka.';
-    } else {
-      p.errorIdentity = '';
-    }
-  } else if (p.identityType === 'Paspor') {
-    if (!/^[a-zA-Z0-9]+$/.test(idNum)) {
-      p.errorIdentity = 'Nomor paspor hanya boleh berisi huruf dan angka.';
-    } else if (idNum.length < 7 || idNum.length > 9) {
-      p.errorIdentity = 'Format nomor paspor tidak valid. Harus terdiri dari 7-9 karakter alfanumerik.';
-    } else {
-      p.errorIdentity = '';
-    }
-  } else {
-    p.errorIdentity = '';
-  }
-};
-
-const toggleUseBuyerData = (passenger) => {
-  passenger.useBuyerData = !passenger.useBuyerData;
-  if (passenger.useBuyerData) {
-    passenger.name = customer.name;
-    passenger.email = customer.email;
-    passenger.phone = customer.phone;
-    
-    // Trigger validation
-    validatePassengerName(passenger);
-    validatePassengerEmail(passenger);
-    validatePassengerPhone(passenger);
-  }
-};
-
-const handlePassengerInput = (passenger, field) => {
-  if (passenger.useBuyerData) {
-    passenger.useBuyerData = false;
-  }
-};
-
-// ---- STEP 4: SEAT SELECTION ----
-const selectedSeats = computed({
-  get: () => bookingStore.selectedSeats,
-  set: v => bookingStore.selectedSeats = v,
-});
-const occupiedSeats = ref(['A1', 'B1', 'A2', 'D2', 'A3', 'B3', 'C3', 'D3', 'D6']); // Mock occupied seats across the vertical layout
-
+// Bus cabin seats configuration layout (Row 1-9)
 const busRows = [
   {
     rowNum: 1,
     left: [
-      { id: 'A1', label: '1A', isOccupied: true },
-      { id: 'B1', label: '1B', isOccupied: true }
+      { id: 'A1', label: 'A1' },
+      { id: 'B1', label: 'B1' }
     ],
     right: [
-      { id: 'C1', label: '1C' },
-      { id: 'D1', label: '1D' }
+      { id: 'C1', label: 'C1' },
+      { id: 'D1', label: 'D1' }
     ]
   },
   {
     rowNum: 2,
     left: [
-      { id: 'A2', label: '2A', isOccupied: true },
-      { id: 'B2', label: '2B' }
+      { id: 'A2', label: 'A2' },
+      { id: 'B2', label: 'B2' }
     ],
     right: [
-      { id: 'C2', label: '2C' },
-      { id: 'D2', label: '2D', isOccupied: true }
+      { id: 'C2', label: 'C2' },
+      { id: 'D2', label: 'D2' }
     ]
   },
   {
     rowNum: 3,
     left: [
-      { id: 'A3', label: '3A', isOccupied: true },
-      { id: 'B3', label: '3B', isOccupied: true }
+      { id: 'A3', label: 'A3' },
+      { id: 'B3', label: 'B3' }
     ],
     right: [
-      { id: 'C3', label: '3C', isOccupied: true },
-      { id: 'D3', label: '3D', isOccupied: true }
+      { id: 'C3', label: 'C3' },
+      { id: 'D3', label: 'D3' }
     ]
   },
   {
     rowNum: 4,
     left: [
-      { id: 'A4', label: '4A' },
-      { id: 'B4', label: '4B' }
+      { id: 'A4', label: 'A4' },
+      { id: 'B4', label: 'B4' }
     ],
     right: [
-      { id: 'C4', label: '4C' },
-      { id: 'D4', label: '4D' }
+      { id: 'C4', label: 'C4' },
+      { id: 'D4', label: 'D4' }
     ]
   },
   {
     rowNum: 5,
     left: [
-      { id: 'A5', label: '5A' },
-      { id: 'B5', label: '5B' }
+      { id: 'A5', label: 'A5' },
+      { id: 'B5', label: 'B5' }
     ],
     right: [
-      { id: 'C5', label: '5C' },
-      { id: 'D5', label: '5D' }
+      { id: 'C5', label: 'C5' },
+      { id: 'D5', label: 'D5' }
     ]
   },
   {
     rowNum: 6,
     left: [
-      { id: 'A6', label: '6A' },
-      { id: 'B6', label: '6B' }
+      { id: 'A6', label: 'A6' },
+      { id: 'B6', label: 'B6' }
     ],
     right: [
-      { id: 'C6', label: '6C' },
-      { id: 'D6', label: '6D', isOccupied: true }
+      { id: 'C6', label: 'C6' },
+      { id: 'D6', label: 'D6' }
     ]
   },
   {
     rowNum: 7,
     left: [
-      { id: 'A7', label: '7A' },
-      { id: 'B7', label: '7B' }
+      { id: 'A7', label: 'A7' },
+      { id: 'B7', label: 'B7' }
     ],
     right: [
-      { id: 'C7', label: '7C' },
-      { id: 'D7', label: '7D' }
+      { id: 'C7', label: 'C7' },
+      { id: 'D7', label: 'D7' }
     ]
   },
   {
     rowNum: 8,
     left: [
-      { id: 'A8', label: '8A' },
-      { id: 'B8', label: '8B' }
+      { id: 'A8', label: 'A8' },
+      { id: 'B8', label: 'B8' }
     ],
     right: [
-      { id: 'C8', label: '8C' },
-      { id: 'D8', label: '8D' }
+      { id: 'C8', label: 'C8' },
+      { id: 'D8', label: 'D8' }
     ]
   },
   {
     rowNum: 9,
     left: [],
     right: [
-      { id: 'C9', label: '9C' },
-      { id: 'D9', label: '9D' }
+      { id: 'C9', label: 'C9' },
+      { id: 'D9', label: 'D9' }
     ]
   }
 ];
 
-// ---- ZOOM MODAL STATE ----
-const showZoomModal = ref(false);
-const zoomLevel = ref(1.0);
-
-const zoomIn = () => {
-  if (zoomLevel.value < 2.0) zoomLevel.value = parseFloat((zoomLevel.value + 0.1).toFixed(1));
-};
-const zoomOut = () => {
-  if (zoomLevel.value > 0.5) zoomLevel.value = parseFloat((zoomLevel.value - 0.1).toFixed(1));
-};
-const resetZoom = () => {
-  zoomLevel.value = 1.0;
-};
-
-watch(adults, (newVal) => {
-  if (selectedSeats.value.length > newVal) {
-    selectedSeats.value = selectedSeats.value.slice(0, newVal);
+const handlePopState = (e) => {
+  if (isCanvasOpen.value) {
+    isCanvasOpen.value = false;
   }
-  if (activePassengerIndex.value >= newVal) {
-    activePassengerIndex.value = newVal - 1;
-  }
-});
+};
 
-watch(showSeatModal, (isOpen) => {
-  if (isOpen) {
-    document.body.style.overflow = 'hidden';
-    offsetY.value = 0;
-    const firstEmpty = selectedSeats.value.findIndex(s => !s);
-    if (firstEmpty !== -1) {
-      activePassengerIndex.value = firstEmpty;
-    } else {
-      activePassengerIndex.value = Math.min(selectedSeats.value.length, adults.value - 1);
+onMounted(() => {
+  const id = parseInt(route.params.id);
+  const found = allEvents.find(e => e.id === id);
+  if (found) {
+    event.value = found;
+    bookingStore.selectedEvent = found;
+    // Set default expanded ticket accordion
+    if (found.has_event_ticket && found.has_event_ticket.length > 0) {
+      expandedTicketId.value = found.has_event_ticket[0].id;
     }
   } else {
-    document.body.style.overflow = '';
+    router.push('/events');
   }
+
+  window.addEventListener('popstate', handlePopState);
+  window.addEventListener('scroll', handleScrollTabs, { passive: true });
+  handleScrollTabs();
 });
 
 onUnmounted(() => {
-  document.body.style.overflow = '';
+  window.removeEventListener('popstate', handlePopState);
+  window.removeEventListener('scroll', handleScrollTabs);
 });
 
-// ---- DRAGGABLE BOTTOM SHEET FOR MOBILE ----
-const isDragging = ref(false);
-const startY = ref(0);
-const offsetY = ref(0);
-
-const handleTouchStart = (e) => {
-  if (window.innerWidth > 580) return;
-  isDragging.value = true;
-  startY.value = e.touches[0].clientY;
+const formatRp = (num) => {
+  if (!num) return 'Rp 0';
+  return 'Rp ' + num.toLocaleString('id-ID');
 };
 
-const handleTouchMove = (e) => {
-  if (!isDragging.value) return;
-  const clientY = e.touches[0].clientY;
-  const deltaY = clientY - startY.value;
-  if (deltaY < 0) {
-    offsetY.value = deltaY * 0.15; // Resistance when dragging up
+const formatEventDates = (evt) => {
+  if (!evt) return '';
+  if (evt.id === 107) {
+    return '5 Mei - 6 Mei 2027';
+  }
+  return evt.dateLabel || evt.date || 'TBA';
+};
+
+const formatDateLabel = (dateStr) => {
+  if (!dateStr) return '';
+  const dateObj = new Date(dateStr);
+  if (isNaN(dateObj.getTime())) return dateStr;
+  const days = dateObj.getDate();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const monthStr = months[dateObj.getMonth()];
+  const year = dateObj.getFullYear();
+  return `${days} ${monthStr} ${year}`;
+};
+
+const formatTimeLabel = (timeStr) => {
+  if (!timeStr) return '';
+  const parts = timeStr.split(':');
+  if (parts.length >= 2) {
+    return `${parts[0]}:${parts[1]}`;
+  }
+  return timeStr;
+};
+
+const maxTickets = computed(() => {
+  return event.value?.max_buy_ticket || 5;
+});
+
+const isSeatAvailable = (seatId) => {
+  if (!selectedTicket.value) return false;
+  const avail = selectedTicket.value.available_seat_number || '';
+  const list = avail.split(',').map(s => s.trim().toUpperCase());
+  return list.includes(seatId.toUpperCase());
+};
+
+const hasAvailableSeats = (t) => {
+  if (!t.available_seat_number) return false;
+  return t.available_seat_number.split(',').map(s => s.trim()).filter(Boolean).length > 0;
+};
+
+const selectTicketCategory = (t) => {
+  if (selectedTicket.value?.id !== t.id) {
+    selectedTicket.value = t;
+    selectedSeats.value = [];
+    errors.value.seats = '';
+  }
+  isCanvasOpen.value = true;
+  // Push state to browser history to handle device back button correctly
+  window.history.pushState({ seatmapOpen: true }, '');
+};
+
+const toggleTicketAccordion = (ticketId) => {
+  if (expandedTicketId.value === ticketId) {
+    expandedTicketId.value = null;
   } else {
-    offsetY.value = deltaY; // Dragging down
+    expandedTicketId.value = ticketId;
   }
 };
 
-const handleTouchEnd = () => {
-  if (!isDragging.value) return;
-  isDragging.value = false;
-  if (offsetY.value > 120) {
-    showSeatModal.value = false;
-  }
-  offsetY.value = 0;
-};
-
-const selectSeatInModal = (seatId) => {
-  if (occupiedSeats.value.includes(seatId)) return;
-  
-  const idx = selectedSeats.value.indexOf(seatId);
-  let arr = [...selectedSeats.value];
-  
-  if (idx !== -1) {
-    // Already selected, deselect it
-    arr.splice(idx, 1);
-    selectedSeats.value = arr;
-    // Set active passenger to the first slot that has no seat
-    activePassengerIndex.value = Math.min(arr.length, adults.value - 1);
-  } else {
-    // Not selected yet
-    if (arr.length < adults.value) {
-      // We have empty slots. Let's insert the seat.
-      if (activePassengerIndex.value < arr.length) {
-        arr[activePassengerIndex.value] = seatId;
-      } else {
-        arr.push(seatId);
-      }
-      selectedSeats.value = arr;
-      // Auto focus the next empty slot
-      const firstEmpty = arr.findIndex(s => !s);
-      if (firstEmpty !== -1) {
-        activePassengerIndex.value = firstEmpty;
-      } else if (arr.length < adults.value) {
-        activePassengerIndex.value = arr.length;
-      } else {
-        activePassengerIndex.value = adults.value - 1;
-      }
-    } else {
-      // Already full, replace the seat at the activePassengerIndex
-      arr[activePassengerIndex.value] = seatId;
-      selectedSeats.value = arr;
+const clearSelectedTicket = () => {
+  if (isCanvasOpen.value) {
+    isCanvasOpen.value = false;
+    errors.value.seats = '';
+    // Pop history state if it was pushed by the seat selection screen
+    if (window.history.state?.seatmapOpen) {
+      window.history.back();
     }
   }
 };
 
-const toggleSeat = (seatId) => {
-  if (occupiedSeats.value.includes(seatId)) return;
-  const idx = selectedSeats.value.indexOf(seatId);
-  const arr = [...selectedSeats.value];
-  if (idx !== -1) {
-    arr.splice(idx, 1);
-    selectedSeats.value = arr;
+const clearSelectedSeats = () => {
+  selectedSeats.value = [];
+  errors.value.seats = '';
+};
+
+const handleEditSeats = () => {
+  isCanvasOpen.value = true;
+  window.history.pushState({ seatmapOpen: true }, '');
+  setTimeout(() => {
+    const el = document.querySelector('.bus-cabin-canvas-viewport');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, 100);
+};
+
+const scrollToTickets = () => {
+  const el = document.querySelector('.tickets-container-list');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth' });
   } else {
-    if (arr.length < adults.value) {
-      arr.push(seatId);
-      selectedSeats.value = arr;
-    } else {
-      if (adults.value === 1) {
-        selectedSeats.value = [seatId];
-      } else {
-        arr.shift();
-        arr.push(seatId);
-        selectedSeats.value = arr;
-      }
+    if (event.value?.has_event_ticket?.length > 0) {
+      selectTicketCategory(event.value.has_event_ticket[0]);
     }
   }
 };
 
-// ---- NAVIGATION ----
-const canProceed = computed(() => {
-  const basicFilled = !!bookingStore.selectedPickup && 
-         adults.value >= 1 &&
-         selectedSeats.value.length === adults.value &&
-         customer.name.trim() !== '' &&
-         customer.email.trim() !== '' &&
-         customer.phone.trim() !== '';
-         
-  if (!basicFilled) return false;
-  
-  // Check customer error states
-  if (customerErrors.value.name || customerErrors.value.email || customerErrors.value.phone) return false;
-  
-  // Validate passenger fields not empty and check error states
-  for (const p of passengers.value) {
-    if (!p.name || !p.name.trim() || p.errorName) return false;
-    if (!p.identityNumber || !p.identityNumber.trim() || p.errorIdentity) return false;
-    
-    if (p.type === 'dewasa') {
-      if (!p.email || !p.email.trim() || p.errorEmail) return false;
-      if (!p.phone || !p.phone.trim() || p.errorPhone) return false;
-    }
+const goToBuyerDetails = () => {
+  validateSeats();
+  if (!errors.value.seats) {
+    currentStep.value = 2;
+    window.scrollTo({ top: 400, behavior: 'smooth' });
   }
-  
-  return true;
+};
+
+const goBackToStep1 = () => {
+  currentStep.value = 1;
+};
+
+const isFormValid = computed(() => {
+  return buyer.value.name.trim().length >= 3 &&
+         buyer.value.email.trim().length > 0 &&
+         buyer.value.phone.trim().length >= 8 &&
+         !errors.value.name &&
+         !errors.value.email &&
+         !errors.value.phone;
+});
+
+const increaseQuantity = () => {
+  if (quantity.value < maxTickets.value) {
+    quantity.value++;
+    validateSeats();
+  }
+};
+
+const decreaseQuantity = () => {
+  if (quantity.value > 1) {
+    quantity.value--;
+    if (selectedSeats.value.length > quantity.value) {
+      selectedSeats.value = selectedSeats.value.slice(0, quantity.value);
+    }
+    validateSeats();
+  }
+};
+
+const toggleSeatSelection = (seatId) => {
+  const index = selectedSeats.value.indexOf(seatId);
+  if (index !== -1) {
+    selectedSeats.value.splice(index, 1);
+  } else {
+    if (selectedSeats.value.length >= quantity.value) {
+      selectedSeats.value.shift();
+    }
+    selectedSeats.value.push(seatId);
+  }
+  validateSeats();
+};
+
+const validateName = () => {
+  const val = buyer.value.name.trim();
+  if (!val) {
+    errors.value.name = 'Nama lengkap wajib diisi.';
+  } else if (val.length < 3) {
+    errors.value.name = 'Nama terlalu pendek. Minimal 3 karakter.';
+  } else {
+    errors.value.name = '';
+  }
+};
+
+const validateEmail = () => {
+  const val = buyer.value.email.trim();
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!val) {
+    errors.value.email = 'Email wajib diisi.';
+  } else if (!emailRegex.test(val)) {
+    errors.value.email = 'Format email tidak valid.';
+  } else {
+    errors.value.email = '';
+  }
+};
+
+const validatePhone = () => {
+  const val = buyer.value.phone.trim();
+  if (!val) {
+    errors.value.phone = 'Nomor telepon wajib diisi.';
+  } else if (val.startsWith('0')) {
+    errors.value.phone = 'Nomor telepon tidak boleh diawali angka 0. Mulai dengan angka 8.';
+  } else if (!/^\d+$/.test(val)) {
+    errors.value.phone = 'Nomor telepon hanya boleh berisi angka.';
+  } else if (val.length < 8 || val.length > 13) {
+    errors.value.phone = 'Nomor telepon harus antara 8-13 digit.';
+  } else {
+    errors.value.phone = '';
+  }
+};
+
+const validateSeats = () => {
+  if (selectedSeats.value.length !== quantity.value) {
+    errors.value.seats = `Silakan pilih tepat ${quantity.value} kursi.`;
+  } else {
+    errors.value.seats = '';
+  }
+};
+
+const isSelectionComplete = computed(() => {
+  return selectedTicket.value &&
+         buyer.value.name.trim().length >= 3 &&
+         buyer.value.email.trim().length > 0 &&
+         buyer.value.phone.trim().length >= 8 &&
+         selectedSeats.value.length === quantity.value;
 });
 
 const goBack = () => {
   router.back();
 };
 
-const handleProceed = () => {
-  showPaymentModal.value = true;
+const openChat = () => {
+  alert('Fitur Chat dengan Penyelenggara segera hadir!');
+};
+
+const handleProceedToCheckout = () => {
+  validateName();
+  validateEmail();
+  validatePhone();
+  validateSeats();
+
+  if (isSelectionComplete.value && !errors.value.name && !errors.value.email && !errors.value.phone && !errors.value.seats) {
+    showPaymentModal.value = true;
+  }
 };
 
 const confirmBooking = () => {
@@ -584,28 +553,31 @@ const confirmBooking = () => {
     alert('Pilih metode pembayaran terlebih dahulu');
     return;
   }
-  
-  // Save to Cache (localStorage)
+
+  // Save to bookingStore
+  bookingStore.customer = {
+    name: buyer.value.name,
+    email: buyer.value.email,
+    phone: buyer.value.phone
+  };
+  bookingStore.adults = quantity.value;
+  bookingStore.toddlers = 0;
+  bookingStore.selectedSeats = [...selectedSeats.value];
+  bookingStore.selectedPickup = { 
+    name: 'Venue Acara (' + event.value.location_name + ')', 
+    address: event.value.location_address || event.value.location_name
+  };
+
   const code = bookingStore.generateBookingCode();
   const payload = {
     code,
     date: new Date().toISOString(),
     event: event.value,
     pickup: bookingStore.selectedPickup,
-    returnLoc: { name: event.value?.location, address: 'Lokasi Tempat Diselenggarakannya Acara' },
-    customer: { ...customer },
-    adults: adults.value,
-    toddlers: toddlers.value,
-    selectedSeats: [...selectedSeats.value],
-    passengers: passengers.value.map(p => ({
-      type: p.type,
-      name: p.name,
-      email: p.email || null,
-      phone: p.phone ? `${p.phoneCode}${p.phone}` : null,
-      identityType: p.identityType,
-      identityNumber: p.identityNumber
-    })),
-    totalPrice: grandTotal.value,
+    customer: { ...bookingStore.customer },
+    adults: bookingStore.adults,
+    selectedSeats: [...bookingStore.selectedSeats],
+    totalPrice: selectedTicket.value.price * quantity.value,
     paymentMethod: selectedPayment.value
   };
 
@@ -620,810 +592,822 @@ const confirmBooking = () => {
   showPaymentModal.value = false;
   router.push('/confirmation');
 };
-
-// Price summary
-const rideTotal = computed(() => bookingStore.ridePrice);
-const adminFee = computed(() => bookingStore.adminFee);
-const grandTotal = computed(() => bookingStore.totalPrice);
-
-const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
-
-// ---- VUE KONVA SEAT MAP ----
-const hoveredSeat = ref(null);
-const tooltipActive = ref(false);
-const tooltipSeat = ref(null);
-const tooltipX = ref(0);
-const tooltipY = ref(0);
-
-const handleSeatMouseEnter = (seat, x, y, evt) => {
-  hoveredSeat.value = seat.id;
-  tooltipActive.value = true;
-  tooltipSeat.value = seat;
-  tooltipX.value = x + 16;
-  tooltipY.value = y - 4;
-
-  if (evt && evt.target) {
-    const stage = evt.target.getStage();
-    if (stage) {
-      stage.container().style.cursor = occupiedSeats.value.includes(seat.id) ? 'not-allowed' : 'pointer';
-    }
-  }
-};
-
-const handleSeatMouseLeave = (evt) => {
-  hoveredSeat.value = null;
-  tooltipActive.value = false;
-
-  if (evt && evt.target) {
-    const stage = evt.target.getStage();
-    if (stage) {
-      stage.container().style.cursor = 'default';
-    }
-  }
-};
-
-const getSeatBaseConfig = (seat) => {
-  const isOccupied = occupiedSeats.value.includes(seat.id);
-  const isSelected = selectedSeats.value.includes(seat.id);
-  const isHovered = hoveredSeat.value === seat.id;
-  
-  let bgColor = '#ffffff';
-  let borderColor = '#cbd5e1';
-  
-  if (isOccupied) {
-    bgColor = '#374151';
-    borderColor = '#1f2937';
-  } else if (isSelected) {
-    bgColor = '#ef4444';
-    borderColor = '#b91c1c';
-  } else if (isHovered) {
-    borderColor = '#94a3b8';
-  }
-
-  return {
-    x: 0,
-    y: 0,
-    width: 32,
-    height: 32,
-    cornerRadius: [6, 6, 9, 9],
-    fill: bgColor,
-    stroke: borderColor,
-    strokeWidth: 1.5
-  };
-};
-
-const getSeatCushionConfig = (seat) => {
-  const isOccupied = occupiedSeats.value.includes(seat.id);
-  const isSelected = selectedSeats.value.includes(seat.id);
-  const isHovered = hoveredSeat.value === seat.id;
-
-  let cushionColor = '#f8fafc';
-  let borderColor = '#cbd5e1';
-
-  if (isOccupied) {
-    cushionColor = '#4b5563';
-    borderColor = '#1f2937';
-  } else if (isSelected) {
-    cushionColor = '#ef4444';
-    borderColor = '#b91c1c';
-  } else if (isHovered) {
-    cushionColor = '#ffffff';
-    borderColor = '#94a3b8';
-  }
-
-  return {
-    x: 3,
-    y: 2,
-    width: 26,
-    height: 21,
-    cornerRadius: [3, 3, 1.5, 1.5],
-    fill: cushionColor,
-    stroke: borderColor,
-    strokeWidth: 1.2
-  };
-};
-
-const getSeatBackrestConfig = (seat) => {
-  const isOccupied = occupiedSeats.value.includes(seat.id);
-  const isSelected = selectedSeats.value.includes(seat.id);
-
-  let backrestColor = '#cbd5e1';
-
-  if (isOccupied) {
-    backrestColor = '#1f2937';
-  } else if (isSelected) {
-    backrestColor = '#b91c1c';
-  }
-
-  return {
-    x: 4,
-    y: 25,
-    width: 24,
-    height: 5,
-    cornerRadius: 2,
-    fill: backrestColor
-  };
-};
-
-const getSeatTextConfig = (seat) => {
-  const isOccupied = occupiedSeats.value.includes(seat.id);
-  const isSelected = selectedSeats.value.includes(seat.id);
-
-  let textColor = '#1e293b';
-  let textVal = seat.label;
-  let fontSize = 9;
-
-  if (isOccupied) {
-    textColor = '#94a3b8';
-    textVal = '✕';
-    fontSize = 11;
-  } else if (isSelected) {
-    textColor = '#ffffff';
-  }
-
-  return {
-    x: 0,
-    y: 0,
-    width: 32,
-    height: 24,
-    text: textVal,
-    fontSize: fontSize,
-    fontStyle: '800',
-    fontFamily: 'sans-serif',
-    fill: textColor,
-    align: 'center',
-    verticalAlign: 'middle'
-  };
-};
 </script>
 
 <template>
-  <div class="booking-page">
-    <div class="booking-topbar">
-      <div class="container topbar-inner">
-        <button class="back-btn" @click="goBack">
-          <ChevronLeft :size="18" />
-          Kembali ke Event
-        </button>
+  <div class="event-detail-page" v-if="event">
+    
+    <!-- Desktop Header Banner Area -->
+    <div class="event-header-banner desktop-header-view">
+      <!-- Blurred background image overlay -->
+      <div class="banner-blur-bg" :style="{ backgroundImage: `url(${event.image})` }"></div>
+      
+      <div class="container banner-content">
+        <div class="header-nav">
+          <button class="back-btn-top" @click="goBack">
+
+          </button>
+          <h1 class="header-event-title">{{ event.name }}</h1>
+        </div>
+        
+        <div class="banner-grid">
+          <!-- Left: Banner Image -->
+          <div class="banner-image-container">
+            <img :src="event.image" :alt="event.name" class="banner-img" />
+            <div class="live-event-badge">
+              <span class="live-dot"></span>
+              <span>Live Event</span>
+            </div>
+          </div>
+          
+          <!-- Right: Floating Event Info Card -->
+          <div class="details-card-floating">
+            <div class="detail-row">
+              <Calendar :size="18" class="detail-icon" />
+              <div class="detail-text">
+                <span>{{ formatEventDates(event) }}</span>
+              </div>
+            </div>
+            <div class="detail-row">
+              <Clock :size="18" class="detail-icon" />
+              <div class="detail-text">
+                <span>{{ event.start_time }} - {{ event.end_time }} {{ event.zone_time }}</span>
+              </div>
+            </div>
+            <div class="detail-row">
+              <MapPin :size="18" class="detail-icon" />
+              <div class="detail-text">
+                <span>{{ event.location_name }}</span>
+              </div>
+            </div>
+            
+            <div class="organizer-section-new">
+              <span class="org-label">Diselenggarakan Oleh</span>
+              <div class="org-profile-new">
+                <img 
+                  :src="event.has_creator?.image_url || 'https://api.kolektix.my.id/storage/uploads/creator/logo-k.png'" 
+                  :alt="event.has_creator?.name || 'AJAK!'" 
+                  class="org-logo-new" 
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+        
       </div>
     </div>
 
-    <div class="container booking-layout">
-      <!-- LEFT: Form -->
-      <div class="booking-form-col">
-        <!-- Event preview -->
-        <div class="event-preview-card" v-if="event">
-          <img :src="event.image" :alt="event.name" class="event-preview-img" />
-          <div class="event-preview-info">
-            <span class="event-preview-tag">{{ event.tag }}</span>
-            <h3 class="event-preview-name">{{ event.name }}</h3>
-            <div class="event-preview-meta">
-              <span><Calendar :size="12" /> {{ event.dateLabel }}</span>
-              <span><MapPin :size="12" /> {{ event.location }}</span>
-            </div>
+    <!-- Mobile Header Banner Area (Visible on Mobile Only) -->
+    <div class="mobile-header-view">
+      <div class="mobile-banner-container">
+        <img :src="event.image" :alt="event.name" class="mobile-banner-img" />
+      </div>
+      
+      <div class="mobile-event-details-card">
+        <h1 class="mobile-event-title">{{ event.name }}</h1>
+        
+        <div class="mobile-event-meta-list">
+          <div class="mobile-meta-row">
+            <Calendar :size="20" class="mobile-meta-icon" />
+            <span class="mobile-meta-text">{{ formatEventDates(event) }}</span>
+          </div>
+          <div class="mobile-meta-row">
+            <Clock :size="20" class="mobile-meta-icon" />
+            <span class="mobile-meta-text">{{ event.start_time }} - {{ event.end_time }} {{ event.zone_time }}</span>
+          </div>
+          <div class="mobile-meta-row">
+            <MapPin :size="20" class="mobile-meta-icon" />
+            <span class="mobile-meta-text">{{ event.location_name }}</span>
           </div>
         </div>
-
-        <!-- ===== SECTION 1: CUSTOMER DATA ===== -->
-        <div class="form-section accordion-section" :class="{ expanded: sectionDataPemesanOpen }">
-          <div class="section-heading accordion-trigger" @click="sectionDataPemesanOpen = !sectionDataPemesanOpen">
-            <div class="section-heading-left">
-              <h2 class="sect-title"><span class="sect-num">1</span> Data Pemesan</h2>
-              <p class="sect-sub">Informasi kontak untuk pengiriman tiket dan konfirmasi</p>
+        
+        <div class="mobile-header-divider-dashed"></div>
+        
+        <div class="mobile-organizer-row">
+          <div class="mobile-organizer-left">
+            <div class="mobile-organizer-logo-container">
+              <img 
+                :src="event.has_creator?.image_url || 'https://api.kolektix.my.id/storage/uploads/creator/logo-k.png'" 
+                :alt="event.has_creator?.name || 'AJAK!'" 
+                class="mobile-organizer-logo-img" 
+              />
             </div>
-            <ChevronDown :class="{ rotated: sectionDataPemesanOpen }" :size="18" class="section-chevron" />
+            <div class="mobile-organizer-text">
+              <span class="mobile-org-label">Diselenggarakan Oleh</span>
+              <span class="mobile-org-name">{{ event.has_creator?.name || 'AJAK!' }}</span>
+            </div>
           </div>
-          <transition name="accordion-slide">
-            <div v-show="sectionDataPemesanOpen" class="step-content">
-              <div class="customer-form">
-                <div class="form-group mb-3">
-                  <label class="form-label"><User :size="14"/> Nama Lengkap</label>
-                  <input 
-                    type="text" 
-                    v-model="customer.name" 
-                    @input="validateCustomerName" 
-                    @blur="validateCustomerName"
-                    class="form-input" 
-                    :class="{ 'input-error': customerErrors.name }"
-                    placeholder="Masukkan nama lengkap" 
-                  />
-                  <span v-if="customerErrors.name" class="error-msg-small">{{ customerErrors.name }}</span>
-                </div>
-                <div class="form-group mb-3">
-                  <label class="form-label"><Mail :size="14"/> Email</label>
-                  <input 
-                    type="email" 
-                    v-model="customer.email" 
-                    @input="validateCustomerEmail" 
-                    @blur="validateCustomerEmail"
-                    class="form-input" 
-                    :class="{ 'input-error': customerErrors.email }"
-                    placeholder="contoh@email.com" 
-                  />
-                  <span v-if="customerErrors.email" class="error-msg-small">{{ customerErrors.email }}</span>
-                </div>
-                <div class="form-group mb-3">
-                  <label class="form-label"><Phone :size="14"/> Nomor Telepon / WhatsApp</label>
-                  <input 
-                    type="tel" 
-                    v-model="customer.phone" 
-                    @input="validateCustomerPhone" 
-                    @blur="validateCustomerPhone"
-                    class="form-input" 
-                    :class="{ 'input-error': customerErrors.phone }"
-                    placeholder="08123456789" 
-                  />
-                  <span v-if="customerErrors.phone" class="error-msg-small">{{ customerErrors.phone }}</span>
-                </div>
-              </div>
-            </div>
-          </transition>
-        </div>
 
-        <!-- ===== SECTION 2: PASSENGERS ===== -->
-        <div class="form-section accordion-section" :class="{ expanded: sectionJumlahPenumpangOpen }">
-          <div class="section-heading accordion-trigger" @click="sectionJumlahPenumpangOpen = !sectionJumlahPenumpangOpen">
-            <div class="section-heading-left">
-              <h2 class="sect-title"><span class="sect-num">2</span> Jumlah Penumpang</h2>
-              <p class="sect-sub">Berapa orang yang akan berangkat?</p>
-            </div>
-            <ChevronDown :class="{ rotated: sectionJumlahPenumpangOpen }" :size="18" class="section-chevron" />
+        </div>
+      </div>
+    </div>
+    
+    <!-- Sticky Tabs Navigation -->
+    <div class="sticky-tabs-nav-bar" ref="tabsBarRef" :class="{ 'is-sticky': isTabsSticky }">
+      <div class="container">
+        <div class="tabs-navigation">
+          <button 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'deskripsi' }" 
+            @click="activeTab = 'deskripsi'"
+          >
+            Deskripsi
+          </button>
+          <button 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'tiket' }" 
+            @click="activeTab = 'tiket'"
+          >
+            Tiket
+          </button>
+          <button 
+            class="tab-btn" 
+            :class="{ active: activeTab === 'terms' }" 
+            @click="activeTab = 'terms'"
+          >
+            Syarat & Ketentuan
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Page Body Area -->
+    <div class="event-details-body">
+      <div class="container body-content-grid">
+        
+        <!-- Left: Tab Details -->
+        <div class="details-left-col">
+          <!-- Description Tab -->
+          <div v-if="activeTab === 'deskripsi'" class="tab-card-content description-card">
+            <h2 class="section-card-title">Deskripsi Acara</h2>
+            <div v-html="event.description || '<p>Tidak ada deskripsi</p>'" class="rich-html-content"></div>
           </div>
-          <transition name="accordion-slide">
-            <div v-show="sectionJumlahPenumpangOpen" class="step-content">
-              <div class="passengers-form">
-                <div class="passenger-row">
-                  <div class="passenger-info">
-                    <div class="pax-icon"><Users :size="22" /></div>
-                    <div>
-                      <div class="pax-type">Dewasa</div>
-                      <div class="pax-note">Usia 12 tahun ke atas</div>
-                    </div>
-                  </div>
-                  <div class="counter-ctrl">
-                    <button class="cnt-btn" :class="{ faded: adults <= 1 }" @click="adults > 1 ? adults-- : null">−</button>
-                    <span class="cnt-val">{{ adults }}</span>
-                    <button class="cnt-btn" @click="adults++">+</button>
-                  </div>
+          
+          <!-- Tickets Tab (Accordion + Inline Seatmap + Step Flow) -->
+          <div v-else-if="activeTab === 'tiket'" class="tickets-container-list">
+            
+            <!-- STEP 1: Select ticket category and seats -->
+            <div v-if="currentStep === 1" class="step1-grid">
+              <!-- Left column: Tickets and Seatmap List -->
+              <div class="step1-left-col">
+                <div class="ticket-list-header">
+                
                 </div>
-
-                <div class="passenger-row">
-                  <div class="passenger-info">
-                    <div class="pax-icon"><Baby :size="22" /></div>
-                    <div>
-                      <div class="pax-type">Balita</div>
-                      <div class="pax-note">Usia di bawah 5 tahun (gratis)</div>
-                    </div>
-                  </div>
-                  <div class="counter-ctrl">
-                    <button class="cnt-btn" :class="{ faded: toddlers <= 0 }" @click="toddlers > 0 ? toddlers-- : null">−</button>
-                    <span class="cnt-val">{{ toddlers }}</span>
-                    <button class="cnt-btn" @click="toddlers++">+</button>
-                  </div>
-                </div>
-
-                <div class="pax-note-box">
-                  <span>🎟️</span>
-                  <span>Tiket event <strong>tidak termasuk</strong> dalam harga shuttle ini. Pastikan kamu sudah punya tiket event sebelum memesan.</span>
-                </div>
-              </div>
-            </div>
-          </transition>
-        </div>
-
-        <!-- ===== SECTION 3: DETAIL PENUMPANG ===== -->
-        <div class="form-section accordion-section" :class="{ expanded: sectionDetailPenumpangOpen }">
-          <div class="section-heading accordion-trigger" @click="sectionDetailPenumpangOpen = !sectionDetailPenumpangOpen">
-            <div class="section-heading-left">
-              <h2 class="sect-title"><span class="sect-num">3</span> Detail Penumpang</h2>
-              <p class="sect-sub">Isi informasi identitas sesuai dengan tanda pengenal resmi</p>
-            </div>
-            <ChevronDown :class="{ rotated: sectionDetailPenumpangOpen }" :size="18" class="section-chevron" />
-          </div>
-          <transition name="accordion-slide">
-            <div v-show="sectionDetailPenumpangOpen" class="step-content">
-              <div class="passenger-cards-list">
-                <div 
-                  v-for="(passenger, idx) in passengers" 
-                  :key="passenger.id" 
-                  class="passenger-card-accordion"
-                  :class="{ expanded: passenger.isExpanded }"
-                >
-                  <!-- Accordion Header -->
-                  <div class="pca-header" @click.stop="passenger.isExpanded = !passenger.isExpanded">
-                    <div class="pca-header-left">
-                      <div class="pca-icon">
-                        <Ticket v-if="passenger.type === 'dewasa'" :size="18" />
-                        <Baby v-else :size="18" />
-                      </div>
-                      <div class="pca-title-block">
-                        <h4 class="pca-title">{{ passenger.label }}</h4>
-                        <p class="pca-subtitle">
-                          1 Tiket x {{ passenger.type === 'dewasa' ? formatRp(bookingStore.basePrice) : 'Rp 0' }}
-                        </p>
-                      </div>
-                    </div>
-                    <div class="pca-header-right">
-                      <!-- Gunakan Data Pemesan Toggle in Header (only for adult) -->
-                      <div v-if="passenger.type === 'dewasa'" class="header-toggle-wrapper" @click.stop>
-                        <span class="header-toggle-label">
-                          <span class="desktop-text">Gunakan Data Pemesan</span>
-                          <span class="mobile-text">Gunakan Data</span>
-                        </span>
-                        <label class="toggle-switch">
-                          <input 
-                            type="checkbox" 
-                            :checked="passenger.useBuyerData"
-                            @change="toggleUseBuyerData(passenger)"
-                          />
-                          <span class="slider round"></span>
-                        </label>
-                      </div>
-                      <ChevronDown :class="{ rotated: passenger.isExpanded }" :size="18" class="pca-chevron" />
-                    </div>
-                  </div>
-
-                  <!-- Accordion Body -->
-                  <transition name="accordion-slide">
-                    <div v-show="passenger.isExpanded" class="pca-body">
-                      <!-- Passenger fields -->
-                      <div class="passenger-fields">
-                        <div class="form-group mb-3">
-                          <label class="form-label">Nama Lengkap</label>
-                          <input 
-                            type="text" 
-                            v-model="passenger.name" 
-                            @input="handlePassengerInput(passenger, 'name'); validatePassengerName(passenger)"
-                            @blur="validatePassengerName(passenger)"
-                            class="form-input" 
-                            :class="{ 'input-error': passenger.errorName }"
-                            placeholder="Nama Lengkap" 
-                          />
-                          <span v-if="passenger.errorName" class="error-msg-small">{{ passenger.errorName }}</span>
-                        </div>
-
-                        <!-- Email & Phone only for Adult -->
-                        <template v-if="passenger.type === 'dewasa'">
-                          <div class="form-group mb-3">
-                            <label class="form-label">Email</label>
-                            <input 
-                              type="email" 
-                              v-model="passenger.email" 
-                              @input="handlePassengerInput(passenger, 'email'); validatePassengerEmail(passenger)"
-                              @blur="validatePassengerEmail(passenger)"
-                              class="form-input" 
-                              :class="{ 'input-error': passenger.errorEmail }"
-                              placeholder="Contoh: example@example.com" 
-                            />
-                            <span v-if="passenger.errorEmail" class="error-msg-small">{{ passenger.errorEmail }}</span>
-                          </div>
-
-                          <div class="form-group mb-3">
-                            <label class="form-label">No Telepon</label>
-                            <div class="phone-input-group">
-                              <div class="phone-code-select-wrapper">
-                                <select 
-                                  v-model="passenger.phoneCode" 
-                                  @change="handlePassengerInput(passenger, 'phoneCode'); validatePassengerPhone(passenger)"
-                                  class="phone-code-select"
-                                >
-                                  <option value="+62">+62</option>
-                                  <option value="+65">+65</option>
-                                  <option value="+1">+1</option>
-                                </select>
-                                <ChevronDown :size="14" class="select-chevron" />
-                              </div>
-                              <input 
-                                type="tel" 
-                                v-model="passenger.phone" 
-                                @input="handlePassengerInput(passenger, 'phone'); validatePassengerPhone(passenger)"
-                                @blur="validatePassengerPhone(passenger)"
-                                class="form-input phone-number-input" 
-                                :class="{ 'input-error': passenger.errorPhone }"
-                                placeholder="Contoh: 8123456789" 
-                              />
-                            </div>
-                            <span v-if="passenger.errorPhone" class="error-msg-small">{{ passenger.errorPhone }}</span>
-                          </div>
-                        </template>
-
-                        <!-- Info Identitas -->
-                        <div class="identity-info-section">
-                          <h4 class="identity-title">Info Identitas</h4>
-                          <div class="identity-radios">
-                            <label class="identity-radio-label">
-                              <input 
-                                type="radio" 
-                                value="KTP" 
-                                v-model="passenger.identityType" 
-                                @change="validatePassengerIdentity(passenger)"
-                                class="identity-radio-input"
-                              />
-                              <span class="custom-radio"></span>
-                              <span class="radio-text">KTP</span>
-                            </label>
-                            <label class="identity-radio-label">
-                              <input 
-                                type="radio" 
-                                value="Paspor" 
-                                v-model="passenger.identityType" 
-                                @change="validatePassengerIdentity(passenger)"
-                                class="identity-radio-input"
-                              />
-                              <span class="custom-radio"></span>
-                              <span class="radio-text">Paspor</span>
-                            </label>
-                          </div>
-
-                          <div class="form-group mt-3">
-                            <input 
-                              type="text" 
-                              v-model="passenger.identityNumber" 
-                              @input="validatePassengerIdentity(passenger)"
-                              @blur="validatePassengerIdentity(passenger)"
-                              class="form-input" 
-                              :class="{ 'input-error': passenger.errorIdentity }"
-                              :placeholder="passenger.identityType === 'KTP' ? 'Nomor NIK' : 'Nomor Paspor'" 
-                            />
-                            <span v-if="passenger.errorIdentity" class="error-msg-small">{{ passenger.errorIdentity }}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </transition>
-                </div>
-              </div>
-            </div>
-          </transition>
-        </div>
-
-        <!-- ===== SECTION 4: RUTE PERJALANAN ===== -->
-        <div class="form-section accordion-section" :class="{ expanded: sectionRutePerjalananOpen }">
-          <div class="section-heading accordion-trigger" @click="sectionRutePerjalananOpen = !sectionRutePerjalananOpen">
-            <div class="section-heading-left">
-              <h2 class="sect-title"><span class="sect-num">4</span> Rute Perjalanan</h2>
-              <p class="sect-sub">Tentukan lokasi perjalanan Anda</p>
-            </div>
-            <ChevronDown :class="{ rotated: sectionRutePerjalananOpen }" :size="18" class="section-chevron" />
-          </div>
-          <transition name="accordion-slide">
-            <div v-show="sectionRutePerjalananOpen" class="step-content">
-              <!-- PICKUP -->
-              <h4 class="sub-sect-title mb-1">Titik Jemput</h4>
-              <div class="mb-3" style="font-size: 0.85rem; color: var(--primary); font-weight: 700;">Jam Keberangkatan Shuttle: {{ event?.departureTime || '12:00 WIB' }}</div>
-              
-              <div v-if="isEksklusif" class="custom-input-box mb-3">
-                <input type="text" v-model="customPickupInput" placeholder="Ketik alamat jemput spesifik atau pilih dari daftar di bawah..." class="form-input" />
-              </div>
-
-              <div class="locations-list mb-4">
-                <div v-for="(locs, region) in groupedLocations" :key="'p'+region" class="loc-group">
-                  <div class="loc-region-label">{{ region }}</div>
-                  <div v-for="loc in locs" :key="'p'+loc.name" class="loc-item" :class="{ selected: bookingStore.selectedPickup?.name === loc.name }" @click="selectPickup(loc)">
-                    <div class="loc-icon"><MapPin :size="16" /></div>
-                    <div class="loc-text">
-                      <div class="loc-name">{{ loc.name }}</div>
-                      <div class="loc-address">{{ loc.address }}</div>
-                      <div class="loc-price" style="font-size: 0.75rem; color: var(--primary); font-weight: 700; margin-top: 4px;">{{ loc.price }}</div>
-                    </div>
-                    <div class="loc-check" v-if="bookingStore.selectedPickup?.name === loc.name"><Check :size="14" /></div>
-                  </div>
-                </div>
-                <div v-if="Object.keys(groupedLocations).length === 0" class="no-results">Tidak ada lokasi ditemukan.</div>
-              </div>
-
-              <hr class="my-4" style="border-color: rgba(0,0,0,0.05)" />
-
-              <!-- RETURN (FIXED TO VENUE) -->
-              <h4 class="sub-sect-title mb-1">Titik Pulang (Tujuan Akhir)</h4>
-              <div class="mb-3" style="font-size: 0.85rem; color: var(--primary); font-weight: 700;">Jam Kepulangan Shuttle: {{ event?.returnTime || '01:00 WIB' }}</div>
-              <div class="loc-item selected" style="cursor: default; background: rgba(21,101,192,0.04); border-color: #1565C0;">
-                <div class="loc-icon" style="background: rgba(21,101,192,0.1); color: #1565C0;"><Navigation :size="16" /></div>
-                <div class="loc-text">
-                  <div class="loc-name">{{ event?.location }}</div>
-                  <div class="loc-address">Lokasi Tempat Diselenggarakannya Acara</div>
-                </div>
-                <div class="loc-check" style="background: #1565C0;"><Check :size="14" /></div>
-              </div>
-            </div>
-          </transition>
-        </div>
-
-        <!-- ===== SECTION 5: PILIH KURSI ===== -->
-        <div class="form-section accordion-section" :class="{ expanded: sectionPilihKursiOpen }">
-          <div class="section-heading accordion-trigger" @click="sectionPilihKursiOpen = !sectionPilihKursiOpen">
-            <div class="section-heading-left">
-              <h2 class="sect-title"><span class="sect-num">5</span> Pilih Kursi</h2>
-              <p class="sect-sub">Tentukan posisi duduk Anda dalam bus</p>
-            </div>
-            <ChevronDown :class="{ rotated: sectionPilihKursiOpen }" :size="18" class="section-chevron" />
-          </div>
-          <transition name="accordion-slide">
-            <div v-show="sectionPilihKursiOpen" class="step-content">
-              <div class="seat-selection-placeholder">
-                <div v-if="selectedSeats.length > 0" class="selected-seats-info-box">
-                  <div class="ss-info-title" style="font-weight: 800; font-size: 0.95rem; color: var(--text-dark); margin-bottom: 8px;">Kursi Terpilih:</div>
-                  <div class="selected-seats-badges" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px;">
-                    <span v-for="seat in selectedSeats" :key="seat" class="seat-badge" style="background: var(--primary); color: white; font-size: 0.85rem; font-weight: 800; padding: 6px 12px; border-radius: 8px; box-shadow: 0 2px 4px rgba(201,76,76,0.2);">{{ seat }}</span>
-                  </div>
-                  <button type="button" class="btn btn-outline" @click="showSeatModal = true" style="width: 100%;">
-                    Ubah Pilihan Kursi
-                  </button>
-                </div>
-                <div v-else class="no-seats-placeholder">
-                  <div class="pax-note-box mb-3" style="background: rgba(201, 76, 76, 0.05); border-color: rgba(201, 76, 76, 0.2); color: var(--primary); display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 12px; font-size: 0.88rem;">
-                    <span style="font-size: 1.25rem;">💺</span>
-                    <span>Anda belum memilih kursi. Silakan klik tombol di bawah untuk memilih kursi Anda di dalam bus.</span>
-                  </div>
-                  <button type="button" class="btn btn-primary" @click="showSeatModal = true" style="width: 100%;">
-                    Pilih Kursi
-                  </button>
-                </div>
-              </div>
-            </div>
-          </transition>
-        </div>
-
-              <!-- SEAT MAP MODAL POPUP -->
-              <transition name="modal-fade">
-                <div v-if="showSeatModal" class="sm-modal-overlay" @click.self="showSeatModal = false" @touchmove.self.prevent>
+                
+                <div class="tickets-scroll-view">
                   <div 
-                    class="sm-modal-content"
-                    :style="{ 
-                      transform: `translateY(${offsetY}px)`, 
-                      transition: isDragging ? 'none' : 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)' 
-                    }"
+                    v-for="t in event.has_event_ticket" 
+                    :key="t.id" 
+                    class="ticket-card-voucher"
+                    :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen }"
                   >
-                    <div 
-                      class="sm-drag-handle"
-                      @touchstart="handleTouchStart"
-                      @touchmove="handleTouchMove"
-                      @touchend="handleTouchEnd"
-                    ></div>
-                    <div 
-                      class="sm-header"
-                      @touchstart="handleTouchStart"
-                      @touchmove="handleTouchMove"
-                      @touchend="handleTouchEnd"
-                    >
-                      <h3 class="sm-title">Pilih Kursi</h3>
-                      <button type="button" class="sm-close" @click="showSeatModal = false">✕</button>
-                    </div>
-
-                    <!-- Trip / Vendor info card -->
-                    <div class="sm-trip-card" v-if="event">
-                      <div class="sm-vendor-icon">🚌</div>
-                      <div class="sm-trip-info">
-                        <div class="sm-vendor-name">
-                          {{ event.name }} <span class="sm-vendor-tag">• Shuttle Bersama</span>
+                    <!-- Voucher Side notches -->
+                    <div class="ticket-notch notch-left"></div>
+                    <div class="ticket-notch notch-right"></div>
+                    
+                    <!-- If selected, show ONLY the seatmap canvas inside the card -->
+                    <div v-if="selectedTicket?.id === t.id && isCanvasOpen" class="selected-seatmap-canvas-container" @click.stop>
+                      <!-- Mobile Seatmap Header -->
+                      <div class="mobile-seatmap-header">
+                        <button type="button" class="btn-close-seatmap-mobile" @click="clearSelectedTicket">✕</button>
+                        <h3 class="mobile-seatmap-header-title">Pilih Kursi</h3>
+                      </div>
+                      <div class="seatmap-canvas-header">
+                        <div class="seatmap-canvas-title-group">
+                          <span class="seatmap-canvas-badge" :style="{ backgroundColor: t.seat_color || 'var(--primary)' }">
+                            {{ t.ticket_category }}
+                          </span>
+                          <h3 class="seatmap-canvas-ticket-name">{{ t.name }}</h3>
                         </div>
-                        <div class="sm-trip-time">
-                          {{ event.dateLabel }} · {{ event.departureTime || '12:00 WIB' }} - {{ event.returnTime || '01:00 WIB' }}
-                        </div>
+                        <button type="button" class="btn-back-to-tickets" @click="clearSelectedTicket">
+                          Kembali
+                        </button>
                       </div>
-                    </div>
 
-                    <!-- Passenger tabs for seat selection -->
-                    <div class="sm-passengers-tabs">
-                      <div 
-                        v-for="index in adults" 
-                        :key="index" 
-                        class="sm-passenger-tab"
-                        :class="{ active: activePassengerIndex === index - 1 }"
-                        @click="activePassengerIndex = index - 1"
-                      >
-                        <div class="sm-passenger-lbl">Penumpang {{ index }}</div>
-                        <div class="sm-passenger-seat" :class="{ assigned: selectedSeats[index - 1] }">
-                          {{ selectedSeats[index - 1] ? `Kursi ${selectedSeats[index - 1]}` : 'Pilih Kursi' }}
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Legends -->
-                    <div class="sm-legends">
-                      <div class="sm-legend-item">
-                        <span class="sm-legend-box selected"></span>
-                        <span>Dipilih</span>
-                      </div>
-                      <div class="sm-legend-item">
-                        <span class="sm-legend-box available"></span>
-                        <span>Tersedia</span>
-                      </div>
-                      <div class="sm-legend-item">
-                        <span class="sm-legend-box occupied"></span>
-                        <span>Tidak Tersedia</span>
-                      </div>
-                    </div>
-
-                    <!-- Scrollable Cabin Area -->
-                    <div class="sm-grid-container">
-                      <div class="sm-grid-scroll">
-                        <div class="sm-cabin">
-                          <!-- Cockpit / Driver Row -->
-                          <div class="sm-cockpit-row">
-                            <div class="sm-driver-wheel">
-                              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <circle cx="12" cy="12" r="2.5" />
-                                <line x1="12" y1="2" x2="12" y2="9.5" />
-                                <line x1="4.9" y1="19.1" x2="10.2" y2="13.8" />
-                                <line x1="19.1" y1="19.1" x2="13.8" y2="13.8" />
-                              </svg>
+                      <div class="seatmap-canvas-body">
+                        <!-- Canvas Controls Area -->
+                        <div class="canvas-top-controls">
+                          <div class="canvas-quantity-control">
+                            
+                            <div class="quantity-counter-wrapper">
+                              <button 
+                                type="button" 
+                                class="qty-btn" 
+                                :disabled="quantity <= 1" 
+                                @click="decreaseQuantity"
+                              >-</button>
+                              <span class="qty-val">{{ quantity }}</span>
+                              <button 
+                                type="button" 
+                                class="qty-btn" 
+                                :disabled="quantity >= maxTickets" 
+                                @click="increaseQuantity"
+                              >+</button>
                             </div>
                           </div>
+                          
+                          <div class="canvas-zoom-controls">
+                            <!-- Fullscreen Button -->
+                            <button type="button" class="zoom-control-btn" @click="isFullscreen = true" title="Fullscreen">
+                              <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
+                            </button>
+                            <button type="button" class="zoom-control-btn" @click="zoomIn" title="Zoom In">➕</button>
+                            <button type="button" class="zoom-control-btn" @click="zoomOut" title="Zoom Out">➖</button>
+                            <button type="button" class="zoom-control-btn text-btn" @click="resetZoomPan">Reset Layout</button>
+                          </div>
+                        </div>
 
-                          <!-- Bus rows -->
-                          <div v-for="row in busRows" :key="'modal-row-' + row.rowNum" class="sm-row">
-                            <!-- Left Seats (A & B) or back door -->
-                            <div class="sm-seat-pair">
-                              <template v-if="row.left.length > 0">
+                        <!-- Legends -->
+                        <div class="inline-legends">
+                          <div class="legend-item">
+                            <span class="legend-box selected"></span>
+                            <span>Dipilih</span>
+                          </div>
+                          <div class="legend-item">
+                            <span class="legend-box available"></span>
+                            <span>Tersedia</span>
+                          </div>
+                          <div class="legend-item">
+                            <span class="legend-box occupied"></span>
+                            <span>Tidak Tersedia</span>
+                          </div>
+                        </div>
+                        
+                        <!-- Bus cabin layout -->
+                        <div 
+                          class="bus-cabin-canvas-viewport"
+                          @mousedown="startPan"
+                          @mousemove="onPan"
+                          @mouseup="endPan"
+                          @mouseleave="endPan"
+                          @wheel.prevent="onWheel"
+                          @touchstart="startPanTouch"
+                          @touchmove="onPanTouch"
+                          @touchend="endPan"
+                        >
+                          <div 
+                            class="bus-cabin-container"
+                            :style="{
+                              transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+                              transformOrigin: 'center center',
+                              transition: isPanning ? 'none' : 'transform 0.15s ease-out'
+                            }"
+                          >
+                            <!-- Grid lines overlay inside the transformed canvas area -->
+                            <div class="canvas-axis-x"></div>
+                            <div class="canvas-axis-y"></div>
+                            <div class="bus-cockpit-front">
+                              <span class="driver-wheel-icon">🧭 Kemudi</span>
+                              <span class="cockpit-label">DEPAN</span>
+                            </div>
+
+                            <!-- Rows 1 to 9 -->
+                            <div v-for="row in busRows" :key="'bus-row-' + row.rowNum" class="bus-grid-row">
+                              <div class="seat-pair-col">
                                 <button 
                                   v-for="seat in row.left"
                                   :key="seat.id"
                                   type="button"
-                                  class="sm-seat"
-                                  :class="{ 
+                                  class="cabin-seat-btn"
+                                  :class="{
                                     selected: selectedSeats.includes(seat.id),
-                                    occupied: occupiedSeats.includes(seat.id),
-                                    'current-active': selectedSeats[activePassengerIndex] === seat.id
+                                    occupied: !isSeatAvailable(seat.id),
                                   }"
-                                  :disabled="occupiedSeats.includes(seat.id)"
-                                  @click="selectSeatInModal(seat.id)"
+                                  :disabled="!isSeatAvailable(seat.id)"
+                                  @click="toggleSeatSelection(seat.id)"
+                                  @touchstart.stop
                                 >
-                                  <span v-if="occupiedSeats.includes(seat.id)" class="sm-cross">✕</span>
-                                  <span v-else>{{ seat.label }}</span>
+                                  <span v-if="!isSeatAvailable(seat.id)" class="seat-cross">✕</span>
+                                  <span v-else class="seat-lbl">{{ seat.label }}</span>
+                                  <span class="seat-tooltip">Seat {{ seat.label }}</span>
                                 </button>
-                              </template>
-                              <template v-else-if="row.rowNum === 9">
-                                <div class="sm-door-placeholder">
-                                  <span>🚪 PINTU BELAKANG</span>
+                                <div v-if="row.rowNum === 9" class="door-placeholder-col">
+                                  <span>🚪 Pintu</span>
                                 </div>
-                              </template>
-                            </div>
+                              </div>
 
-                            <!-- Row Number -->
-                            <div class="sm-row-number">{{ row.rowNum }}</div>
+                              <div class="row-num-badge">{{ row.rowNum }}</div>
 
-                            <!-- Right Seats (C & D) -->
-                            <div class="sm-seat-pair">
-                              <button 
-                                v-for="seat in row.right"
-                                :key="seat.id"
-                                type="button"
-                                class="sm-seat"
-                                :class="{ 
-                                  selected: selectedSeats.includes(seat.id),
-                                  occupied: occupiedSeats.includes(seat.id),
-                                  'current-active': selectedSeats[activePassengerIndex] === seat.id
-                                }"
-                                :disabled="occupiedSeats.includes(seat.id)"
-                                @click="selectSeatInModal(seat.id)"
-                              >
-                                <span v-if="occupiedSeats.includes(seat.id)" class="sm-cross">✕</span>
-                                <span v-else>{{ seat.label }}</span>
-                              </button>
+                              <div class="seat-pair-col">
+                                <button 
+                                  v-for="seat in row.right"
+                                  :key="seat.id"
+                                  type="button"
+                                  class="cabin-seat-btn"
+                                  :class="{
+                                    selected: selectedSeats.includes(seat.id),
+                                    occupied: !isSeatAvailable(seat.id),
+                                  }"
+                                  :disabled="!isSeatAvailable(seat.id)"
+                                  @click="toggleSeatSelection(seat.id)"
+                                  @touchstart.stop
+                                >
+                                  <span v-if="!isSeatAvailable(seat.id)" class="seat-cross">✕</span>
+                                  <span v-else class="seat-lbl">{{ seat.label }}</span>
+                                  <span class="seat-tooltip">Seat {{ seat.label }}</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
+                        </div>
+
+                        <!-- Mobile Confirm Bar inside the seatmap selection screen -->
+                        <div class="mobile-canvas-confirm-bar">
+                          <div class="m-confirm-bar-left">
+                            <span class="m-confirm-label">Total Harga</span>
+                            <span class="m-confirm-value">{{ selectedSeats.length > 0 ? formatRp(t.price * selectedSeats.length) : 'Rp 0' }}</span>
+                          </div>
+                          <button type="button" class="btn-confirm-seats-mobile" :disabled="selectedSeats.length === 0" @click="clearSelectedTicket">
+                            Lanjut
+                          </button>
                         </div>
                       </div>
                     </div>
 
-                    <!-- Footer of Modal -->
-                    <div class="sm-footer">
-                      <div class="sm-footer-total">
-                        <div class="sm-total-lbl">Total <span class="sm-total-sub">(Setelah cashback)</span></div>
-                        <div class="sm-total-val">{{ formatRp(grandTotal) }}</div>
+                    <!-- If not selected, show the normal ticket details and features accordion -->
+                    <!-- If not selected, show the normal ticket details -->
+                    <div v-else class="ticket-card-inner">
+                      <!-- Top Section (Click to toggle accordion) -->
+                      <div class="ticket-top-section" @click="toggleTicketAccordion(t.id)" style="cursor: pointer;">
+                        <div class="ticket-top-left">
+                          <h3 class="ticket-category-title">{{ t.name }}</h3>
+                          <div class="ticket-status-badge" :class="{ 'sold-out': !hasAvailableSeats(t) }">
+                            <span class="status-dot"></span>
+                            <span>{{ hasAvailableSeats(t) ? 'Tersedia' : 'TIKET HABIS' }}</span>
+                          </div>
+                        </div>
+                        
+                        <div class="ticket-top-right">
+                          <div class="ticket-vertical-divider"></div>
+                          <div class="ticket-price-box">
+                            <span class="ticket-price-label">Harga</span>
+                            <div class="ticket-price-value-wrapper">
+                              <span class="ticket-price-value">{{ formatRp(t.price) }}</span>
+                              <ChevronDown 
+                                :size="18" 
+                                class="accordion-chevron-toggle"
+                                :class="{ rotated: expandedTicketId === t.id }"
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <button type="button" class="sm-continue-btn" @click="showSeatModal = false">
-                        Lanjut
-                      </button>
+                      
+                      <!-- Divider Row with Notches and Dashed Line -->
+                      <div class="ticket-divider-row">
+                        <div class="ticket-notch notch-left"></div>
+                        <div class="ticket-card-divider-dashed-line"></div>
+                        <div class="ticket-notch notch-right"></div>
+                      </div>
+                      
+                      <!-- Bottom Section -->
+                      <div class="ticket-bottom-section">
+                        <!-- Accordion Features Content (Vehicle Features) -->
+                        <div v-if="expandedTicketId === t.id" class="ticket-features-accordion-content" @click.stop>
+                          <div class="features-title">Fasilitas Shuttle:</div>
+                          <div class="features-grid">
+                            <div class="feature-item">
+                              <Wind :size="14" class="feature-icon" />
+                              <span>Air Conditioning (AC)</span>
+                            </div>
+                            <div class="feature-item">
+                              <Zap :size="14" class="feature-icon" />
+                              <span>USB Charger Port</span>
+                            </div>
+                            <div class="feature-item">
+                              <Music :size="14" class="feature-icon" />
+                              <span>Entertainment & Audio</span>
+                            </div>
+                            <div class="feature-item">
+                              <ShieldCheck :size="14" class="feature-icon" />
+                              <span>Asuransi Perjalanan</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <!-- Bottom Footer Info -->
+                        <div class="ticket-bottom-footer-row">
+                          <div class="ticket-ending-details">
+                            <span class="ending-label">BERAKHIR PADA</span>
+                            <span class="ending-value">
+                              {{ formatDateLabel(t.ticket_end) }}, {{ formatTimeLabel(t.ending_time) }} WIB
+                            </span>
+                          </div>
+                          
+                          <div class="ticket-footer-vertical-divider"></div>
+                          
+                          <div class="ticket-action-subtotal-group">
+                            <!-- Ticket selection quantity selector (visible if available) -->
+                            <div class="ticket-quantity-row" v-if="hasAvailableSeats(t)">
+                             
+                              <div class="quantity-counter-wrapper">
+                                <button 
+                                  type="button" 
+                                  class="qty-btn" 
+                                  :disabled="quantity <= 1" 
+                                  @click="decreaseQuantity"
+                                >-</button>
+                                <span class="qty-val">{{ quantity }}</span>
+                                <button 
+                                  type="button" 
+                                  class="qty-btn" 
+                                  :disabled="quantity >= maxTickets" 
+                                  @click="increaseQuantity"
+                                >+</button>
+                              </div>
+                            </div>
+
+                            <button 
+                              class="select-ticket-btn"
+                              :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen, 'sold-out': !hasAvailableSeats(t) }"
+                              :disabled="!hasAvailableSeats(t)"
+                              @click.stop="selectTicketCategory(t)"
+                            >
+                              {{ !hasAvailableSeats(t) ? 'Habis' : (selectedSeats.length > 0 && selectedTicket?.id === t.id ? `Pilih Seat (${selectedSeats.length})` : 'Pilih Seat') }}
+                            </button>
+                            
+                            
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </transition>
-            
+              </div>
+
+              <!-- Right column: Tiket Terpilih summary card -->
+              <div class="step1-right-col">
+                <div class="selected-summary-card sticky-summary-card">
+                  <div class="summary-card-header">
+                    <h3 class="summary-card-title">Tiket Dipilih</h3>
+                    <button 
+                      v-if="selectedTicket && selectedSeats.length > 0" 
+                      type="button" 
+                      class="btn-edit-seats" 
+                      @click="handleEditSeats"
+                    >
+                      <span>Edit</span>
+                      <svg class="edit-icon-svg" viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    </button>
+                  </div>
+                  
+                  <!-- Empty state when no seat is chosen -->
+                  <div v-if="!selectedTicket || selectedSeats.length === 0" class="empty-summary-state">
+                    <div class="info-circle-icon">
+                      <Info :size="20" />
+                    </div>
+                    <p class="info-text">Belum ada kursi yang dipilih</p>
+                  </div>
+
+                  <!-- Selected seats info -->
+                  <div v-else class="summary-card-body">
+                    <div class="summary-ticket-item">
+                      <div class="summary-ticket-title-row">
+                        <!-- Blue Ticket Icon -->
+                        <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
+                        
+                        <span class="summary-ticket-name">Tiket {{ selectedTicket.name }}</span>
+                        <span class="summary-ticket-badge-count">{{ selectedSeats.length }}X</span>
+                      </div>
+                      
+                      <div class="summary-ticket-seats-row">
+                        Seat No: {{ selectedSeats.join(', ') }}
+                      </div>
+                      
+                      <div class="summary-ticket-price-row">
+                        {{ formatRp(selectedTicket.price * selectedSeats.length) }}
+                      </div>
+                    </div>
+                    
+                    <div class="summary-card-divider-dashes"></div>
+                    
+                    <div class="summary-total-row">
+                      <span class="summary-total-label">Total ({{ selectedSeats.length }} Tiket)</span>
+                      <span class="summary-total-price">{{ formatRp(selectedTicket.price * selectedSeats.length) }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- STEP 2: Buyer Details form card -->
+            <div v-else-if="currentStep === 2 && selectedTicket" class="booking-onpage-form-section">
+              <div class="onpage-form-header">
+                <button type="button" class="btn-back-to-step1" @click="goBackToStep1">
+                  ← Ganti Kursi / Tiket
+                </button>
+                <h3 class="onpage-form-title">Data Pemesan</h3>
+              </div>
+              
+              <div class="onpage-form-card">
+                <div class="onpage-form-grid">
+                  <!-- Left column: Summary info -->
+                  <div class="onpage-form-left-col">
+                    <h4 class="form-subheader mt-0 pt-0" style="border-top: none;">Detail Tiket</h4>
+                    
+                    <div class="summary-details-box">
+                      <div class="summary-detail-row">
+                        <span class="sd-label">Kategori</span>
+                        <span class="sd-value">{{ selectedTicket.name }}</span>
+                      </div>
+                      <div class="summary-detail-row">
+                        <span class="sd-label">Kursi</span>
+                        <span class="sd-value seats-highlight">{{ selectedSeats.join(', ') }}</span>
+                      </div>
+                      <div class="summary-detail-row">
+                        <span class="sd-label">Jumlah</span>
+                        <span class="sd-value">{{ quantity }} Tiket</span>
+                      </div>
+                      <div class="summary-detail-row">
+                        <span class="sd-label">Harga per Kursi</span>
+                        <span class="sd-value">{{ formatRp(selectedTicket.price) }}</span>
+                      </div>
+                      <div class="summary-detail-row sd-total-row">
+                        <span class="sd-label font-bold">Total Harga</span>
+                        <span class="sd-value font-black text-primary">{{ formatRp(selectedTicket.price * selectedSeats.length) }}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Right column: Input fields -->
+                  <div class="onpage-form-right-col">
+                    <div class="form-input-group mb-3">
+                      <label class="form-field-label"><User :size="12" /> Nama Lengkap</label>
+                      <input 
+                        type="text" 
+                        v-model="buyer.name"
+                        @input="validateName"
+                        @blur="validateName"
+                        placeholder="Masukkan nama lengkap"
+                        class="sidebar-form-input"
+                        :class="{ 'has-error': errors.name }"
+                      />
+                      <span v-if="errors.name" class="form-error-text">{{ errors.name }}</span>
+                    </div>
+
+                    <div class="form-input-group mb-3">
+                      <label class="form-field-label"><Mail :size="12" /> Email</label>
+                      <input 
+                        type="email" 
+                        v-model="buyer.email"
+                        @input="validateEmail"
+                        @blur="validateEmail"
+                        placeholder="contoh@email.com"
+                        class="sidebar-form-input"
+                        :class="{ 'has-error': errors.email }"
+                      />
+                      <span v-if="errors.email" class="form-error-text">{{ errors.email }}</span>
+                    </div>
+
+                    <div class="form-input-group mb-3">
+                      <label class="form-field-label"><Phone :size="12" /> Nomor WhatsApp</label>
+                      <input 
+                        type="tel" 
+                        v-model="buyer.phone"
+                        @input="validatePhone"
+                        @blur="validatePhone"
+                        placeholder="8123456789"
+                        class="sidebar-form-input"
+                        :class="{ 'has-error': errors.phone }"
+                      />
+                      <span v-if="errors.phone" class="form-error-text">{{ errors.phone }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Terms Tab -->
+          <div v-else-if="activeTab === 'terms'" class="tab-card-content terms-card">
+            <h2 class="section-card-title">Syarat & Ketentuan</h2>
+            <div v-html="event.term_condition || '<p>Tidak ada syarat & ketentuan</p>'" class="rich-html-content"></div>
+          </div>
+        </div>
+        
       </div>
+    </div>
 
-      <!-- RIGHT: Order Summary -->
-      <div class="booking-summary-col">
-        <div class="summary-card">
-          <h3 class="summary-title">Ringkasan Pesanan</h3>
-
-          <div class="summary-section" v-if="event">
-            <div class="sum-label">Event</div>
-            <div class="sum-value bold">{{ event.name }}</div>
-            <div class="sum-sub">{{ event.dateLabel }} · 14:00 WIB</div>
-          </div>
-
-          <div class="summary-section">
-            <div class="sum-label">Titik Jemput</div>
-            <div class="sum-value bold" v-if="bookingStore.selectedPickup">{{ bookingStore.selectedPickup.name !== 'Custom' ? bookingStore.selectedPickup.name : 'Lokasi Custom' }}</div>
-            <div class="sum-value muted" v-else>Belum dipilih</div>
-            <div class="sum-sub" v-if="bookingStore.selectedPickup">{{ bookingStore.selectedPickup.address }}</div>
-          </div>
-
-          <div class="summary-section">
-            <div class="sum-label">Titik Pulang (Tujuan Akhir)</div>
-            <div class="sum-value bold">{{ event?.location }}</div>
-            <div class="sum-sub">Lokasi Tempat Diselenggarakannya Acara</div>
-          </div>
-
-          <div class="summary-section">
-            <div class="sum-label">Pemesan</div>
-            <div class="sum-value bold" v-if="customer.name">{{ customer.name }}</div>
-            <div class="sum-value muted" v-else>Belum diisi</div>
-          </div>
-
-          <div class="summary-section">
-            <div class="sum-label">Penumpang</div>
-            <div class="sum-value bold">{{ adults }} Dewasa{{ toddlers > 0 ? ` + ${toddlers} Balita` : '' }}</div>
-          </div>
-
-          <div class="summary-section">
-            <div class="sum-label">Nomor Kursi</div>
-            <div class="sum-value bold" v-if="selectedSeats.length > 0">{{ selectedSeats.join(', ') }}</div>
-            <div class="sum-value muted" v-else>Belum memilih kursi</div>
-          </div>
-
-          <div class="summary-divider"></div>
-
-          <div>
-            <div class="price-breakdown">
-              <span>{{ event ? formatRp(bookingStore.basePrice) : 'Rp 0' }} × {{ adults }} orang</span>
-              <span>{{ formatRp(rideTotal) }}</span>
+    <!-- Fullscreen Seatmap Modal -->
+    <transition name="modal-fade">
+      <div v-if="isFullscreen" class="fullscreen-seatmap-overlay" @click.self="isFullscreen = false">
+        <div class="fullscreen-seatmap-card">
+          <div class="fullscreen-card-header">
+            <div class="fullscreen-header-left">
+              <h3 class="fullscreen-title">Pilih Seat</h3>
+              <div class="fullscreen-selected-seats" v-if="selectedSeats.length > 0">
+                <span class="fs-seats-label">Seat No:</span>
+                <div class="fs-seats-pills">
+                  <span v-for="s in selectedSeats" :key="'fs-seat-' + s" class="fs-seat-pill">
+                    {{ s }}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div class="price-breakdown" v-if="toddlers > 0">
-              <span>Balita ({{ toddlers }})</span>
-              <span class="free-label">Gratis</span>
+            <button class="fullscreen-close-btn-top" @click="isFullscreen = false">✕</button>
+          </div>
+          
+          <!-- Fullscreen viewport -->
+          <div 
+            class="bus-cabin-canvas-viewport fs-viewport"
+            @mousedown="startPan"
+            @mousemove="onPan"
+            @mouseup="endPan"
+            @mouseleave="endPan"
+            @wheel.prevent="onWheel"
+            @touchstart="startPanTouch"
+            @touchmove="onPanTouch"
+            @touchend="endPan"
+          >
+            <!-- Floating controls in top right -->
+            <div class="fs-floating-controls">
+              <button type="button" class="fs-float-btn" @click="resetZoomPan" title="Recenter">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+              <button type="button" class="fs-float-btn" @click="zoomOut" title="Zoom Out">
+                <span style="font-size: 1.2rem; line-height: 1;">—</span>
+              </button>
+              <button type="button" class="fs-float-btn" @click="zoomIn" title="Zoom In">
+                <span style="font-size: 1.2rem; line-height: 1;">＋</span>
+              </button>
             </div>
-            <div class="price-breakdown">
-              <span>Admin Fee</span>
-              <span>{{ formatRp(adminFee) }}</span>
-            </div>
-            <div class="summary-divider"></div>
-            <div class="price-total">
-              <span>Total Pembayaran</span>
-              <span>{{ formatRp(grandTotal) }}</span>
+
+            <div 
+              class="bus-cabin-container"
+              :style="{
+                transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
+                transformOrigin: 'center center',
+                transition: isPanning ? 'none' : 'transform 0.15s ease-out'
+              }"
+            >
+              <!-- Center axis lines only, no background grid lines -->
+              <div class="canvas-axis-x"></div>
+              <div class="canvas-axis-y"></div>
+              
+              <div class="bus-cockpit-front">
+                <span class="driver-wheel-icon">🧭 Kemudi</span>
+                <span class="cockpit-label">DEPAN</span>
+              </div>
+
+              <!-- Rows 1 to 9 -->
+              <div v-for="row in busRows" :key="'fs-bus-row-' + row.rowNum" class="bus-grid-row">
+                <div class="seat-pair-col">
+                  <button 
+                    v-for="seat in row.left"
+                    :key="'fs-left-' + seat.id"
+                    type="button"
+                    class="cabin-seat-btn"
+                    :class="{
+                      selected: selectedSeats.includes(seat.id),
+                      occupied: !isSeatAvailable(seat.id),
+                    }"
+                    :disabled="!isSeatAvailable(seat.id)"
+                    @click="toggleSeatSelection(seat.id)"
+                    @touchstart.stop
+                  >
+                    <span v-if="!isSeatAvailable(seat.id)" class="seat-cross">✕</span>
+                    <span v-else class="seat-lbl">{{ seat.label }}</span>
+                    <span class="seat-tooltip">Seat {{ seat.label }}</span>
+                  </button>
+                  <div v-if="row.rowNum === 9" class="door-placeholder-col">
+                    <span>🚪 Pintu</span>
+                  </div>
+                </div>
+
+                <div class="row-num-badge">{{ row.rowNum }}</div>
+
+                <div class="seat-pair-col">
+                  <button 
+                    v-for="seat in row.right"
+                    :key="'fs-right-' + seat.id"
+                    type="button"
+                    class="cabin-seat-btn"
+                    :class="{
+                      selected: selectedSeats.includes(seat.id),
+                      occupied: !isSeatAvailable(seat.id),
+                    }"
+                    :disabled="!isSeatAvailable(seat.id)"
+                    @click="toggleSeatSelection(seat.id)"
+                    @touchstart.stop
+                  >
+                    <span v-if="!isSeatAvailable(seat.id)" class="seat-cross">✕</span>
+                    <span v-else class="seat-lbl">{{ seat.label }}</span>
+                    <span class="seat-tooltip">Seat {{ seat.label }}</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="summary-guarantee">
-            <Check :size="13" />
-            <span>Pembatalan gratis hingga 24 jam sebelum keberangkatan</span>
+          <!-- Bottom Action Button -->
+          <div class="fullscreen-card-footer">
+            <button class="fullscreen-close-btn-bottom" @click="isFullscreen = false">
+              Tutup Fullscreen
+            </button>
           </div>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Sticky Bottom Checkout Bar -->
+    <!-- Desktop Bottom Bar View -->
+    <div class="booking-bottom-bar desktop-bottom-bar-view">
+      <div class="container bottom-bar-container">
+        <div class="bottom-bar-left">
+          <span class="bottom-bar-ticket-name font-bold" v-if="selectedSeats.length > 0">
+            Total {{ selectedSeats.length }} Seat
+          </span>
+          <span class="bottom-bar-ticket-name" v-else>
+            Harga mulai dari
+          </span>
+          
+          <span class="bottom-bar-total-price">
+            {{ selectedSeats.length > 0 && selectedTicket ? formatRp(selectedTicket.price * selectedSeats.length) : formatRp(event.priceNum || 10000) }}
+          </span>
+        </div>
+        
+        <div class="bottom-bar-right">
+          <!-- State 1: No seat selected yet -->
+          <button 
+            v-if="!selectedTicket || selectedSeats.length === 0"
+            class="bottom-bar-buy-btn"
+            @click="scrollToTickets"
+          >
+            Pilih Seat
+          </button>
+          
+          <!-- State 2: Seats selected, select step 1 -->
+          <button 
+            v-else-if="currentStep === 1"
+            class="bottom-bar-buy-btn animate-pulse-once"
+            @click="goToBuyerDetails"
+          >
+            Selanjutnya
+          </button>
+          
+          <!-- State 3: Buyer details step 2 -->
+          <button 
+            v-else-if="currentStep === 2"
+            class="bottom-bar-buy-btn"
+            :disabled="!isFormValid"
+            @click="handleProceedToCheckout"
+          >
+            Beli Tiket
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- BOTTOM NAVBAR -->
-    <div class="bottom-navbar">
-      <div class="container bottom-navbar-inner">
-        <div class="bottom-price-info">
-          <span class="bp-label">Total Pembayaran</span>
-          <span class="bp-val">{{ formatRp(grandTotal) }}</span>
+    <!-- Mobile Bottom Bar View -->
+    <div class="booking-bottom-bar mobile-bottom-bar-view">
+      <div class="mobile-bottom-bar-content">
+        <!-- Top Row: Price + Detail -->
+        <div class="m-bottom-bar-top-row">
+          <div class="m-bottom-bar-price-block">
+            <span class="m-price-label">TOTAL HARGA</span>
+            <span class="m-price-value">
+              {{ selectedSeats.length > 0 && selectedTicket ? formatRp(selectedTicket.price * selectedSeats.length) : formatRp(event.priceNum || 10000) }}
+            </span>
+          </div>
+          <div class="m-bottom-bar-detail-link" @click="showMobileDetailSheet = !showMobileDetailSheet">
+            <span>({{ selectedSeats.length || 0 }}) Detail</span>
+            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" class="m-detail-chevron" :class="{ 'rotated': showMobileDetailSheet }">
+              <polyline points="18 15 12 9 6 15"></polyline>
+            </svg>
+          </div>
         </div>
-        <button 
-          v-if="selectedSeats.length < adults" 
-          class="proceed-btn bottom-btn" 
-          @click="showSeatModal = true"
-        >
-          <span>Pilih Kursi</span>
-          <ArrowRight :size="18" />
-        </button>
-        <button 
-          v-else 
-          class="proceed-btn bottom-btn" 
-          :class="{ disabled: !canProceed }" 
-          :disabled="!canProceed" 
-          @click="handleProceed"
-        >
-          <span>Lanjutkan Pembayaran</span>
-          <ArrowRight :size="18" />
-        </button>
+        
+        <!-- Bottom Row: Buy Button -->
+        <div class="m-bottom-bar-bottom-row">
+          <button 
+            v-if="!selectedTicket || selectedSeats.length === 0"
+            class="m-buy-btn"
+            @click="scrollToTickets"
+          >
+            Beli Tiket Sekarang
+          </button>
+          
+          <button 
+            v-else-if="currentStep === 1"
+            class="m-buy-btn"
+            @click="goToBuyerDetails"
+          >
+            Beli Tiket Sekarang
+          </button>
+          
+          <button 
+            v-else-if="currentStep === 2"
+            class="m-buy-btn"
+            :disabled="!isFormValid"
+            @click="handleProceedToCheckout"
+          >
+            Beli Tiket Sekarang
+          </button>
+        </div>
       </div>
     </div>
-
-    <!-- PAYMENT MODAL -->
+    
+    <!-- Payment Selector Modal Popup -->
     <transition name="modal-fade">
       <div v-if="showPaymentModal" class="payment-modal-overlay" @click.self="showPaymentModal = false">
         <div class="payment-modal">
@@ -1434,7 +1418,7 @@ const getSeatTextConfig = (seat) => {
           <div class="pm-body">
             <div class="pm-total">
               <span>Total Tagihan</span>
-              <strong>{{ formatRp(grandTotal) }}</strong>
+              <strong>{{ formatRp(selectedTicket.price * quantity) }}</strong>
             </div>
             
             <div class="pm-methods">
@@ -1452,817 +1436,1892 @@ const getSeatTextConfig = (seat) => {
             </div>
           </div>
           <div class="pm-footer">
-            <button class="pm-submit-btn" :disabled="!selectedPayment" @click="confirmBooking">
+            <button 
+              class="pm-submit-btn" 
+              :disabled="!selectedPayment" 
+              @click="confirmBooking"
+            >
               Bayar Sekarang
             </button>
           </div>
         </div>
       </div>
     </transition>
+
+    <!-- Mobile Detail Sheet (Bottom Sheet) -->
+    <transition name="sheet-fade">
+      <div v-if="showMobileDetailSheet" class="mobile-sheet-overlay" @click.self="showMobileDetailSheet = false">
+        <div class="mobile-sheet-card" @click.stop>
+          <div class="mobile-sheet-header">
+            <div class="mobile-sheet-title-group">
+              <div class="mobile-sheet-drag-handle"></div>
+              <h3 class="mobile-sheet-title">Detail Tiket</h3>
+            </div>
+            <button class="mobile-sheet-close-btn" @click="showMobileDetailSheet = false">✕</button>
+          </div>
+          
+          <div class="mobile-sheet-body">
+            <!-- Empty state when no seat is chosen -->
+            <div v-if="!selectedTicket || selectedSeats.length === 0" class="empty-summary-state">
+              <div class="info-circle-icon">
+                <Info :size="20" />
+              </div>
+              <p class="info-text">Belum ada kursi yang dipilih</p>
+            </div>
+
+            <!-- Selected seats info -->
+            <div v-else class="mobile-sheet-detail-content">
+              <div class="summary-ticket-item">
+                <div class="summary-ticket-title-row">
+                  <!-- Ticket Icon -->
+                  <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
+                  <span class="summary-ticket-name">Tiket {{ selectedTicket.name }}</span>
+                  <span class="summary-ticket-badge-count">{{ selectedSeats.length }}X</span>
+                </div>
+                
+                <div class="summary-ticket-seats-row">
+                  Seat No: {{ selectedSeats.join(', ') }}
+                </div>
+                
+                <div class="summary-ticket-price-row">
+                  {{ formatRp(selectedTicket.price * selectedSeats.length) }}
+                </div>
+              </div>
+              
+              <div class="summary-card-divider-dashes"></div>
+              
+              <div class="summary-total-row">
+                <span class="summary-total-label">Total ({{ selectedSeats.length }} Tiket)</span>
+                <span class="summary-total-price font-bold text-primary">{{ formatRp(selectedTicket.price * selectedSeats.length) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+    
   </div>
 </template>
+
 <style scoped>
-/* ===== PAGE ===== */
-.booking-page { min-height: 100vh; background: var(--bg-color); padding-bottom: 140px; padding-top: 80px; }
-.booking-topbar { background: var(--navbar-bg); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-color); position: sticky; top: 80px; z-index: 100; box-shadow: var(--shadow-sm); }
-.topbar-inner { display: flex; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 14px; }
-.back-btn { display: flex; align-items: center; gap: 6px; font-family: inherit; font-size: 0.88rem; font-weight: 700; color: var(--text-light); cursor: pointer; border: none; background: none; padding: 6px 10px; border-radius: 10px; transition: all 0.2s; }
-.back-btn:hover { background: #f0f0f0; color: var(--text-dark); }
-.booking-layout { display: grid; grid-template-columns: 1fr 360px; gap: 32px; padding-top: 40px; align-items: start; }
-
-@media (max-width: 992px) {
-  .booking-layout {
-    grid-template-columns: 1fr;
-    gap: 24px;
-    padding-top: 20px;
-  }
-  .booking-summary-col {
-    position: static;
-  }
+:root {
+  --primary: #c94c4c;
+  --bg-color: #f8fafc;
+  --border-color: #e2e8f0;
 }
 
-/* ===== EVENT PREVIEW ===== */
-.event-preview-card { display: flex; align-items: center; gap: 16px; background: var(--card-bg); border-radius: 18px; padding: 16px; margin-bottom: 28px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
-.event-preview-img { width: 72px; height: 72px; object-fit: cover; border-radius: 12px; flex-shrink: 0; }
-.event-preview-tag { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--primary); display: block; margin-bottom: 4px; }
-.event-preview-name { font-size: 1.05rem; font-weight: 900; color: var(--text-dark); margin-bottom: 8px; letter-spacing: -0.3px; }
-.event-preview-meta { display: flex; gap: 14px; font-size: 0.78rem; font-weight: 600; color: var(--text-light); }
-.event-preview-meta span { display: flex; align-items: center; gap: 5px; }
-.event-preview-meta svg { color: var(--primary); }
-
-/* ===== SECTIONS ===== */
-.form-section { background: var(--card-bg); border-radius: 24px; padding: 28px; margin-bottom: 24px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
-.section-heading { margin-bottom: 20px; border-bottom: 1px solid rgba(0,0,0,0.06); padding-bottom: 16px; }
-.sect-title { display: flex; align-items: center; gap: 10px; font-size: 1.25rem; font-weight: 900; color: var(--text-dark); margin-bottom: 6px; letter-spacing: -0.3px; }
-.sect-num { width: 28px; height: 28px; background: rgba(201,76,76,0.1); color: var(--primary); border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; }
-.sect-sub { font-size: 0.85rem; color: var(--text-light); padding-left: 38px; }
-.sub-sect-title { font-size: 1.05rem; font-weight: 800; color: var(--text-dark); }
-
-/* ===== INPUTS & FORMS ===== */
-.form-label { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 0.85rem; color: var(--text-dark); margin-bottom: 8px; }
-.form-input { width: 100%; padding: 14px 16px; border-radius: 12px; border: 1.5px solid var(--border-color); background: var(--input-bg); font-family: inherit; transition: all 0.2s; outline: none; }
-.form-input:focus { border-color: var(--primary); background: var(--card-bg); box-shadow: 0 0 0 3px rgba(201,76,76,0.08); }
-
-.locations-list { max-height: 280px; overflow-y: auto; padding-right: 10px; }
-.loc-group { margin-bottom: 16px; }
-.loc-region-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: var(--primary); padding: 0 4px; margin-bottom: 8px; }
-.loc-item { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; cursor: pointer; transition: all 0.2s; border: 1.5px solid transparent; margin-bottom: 6px; background: var(--input-bg); }
-.loc-item:hover { background: rgba(201,76,76,0.04); border-color: rgba(201,76,76,0.15); }
-.loc-item.selected { background: rgba(201,76,76,0.06); border-color: var(--primary); }
-.loc-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(201,76,76,0.08); display: flex; align-items: center; justify-content: center; color: var(--primary); flex-shrink: 0; }
-.loc-name { font-size: 0.92rem; font-weight: 800; color: var(--text-dark); margin-bottom: 2px; }
-.loc-address { font-size: 0.78rem; color: var(--text-light); line-height: 1.4; }
-.loc-check { margin-left: auto; width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.no-results { text-align: center; padding: 20px; color: var(--text-light); font-size: 0.9rem; }
-
-/* ===== PASSENGERS ===== */
-.passengers-form { display: flex; flex-direction: column; gap: 16px; }
-.passenger-row { display: flex; align-items: center; justify-content: space-between; padding: 18px; border: 1.5px solid var(--border-color); border-radius: 16px; background: var(--input-bg); }
-.passenger-info { display: flex; align-items: center; gap: 14px; }
-.pax-icon { width: 44px; height: 44px; border-radius: 12px; background: rgba(201,76,76,0.08); display: flex; align-items: center; justify-content: center; color: var(--primary); }
-.pax-type { font-size: 0.95rem; font-weight: 800; color: var(--text-dark); margin-bottom: 2px; }
-.pax-note { font-size: 0.76rem; color: var(--text-light); }
-.counter-ctrl { display: flex; align-items: center; gap: 16px; }
-.cnt-btn { width: 36px; height: 36px; border-radius: 50%; border: 1.5px solid var(--border-color); background: var(--card-bg); color: var(--primary); font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; font-family: inherit; line-height: 1; }
-.cnt-btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
-.cnt-btn.faded { opacity: 0.3; cursor: not-allowed; pointer-events: none; }
-.cnt-val { font-size: 1.3rem; font-weight: 900; color: var(--text-dark); min-width: 24px; text-align: center; }
-.pax-note-box { display: flex; align-items: flex-start; gap: 10px; background: #fffbeb; border: 1px solid #f6d860; border-radius: 14px; padding: 14px 16px; font-size: 0.82rem; color: #8a6200; line-height: 1.5; }
-
-/* ===== PROCEED BUTTON ===== */
-.proceed-btn { width: 100%; padding: 18px; background: var(--primary); color: white; border: none; border-radius: 18px; font-family: inherit; font-size: 1rem; font-weight: 800; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 8px 24px rgba(201,76,76,0.3); }
-.proceed-btn:hover:not(.disabled) { background: #b34242; transform: translateY(-2px); box-shadow: 0 12px 32px rgba(201,76,76,0.4); }
-.proceed-btn.disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shadow: none; }
-
-/* ===== BOTTOM NAVBAR ===== */
-.bottom-navbar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--navbar-bg); backdrop-filter: blur(20px); border-top: 1px solid var(--border-color); z-index: 900; padding: 16px 0; box-shadow: 0 -10px 30px rgba(0,0,0,0.05); }
-.bottom-navbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-.bottom-price-info { display: flex; flex-direction: column; gap: 4px; }
-.bp-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); }
-.bp-val { font-size: 1.25rem; font-weight: 900; color: var(--text-dark); }
-.bottom-btn { max-width: 320px; padding: 16px; border-radius: 16px; margin: 0; }
-@media (max-width: 768px) {
-  .bottom-navbar { padding: 12px 0; }
-  .bottom-navbar-inner { flex-direction: row; justify-content: space-between; align-items: center; gap: 10px; }
-  .bottom-price-info { width: auto; flex-direction: column; align-items: flex-start; gap: 2px; flex-shrink: 0; }
-  .bp-label { font-size: 0.65rem; }
-  .bp-val { font-size: 1.1rem; }
-  .bottom-btn { width: auto; flex-grow: 0; padding: 12px 16px; font-size: 0.85rem; max-width: none; }
+.event-detail-page {
+  min-height: 100vh;
+  background: var(--bg-color);
 }
 
-/* ===== SUMMARY CARD ===== */
-.booking-summary-col { position: sticky; top: 140px; }
-.summary-card { background: var(--card-bg); border-radius: 24px; padding: 28px; border: 1px solid var(--border-color); box-shadow: var(--shadow-sm); }
-.summary-title { font-size: 1.1rem; font-weight: 900; color: var(--text-dark); margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid rgba(0,0,0,0.07); }
-.summary-section { margin-bottom: 18px; }
-.sum-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--primary); margin-bottom: 4px; }
-.sum-value { font-size: 0.92rem; font-weight: 700; color: var(--text-dark); }
-.sum-value.bold { font-weight: 800; }
-.sum-value.muted { color: #ccc; font-weight: 500; font-style: italic; }
-.sum-sub { font-size: 0.78rem; color: var(--text-light); margin-top: 2px; }
-.summary-divider { height: 1px; background: rgba(0,0,0,0.07); margin: 20px 0; }
-.price-breakdown { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-light); margin-bottom: 10px; }
-.free-label { color: #2e7d32; font-weight: 700; }
-.price-total { display: flex; justify-content: space-between; font-size: 1.05rem; font-weight: 900; color: var(--text-dark); padding-top: 12px; border-top: 2px solid var(--primary); margin-top: 4px; }
-.summary-guarantee { display: flex; align-items: center; gap: 8px; margin-top: 20px; padding: 12px 14px; background: rgba(46,125,50,0.06); border-radius: 12px; font-size: 0.78rem; font-weight: 600; color: #2e7d32; }
-.summary-guarantee svg { flex-shrink: 0; }
-
-/* ===== PAYMENT MODAL ===== */
-.payment-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 9999; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); padding: 20px; }
-.payment-modal { background: white; width: 100%; max-width: 440px; border-radius: 24px; box-shadow: 0 24px 60px rgba(0,0,0,0.15); overflow: hidden; }
-.pm-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid rgba(0,0,0,0.06); }
-.pm-header h3 { font-size: 1.15rem; font-weight: 900; color: var(--text-dark); margin: 0; }
-.pm-close { background: none; border: none; font-size: 1.2rem; color: var(--text-light); cursor: pointer; transition: color 0.2s; }
-.pm-close:hover { color: var(--primary); }
-.pm-body { padding: 24px; }
-.pm-total { display: flex; justify-content: space-between; align-items: center; background: rgba(201,76,76,0.06); padding: 18px 20px; border-radius: 14px; margin-bottom: 24px; border: 1px dashed rgba(201,76,76,0.3); }
-.pm-total span { font-size: 0.85rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; }
-.pm-total strong { font-size: 1.3rem; font-weight: 900; color: var(--text-dark); }
-.pm-methods { display: flex; flex-direction: column; gap: 10px; }
-.pm-method-label { display: flex; align-items: center; gap: 14px; padding: 16px 20px; border: 1.5px solid rgba(0,0,0,0.08); border-radius: 14px; cursor: pointer; transition: all 0.2s; }
-.pm-method-label:hover { border-color: rgba(201,76,76,0.3); background: rgba(201,76,76,0.02); }
-.pm-method-label.active { border-color: var(--primary); background: rgba(201,76,76,0.06); box-shadow: 0 0 0 3px rgba(201,76,76,0.08); }
-.pm-radio { display: none; }
-.pm-icon { font-size: 1.4rem; }
-.pm-name { font-weight: 700; font-size: 0.95rem; color: var(--text-dark); flex: 1; }
-.pm-check { color: var(--primary); }
-.pm-footer { padding: 20px 24px 24px; border-top: 1px solid rgba(0,0,0,0.04); }
-.pm-submit-btn { width: 100%; padding: 16px; border-radius: 16px; background: var(--primary); color: white; border: none; font-family: inherit; font-size: 1rem; font-weight: 800; cursor: pointer; transition: all 0.3s; box-shadow: 0 8px 24px rgba(201,76,76,0.25); }
-.pm-submit-btn:disabled { background: #e0e0e0; color: #aaa; box-shadow: none; cursor: not-allowed; }
-.pm-submit-btn:hover:not(:disabled) { background: #b34242; transform: translateY(-2px); box-shadow: 0 12px 30px rgba(201,76,76,0.35); }
-
-/* ===== BUS SEAT SELECTION ===== */
-.bus-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 16px;
-  width: 100%;
-  background: #f8fafc; /* Canvas background */
-  border: 1.5px solid #e2e8f0;
-  border-radius: 24px;
-  padding: 24px;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.01), 0 10px 30px rgba(0,0,0,0.02);
-}
-.zoom-trigger-btn {
-  background: var(--card-bg);
-  border: 1.5px solid var(--border-color);
-  color: var(--text-dark);
-  font-family: inherit;
-  font-weight: 800;
-  font-size: 0.85rem;
-  padding: 10px 18px;
-  border-radius: 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.04);
-}
-.zoom-trigger-btn:hover {
-  background: var(--input-bg);
-  border-color: var(--primary);
-  color: var(--primary);
-  transform: translateY(-1px);
+.mobile-header-view {
+  display: none;
 }
 
-.bus-cabin {
+.desktop-header-view {
+  display: block;
+}
+
+/* Banner section with solid navy dark blue background */
+.event-header-banner {
+  background: linear-gradient(135deg, #0d0d0d 0%, #1a0a0a 60%, #0d0d0d 100%);
+  color: #ffffff;
+  padding: 20px 0 50px; /* reduced top padding from 40px to 20px */
+  margin-top: 80px;
   position: relative;
+  overflow: hidden; /* prevents scaled blur overlay overflows */
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .event-header-banner {
+    margin-top: 60px;
+    padding: 20px 0 40px; /* reduced bottom padding on mobile */
+  }
+}
+
+.banner-blur-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px); /* slightly blur image background */
+  opacity: 0.25; /* soft color projection overlay */
+  transform: scale(1.15); /* hides raw blur edges */
+  z-index: 1;
+  pointer-events: none;
+}
+
+.banner-content {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  width: fit-content;
-  margin: 0 auto 24px;
+  gap: 24px;
+  position: relative;
+  z-index: 2; /* forces contents above the blur bg */
+  margin-top: -10px; /* shift container upward slightly */
 }
 
-/* Cockpit / Driver Area at the top right */
-.bus-left-front {
+.header-nav {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.back-btn-top {
+  display: flex;
   align-items: center;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.9rem;
+  font-weight: 700;
+  align-self: flex-start;
+  cursor: pointer;
+  transition: color 0.2s;
+  padding: 4px 0;
+}
+.back-btn-top:hover {
+  color: #ffffff;
+}
+
+.header-event-title {
+  font-size: 2rem;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.banner-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 32px;
+  align-items: flex-start;
+}
+
+.banner-image-container {
+  position: relative;
   width: 100%;
-  padding-bottom: 12px;
-  border-bottom: 1.5px dashed #e2e8f0;
-  margin-bottom: 12px;
+  height: 360px;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
 }
 
-.bus-door-label {
-  font-size: 0.55rem;
-  font-weight: 850;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.live-event-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
   display: flex;
   align-items: center;
-  gap: 4px;
-  background: #f1f5f9;
-  padding: 3px 6px;
-  border-radius: 5px;
-  border: 1px dashed #cbd5e1;
-  white-space: nowrap;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 6px 14px;
+  border-radius: 20px;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
 }
 
-.front-door {
-  align-self: center;
+.live-dot {
+  width: 8px;
+  height: 8px;
+  background: #ff3b30;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 8px #ff3b30;
 }
 
-.rear-door {
+/* Floating metadata details card */
+.details-card-floating {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  color: #334155;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  z-index: 10;
+}
+
+.detail-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 72px; /* matches .seat-spacer-pair width */
-  height: 32px; /* matches seat height */
-  box-sizing: border-box;
-  font-size: 0.52rem;
-  padding: 2px 4px;
-  text-align: center;
-}
-.driver-seat-box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 72px; /* centered above the right column pair (32 + 8 + 32) */
-}
-.driver-icon-svg {
-  color: #64748b;
-  opacity: 0.85;
+  gap: 12px;
 }
 
-/* Passenger Area */
-.bus-passenger-area {
+.detail-icon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.detail-text {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.organizer-section-new {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-.bus-row-vertical {
+
+.org-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.org-profile-new {
   display: flex;
   align-items: center;
+  background: transparent;
+  padding: 4px 0;
+}
+
+.org-logo-new {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .org-logo-new {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+[data-theme="dark"] .organizer-section-new {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Tabs list styling in sticky nav bar */
+.sticky-tabs-nav-bar {
+  position: sticky;
+  top: 80px;
+  z-index: 100;
+  background: transparent;
+  margin-top: -50px; /* pull up to overlap event-header-banner bottom padding */
+  border-bottom: 1px solid transparent;
+  box-shadow: none;
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .sticky-tabs-nav-bar {
+    top: 60px;
+    margin-top: 0 !important;
+    background: #ffffff !important;
+    border-top: 1px solid #f1f5f9;
+    border-bottom: 1px solid #f1f5f9;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+  }
+  
+  /* Mobile Event Header Layout Styling */
+  .desktop-header-view {
+    display: none !important;
+  }
+  
+  .mobile-header-view {
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
+    padding: 16px 20px;
+    margin-top: 60px; /* offset for top header bar */
+  }
+  
+  .mobile-banner-container {
+    width: 100%;
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+  
+  .mobile-banner-img {
+    width: 100%;
+    aspect-ratio: 16 / 6.2;
+    object-fit: cover;
+    display: block;
+  }
+  
+  .mobile-event-details-card {
+    display: flex;
+    flex-direction: column;
+    padding: 18px 0 8px;
+  }
+  
+  .mobile-event-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.3;
+    margin: 0 0 16px;
+    letter-spacing: -0.5px;
+  }
+  
+  .mobile-event-meta-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .mobile-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  
+  .mobile-meta-icon {
+    color: #8e9cae;
+  }
+  
+  .mobile-meta-text {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+  
+  .mobile-header-divider-dashed {
+    border-top: 1.5px dashed #dbe1e8;
+    margin: 18px 0;
+    width: 100%;
+  }
+  
+  .mobile-organizer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .mobile-organizer-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  
+  .mobile-organizer-logo-container {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ffffff;
+  }
+  
+  .mobile-organizer-logo-img {
+    width: 80%;
+    height: 80%;
+    object-fit: contain;
+  }
+  
+  .mobile-organizer-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  
+  .mobile-org-label {
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 600;
+  }
+  
+  .mobile-org-name {
+    font-size: 1.05rem;
+    color: #0f172a;
+    font-weight: 800;
+  }
+  
+  .mobile-organizer-chat-btn {
+    background: none;
+    border: none;
+    padding: 8px;
+    color: #002d62;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+  }
+  
+  .mobile-organizer-chat-btn:active {
+    transform: scale(0.95);
+  }
+  
+  .tab-btn {
+    color: #8e9cae !important;
+  }
+  
+  .tab-btn:hover {
+    color: #475569 !important;
+  }
+  
+  .tab-btn.active {
+    color: #0f172a !important;
+  }
+  
+  .tab-btn.active::after {
+    background-color: var(--primary) !important;
+  }
+  
+  /* Mobile Bottom Checkout Bar overrides */
+  .desktop-bottom-bar-view {
+    display: none !important;
+  }
+  
+  .mobile-bottom-bar-view {
+    display: block !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    background-color: var(--card-bg, #FAF9F9);
+    border-top: 1px solid var(--border-color);
+    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.04);
+    padding: 8px 16px;
+  }
+  
+  .mobile-bottom-bar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+  
+  .m-bottom-bar-top-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .m-bottom-bar-price-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .m-price-label {
+    font-size: 0.6rem;
+    color: var(--text-light, #6b6b6b);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+  }
+  
+  .m-price-value {
+    font-size: 1.15rem;
+    font-weight: 900;
+    color: var(--text-dark, #2A2A2A);
+  }
+  
+  .m-bottom-bar-detail-link {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--primary, #C94C4C);
+    font-size: 0.85rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  
+  .m-detail-chevron {
+    color: var(--primary, #C94C4C);
+    margin-top: 1px;
+    transition: transform 0.2s ease;
+  }
+
+  .m-detail-chevron.rotated {
+    transform: rotate(180deg);
+  }
+  
+  .m-bottom-bar-bottom-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+  }
+  
+  .m-buy-btn {
+    flex-grow: 1;
+    background-color: var(--primary, #C94C4C);
+    color: #ffffff;
+    padding: 10px 16px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    text-align: center;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(201, 76, 76, 0.2);
+    transition: transform 0.2s;
+  }
+  .m-buy-btn:active {
+    transform: scale(0.98);
+  }
+}
+
+/* Dark Theme Support for Mobile Event Header */
+[data-theme="dark"] .mobile-header-view {
+  background-color: var(--card-bg, #1a1a1a);
+}
+
+[data-theme="dark"] .mobile-event-title,
+[data-theme="dark"] .mobile-meta-text,
+[data-theme="dark"] .mobile-org-name {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .mobile-organizer-logo-container {
+  border-color: rgba(255, 255, 255, 0.08);
+  background-color: #1a1a1a;
+}
+
+[data-theme="dark"] .mobile-header-divider-dashed {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .mobile-organizer-chat-btn {
+  color: #3b82f6;
+}
+
+[data-theme="dark"] .sticky-tabs-nav-bar {
+  background: var(--card-bg, #1a1a1a) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .tab-btn {
+  color: #71717a !important;
+}
+
+[data-theme="dark"] .tab-btn.active {
+  color: #f4f4f5 !important;
+}
+
+[data-theme="dark"] .mobile-bottom-bar-view {
+  background-color: var(--card-bg, #1a1a1a) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .m-price-value,
+[data-theme="dark"] .m-bottom-bar-detail-link,
+[data-theme="dark"] .m-detail-chevron {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .m-buy-btn {
+  background-color: var(--primary, #C94C4C) !important;
+  box-shadow: 0 4px 12px rgba(201, 76, 76, 0.3) !important;
+}
+
+/* ===== MOBILE BOTTOM SHEET ===== */
+.mobile-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.mobile-sheet-card {
+  background-color: var(--card-bg, #FAF9F9);
+  border-radius: 20px 20px 0 0;
+  width: 100%;
+  max-width: 500px;
+  padding: 20px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+}
+
+[data-theme="dark"] .mobile-sheet-card {
+  background-color: var(--card-bg, #1a1a1a);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: none;
+}
+
+.mobile-sheet-drag-handle {
+  width: 36px;
+  height: 4px;
+  background-color: #cbd5e1;
+  border-radius: 2px;
+  margin: 0 auto 12px;
+}
+
+[data-theme="dark"] .mobile-sheet-drag-handle {
+  background-color: #475569;
+}
+
+.mobile-sheet-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.mobile-sheet-title-group {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+}
+
+.mobile-sheet-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-dark, #2A2A2A);
+  margin: 0;
+}
+
+.mobile-sheet-close-btn {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: var(--text-light, #6b6b6b);
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.mobile-sheet-body {
+  overflow-y: auto;
+  flex-grow: 1;
+  padding-bottom: 20px;
+}
+
+.mobile-sheet-detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Animations/Transitions for bottom sheet */
+.sheet-fade-enter-active, .sheet-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.sheet-fade-enter-active .mobile-sheet-card,
+.sheet-fade-leave-active .mobile-sheet-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sheet-fade-enter-from, .sheet-fade-leave-to {
+  opacity: 0;
+}
+
+.sheet-fade-enter-from .mobile-sheet-card,
+.sheet-fade-leave-to .mobile-sheet-card {
+  transform: translateY(100%);
+}
+
+/* When the tabs bar sticks */
+.sticky-tabs-nav-bar.is-sticky {
+  background: var(--bg-color);
+  border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+.tabs-navigation {
+  display: flex;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .tabs-navigation {
+    gap: 16px;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 4px;
+  }
+  /* hide scrollbar for clean aesthetics */
+  .tabs-navigation::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.tab-btn {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  font-weight: 800;
+  padding: 14px 0;
+  position: relative;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  transition: color 0.2s ease;
+}
+
+@media (max-width: 768px) {
+  .tab-btn {
+    font-size: 0.85rem;
+    padding: 12px 0;
+  }
+}
+.tab-btn:hover {
+  color: #ffffff;
+}
+.tab-btn.active {
+  color: #ffffff;
+}
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--primary);
+  border-radius: 2px;
+}
+
+/* Adjust tab button colors when sticky is active (light theme defaults) */
+.sticky-tabs-nav-bar.is-sticky .tab-btn {
+  color: #64748b;
+}
+.sticky-tabs-nav-bar.is-sticky .tab-btn:hover {
+  color: #0f172a;
+}
+.sticky-tabs-nav-bar.is-sticky .tab-btn.active {
+  color: var(--primary);
+}
+
+/* Dark theme overrides for sticky tabs button colors */
+[data-theme="dark"] .sticky-tabs-nav-bar.is-sticky .tab-btn {
+  color: rgba(255, 255, 255, 0.6);
+}
+[data-theme="dark"] .sticky-tabs-nav-bar.is-sticky .tab-btn:hover {
+  color: #ffffff;
+}
+[data-theme="dark"] .sticky-tabs-nav-bar.is-sticky .tab-btn.active {
+  color: var(--primary);
+}
+
+/* Body container area styling */
+.event-details-body {
+  background: var(--bg-color);
+  padding: 40px 0 160px;
+}
+
+.body-content-grid {
+  margin: 0 auto;
+}
+
+.details-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tab-card-content {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 28px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.section-card-title {
+  font-size: 1.3rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 16px;
+}
+
+.rich-html-content {
+  font-size: 0.95rem;
+  color: #475569;
+  line-height: 1.7;
+}
+
+/* Voucher ticket component list */
+.ticket-list-header {
+  margin-bottom: 12px;
+}
+
+.ticket-count-label {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tickets-scroll-view {
+  display: flex;
+  flex-direction: column;
   gap: 16px;
 }
-.seat-pair {
+
+.ticket-card-voucher {
+  position: relative;
+  background: #ffffff;
+  border-radius: 18px;
+  border: 1.5px solid var(--border-color);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.03), 0 8px 16px -6px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+}
+.ticket-card-voucher:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border-color: var(--primary);
+}
+
+/* Card Ticket Layout overrides matching reference */
+.ticket-card-inner {
   display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.ticket-top-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  background: #ffffff;
+  transition: background-color 0.2s;
+}
+.ticket-top-section:hover {
+  background: #fafafb;
+}
+
+.ticket-top-left {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
-.bus-aisle-vertical {
+
+.ticket-top-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.ticket-vertical-divider {
+  width: 1px;
+  height: 38px;
+  background-color: var(--border-color, #e2e8f0);
+  margin-right: 4px;
+}
+
+.ticket-price-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ticket-price-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.ticket-price-value-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ticket-price-value-wrapper .accordion-chevron-toggle {
+  margin-left: 0;
+  padding: 0;
+}
+
+.ticket-price-value {
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #3f3f46;
+}
+
+/* Red / Green dot ticket status badge */
+.ticket-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff1f2; /* soft red */
+  color: #ef4444; /* red text */
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  align-self: flex-start;
+}
+.ticket-status-badge .status-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #ef4444;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+/* Green available overrides */
+.ticket-status-badge:not(.sold-out) {
+  background: #f0fdf4; /* soft green */
+  color: #22c55e;
+}
+.ticket-status-badge:not(.sold-out) .status-dot {
+  background-color: #22c55e;
+}
+
+/* Ticket divider line & side notches */
+.ticket-divider-row {
+  position: relative;
+  width: 100%;
+  height: 0;
+  z-index: 5;
+}
+
+.ticket-card-divider-dashed-line {
+  border-top: 1.5px dashed var(--border-color);
+  width: 100%;
+  margin: 0;
+}
+
+.ticket-notch {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: var(--bg-color); /* matches page background */
+  border-radius: 50%;
+  top: -10px;
+  z-index: 10;
+  border: 1.5px solid var(--border-color);
+}
+
+.notch-left {
+  left: -11px;
+}
+
+.notch-right {
+  right: -11px;
+}
+
+/* Bottom section styles */
+.ticket-bottom-section {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  padding: 24px 28px;
+}
+
+.ticket-bottom-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+.ticket-ending-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ending-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.ending-value {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #3f3f46;
+}
+
+.ticket-footer-vertical-divider {
+  width: 1px;
+  height: 48px;
+  background-color: var(--border-color, #e2e8f0);
+  margin: 0 16px;
+  align-self: center;
+}
+
+.ticket-action-subtotal-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 18px;
+  flex-shrink: 0;
+}
+
+.ticket-quantity-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ticket-quantity-row .quantity-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.ticket-subtotal-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.subtotal-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.subtotal-value {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #3f3f46;
+}
+
+.select-ticket-btn {
+  padding: 10px 24px;
+  background: var(--primary);
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 0.9rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  min-width: 120px;
+  text-align: center;
+}
+.select-ticket-btn:hover:not(:disabled) {
+  background: #b34242;
+  transform: translateY(-1px);
+}
+.select-ticket-btn:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+  border: 1px solid #e2e8f0;
+}
+.select-ticket-btn.selected {
+  background: #10b981;
+  color: #ffffff;
+}
+
+/* Dark theme support for ticket cards */
+[data-theme="dark"] .ticket-top-section,
+[data-theme="dark"] .ticket-bottom-section {
+  background: var(--card-bg, #1a1a1a);
+}
+
+[data-theme="dark"] .ticket-top-section:hover {
+  background: #252525;
+}
+
+[data-theme="dark"] .ticket-category-title,
+[data-theme="dark"] .ticket-price-value,
+[data-theme="dark"] .ending-value,
+[data-theme="dark"] .subtotal-value {
+  color: #e4e4e7;
+}
+
+[data-theme="dark"] .select-ticket-btn:disabled {
+  background: #27272a;
+  color: #71717a;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .ticket-status-badge {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+[data-theme="dark"] .ticket-status-badge .status-dot {
+  background-color: #f87171;
+}
+
+[data-theme="dark"] .ticket-status-badge:not(.sold-out) {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+[data-theme="dark"] .ticket-status-badge:not(.sold-out) .status-dot {
+  background-color: #4ade80;
+}
+
+/* Sidebar selected tickets container */
+.sidebar-selected-ticket-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid var(--border-color);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.03);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 140px;
+}
+
+.sidebar-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1.5px solid #f1f5f9;
+  padding-bottom: 12px;
+}
+
+.sidebar-card-title {
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0;
+}
+
+.edit-selection-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: none;
+  border: none;
+}
+.edit-selection-btn:hover {
+  text-decoration: underline;
+}
+
+.empty-selection-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 36px 16px;
+  background: #f8fafc;
+  border-radius: 14px;
+  border: 1px dashed var(--border-color);
+  text-align: center;
+  gap: 10px;
+}
+
+.info-circle-icon {
+  color: #94a3b8;
+  background: #f1f5f9;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 32px;
-}
-.row-num-label {
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: #94a3b8;
-}
-.seat-spacer-pair {
-  display: flex;
-  width: 72px;
-  height: 32px;
-}
-.occupied-x {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  font-weight: 800;
-  margin-top: -1px;
 }
 
-/* Realistic 3D Chair styled seat button (facing upward) - Slightly smaller basic size */
-.seat-btn {
+.info-text {
+  font-size: 0.88rem;
+  color: #64748b;
+  font-weight: 600;
+  margin: 0;
+}
+
+.selected-ticket-details-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Sidebar selected details results style */
+.st-selected-header-compact {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.st-compact-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.st-compact-price {
+  font-size: 0.85rem;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.selected-seats-summary-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.result-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  font-size: 0.82rem;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 8px;
+}
+.result-item-row.no-border {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.result-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.result-val {
+  color: #0f172a;
+  font-weight: 700;
+  text-align: right;
+}
+
+.seats-val {
+  color: var(--primary);
+  font-weight: 850;
+  font-size: 0.85rem;
+}
+
+.no-seats-selected {
+  color: #94a3b8;
+  font-style: italic;
+  font-weight: 500;
+}
+
+.sidebar-divider-dashed {
+  border-top: 1.5px dashed var(--border-color);
+  margin: 12px 0;
+}
+
+.pricing-summary-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.price-summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.grand-total-row {
+  font-size: 1rem;
+  color: #0f172a;
+  font-weight: 900;
+  border-top: 1.5px solid #f1f5f9;
+  padding-top: 8px;
+  margin-top: 2px;
+}
+
+.checkout-submit-btn-sidebar {
+  width: 100%;
+  padding: 14px;
+  background: var(--primary);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(201, 76, 76, 0.15);
+  text-align: center;
+}
+.checkout-submit-btn-sidebar:hover:not(:disabled) {
+  background: #b34242;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(201, 76, 76, 0.25);
+}
+.checkout-submit-btn-sidebar:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Accordion Facilities styling */
+.ticket-features-accordion-content {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-color, #f1f5f9);
+  border-bottom: 1px solid var(--border-color, #f1f5f9);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-toggle-accordion-details {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 800;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-top: 6px;
+  align-self: flex-start;
+  transition: all 0.2s ease;
+}
+
+.btn-toggle-accordion-details:hover {
+  color: #b34242;
+  text-decoration: underline;
+}
+
+.btn-toggle-accordion-details .accordion-chevron-toggle {
+  transition: transform 0.2s ease;
+}
+
+.btn-toggle-accordion-details .accordion-chevron-toggle.rotated {
+  transform: rotate(180deg);
+}
+
+.accordion-quantity-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1.5px dashed var(--border-color);
+}
+
+.features-title {
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.feature-icon {
+  color: var(--primary);
+}
+
+.accordion-chevron-toggle {
+  color: #64748b;
+  cursor: pointer;
+  transition: transform 0.2s;
+  padding: 4px;
+  margin-left: auto;
+}
+
+.accordion-chevron-toggle.rotated {
+  transform: rotate(180deg);
+}
+
+/* Selected seatmap canvas container styles */
+.selected-seatmap-canvas-container {
+  padding: 24px;
+  background: var(--card-bg, #ffffff);
+  width: 100%;
+}
+
+.mobile-seatmap-header {
+  display: none;
+}
+
+.seatmap-canvas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1.5px dashed var(--border-color);
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+}
+
+.seatmap-canvas-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.seatmap-canvas-ticket-name {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 0;
+}
+
+.seatmap-canvas-badge {
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 12px;
+  letter-spacing: 0.5px;
+}
+
+.btn-back-to-tickets {
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: none;
+  border: 1.5px solid var(--primary);
+  border-radius: 8px;
+  padding: 6px 12px;
+  transition: all 0.2s;
+}
+.btn-back-to-tickets:hover {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.seatmap-canvas-body {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.inline-legends {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.inline-cabin-box {
+  background: #f8fafc;
+  border: 1.5px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-box {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid #cbd5e1;
+}
+
+.legend-box.selected {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.legend-box.available {
+  background: #ffffff;
+}
+
+.legend-box.occupied {
+  background: #cbd5e1;
+}
+
+/* Bus grid alignment styling */
+.bus-cabin-canvas-viewport {
   position: relative;
+  width: 100%;
+  height: 420px;
+  overflow: hidden;
+  background-color: #dbe1e8; /* Slate light blue-grey background matching the image */
+  border: 1.5px solid var(--border-color);
+  border-radius: 14px;
+  cursor: grab;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: none; /* disables browser gestures for custom touch panning */
+}
+
+.bus-cabin-canvas-viewport:active {
+  cursor: grabbing;
+}
+
+.canvas-top-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 20px;
+  background: #f8fafc;
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.canvas-quantity-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quantity-label {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #334155;
+}
+
+.canvas-zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoom-control-btn {
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 8px;
   width: 32px;
   height: 32px;
-  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.zoom-control-btn:hover {
+  border-color: var(--primary);
+  background: #fff5f5;
+}
+
+.zoom-control-btn.text-btn {
+  width: auto;
+  padding: 0 12px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #475569;
+}
+
+.zoom-control-btn.text-btn:hover {
+  color: var(--primary);
+}
+
+.bus-cabin-container {
+  position: relative; /* relative parent for absolute coordinates */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  width: fit-content;
+  padding: 40px;
+  z-index: 10;
+}
+
+.canvas-grid-bg {
+  position: absolute;
+  top: -3000px;
+  bottom: -3000px;
+  left: -3000px;
+  right: -3000px;
+  background-image: 
+    linear-gradient(rgba(181, 184, 190, 0.778) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(181, 184, 190, 0.778) 1px, transparent 1px);
+  background-size: 30px 30px;
+  background-position: center center;
+  z-index: -2;
+  pointer-events: none;
+}
+
+.canvas-axis-x {
+  position: absolute;
+  top: 50%;
+  left: -3000px;
+  right: -3000px;
+  height: 1px;
+  background-color: rgba(181, 184, 190, 0.778); /* axis horizontal coordinate line */
+  z-index: -1;
+  pointer-events: none;
+}
+
+.canvas-axis-y {
+  position: absolute;
+  left: 50%;
+  top: -3000px;
+  bottom: -3000px;
+  width: 1px;
+  background-color: rgba(181, 184, 190, 0.778); /* axis vertical coordinate line */
+  z-index: -1;
+  pointer-events: none;
+}
+
+.bus-cockpit-front {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  border-bottom: 1.5px dashed #cbd5e1;
+  padding-bottom: 6px;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 850;
+  margin-bottom: 4px;
+}
+
+.bus-grid-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seat-pair-col {
+  display: flex;
+  gap: 6px;
+}
+
+.door-placeholder-col {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 58px; /* equal to two seats + gap */
+  height: 26px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #94a3b8;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  background: #f1f5f9;
+}
+
+.row-num-badge {
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #94a3b8;
+  width: 14px;
+  text-align: center;
+}
+
+.cabin-seat-btn {
+  position: relative; /* important for absolute tooltip positioning */
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
   border: 1.5px solid #cbd5e1;
-  border-radius: 6px 6px 9px 9px;
+  background: #ffffff;
+  color: #1e293b;
+  font-size: 0.65rem;
+  font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: inherit;
-  font-weight: 800;
-  font-size: 0.65rem;
-  color: #1e293b;
-  box-shadow: 0 2px 0 #cbd5e1, 0 3px 5px rgba(0,0,0,0.04);
-  transition: all 0.1s ease;
-  padding: 0;
-}
-/* Cushion inside the seat (upper part) */
-.seat-btn::before {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 3px;
-  right: 3px;
-  bottom: 9px; /* leaves room for the backrest at the bottom */
-  background: #f8fafc;
-  border: 1.2px solid #cbd5e1;
-  border-radius: 3px 3px 1.5px 1.5px;
-  z-index: 1;
-  transition: all 0.1s ease;
-}
-/* Backrest part at the bottom */
-.seat-btn::after {
-  content: '';
-  position: absolute;
-  bottom: 2px;
-  left: 4px;
-  right: 4px;
-  height: 5px;
-  background: #cbd5e1;
-  border-radius: 2px;
-  z-index: 1;
-  transition: all 0.1s ease;
-}
-.seat-name {
-  position: relative;
-  z-index: 2; /* display text above cushion */
-  margin-top: -5px;
-  font-weight: 850;
-  pointer-events: none;
+  transition: all 0.15s;
 }
 
-/* Hover state */
-.seat-btn:not(.selected):hover:not(.occupied) {
-  border-color: #94a3b8;
-  transform: translateY(-0.5px);
-  box-shadow: 0 2px 0 #cbd5e1, 0 4px 8px rgba(0,0,0,0.05);
-}
-.seat-btn:not(.selected):hover:not(.occupied)::before {
-  background: #ffffff;
+.cabin-seat-btn:hover:not(:disabled) {
+  border-color: #c94c4c;
+  background: #fff5f5;
 }
 
-.seat-btn.selected:hover:not(.occupied) {
-  transform: translateY(-0.5px);
-  box-shadow: 0 2px 0 #b91c1c, 0 4px 8px rgba(239, 68, 68, 0.3);
-}
-.seat-btn.selected:hover:not(.occupied)::before {
-  background: #f87171;
-}
-
-/* Selected state (Pilihanmu - Red) */
-.seat-btn.selected {
-  background: #ef4444;
-  border-color: #b91c1c;
-  color: #ffffff;
-  box-shadow: 0 2px 0 #b91c1c, 0 4px 8px rgba(239, 68, 68, 0.2);
-}
-.seat-btn.selected::before {
-  background: #ef4444;
-  border-color: #b91c1c;
-}
-.seat-btn.selected::after {
-  background: #b91c1c;
-}
-
-/* Occupied state (Terisi - Dark Grey) */
-.seat-btn.occupied {
-  background: #374151;
-  border-color: #1f2937;
-  color: #ffffff;
-  box-shadow: 0 2px 0 #1f2937;
-  cursor: not-allowed;
-  opacity: 1; /* keep colors vivid even if disabled */
-}
-.seat-btn.occupied::before {
-  background: #4b5563;
-  border-color: #374151;
-}
-.seat-btn.occupied::after {
-  background: #1f2937;
+.cabin-seat-btn.selected {
+  background: #c94c4c !important;
+  border-color: #c94c4c !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(201, 76, 76, 0.2);
 }
 
 /* Tooltip styles */
 .seat-tooltip {
+  visibility: hidden;
   position: absolute;
-  transform: translateX(-50%) translateY(-100%);
-  margin-top: -8px; /* Offset to float nicely above the seat */
-  background: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  color: #0f172a;
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-family: inherit;
-  font-size: 0.75rem;
-  font-weight: 800;
-  white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
-  z-index: 100;
-  pointer-events: none;
-  line-height: 1;
-}
-
-/* Tooltip arrow border */
-.seat-tooltip::before {
-  content: "";
-  position: absolute;
-  top: 100%;
+  bottom: 125%;
   left: 50%;
   transform: translateX(-50%);
-  border-width: 5px;
-  border-style: solid;
-  border-color: #cbd5e1 transparent transparent transparent;
-  z-index: -1;
+  background-color: #0f172a;
+  color: #ffffff;
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.62rem;
+  font-weight: 800;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 100;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  pointer-events: none; /* so cursor clicks don't hit the tooltip */
 }
 
-/* Tooltip arrow fill */
+/* Tooltip arrow */
 .seat-tooltip::after {
   content: "";
   position: absolute;
   top: 100%;
   left: 50%;
-  transform: translateX(-50%);
-  margin-top: -1.5px; /* shift up to overlay the border */
-  border-width: 5px;
+  margin-left: -4px;
+  border-width: 4px;
   border-style: solid;
-  border-color: #ffffff transparent transparent transparent;
-  z-index: 1;
+  border-color: #0f172a transparent transparent transparent;
 }
 
-.tooltip-price {
-  color: #ef4444; /* Clean theme red for price */
+.cabin-seat-btn:hover .seat-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
 }
 
-.tooltip-status.occupied {
-  color: #64748b; /* Slate-500 for occupied */
-  font-weight: 700;
+.cabin-seat-btn:disabled {
+  background: #cbd5e1;
+  border-color: #cbd5e1;
+  color: #64748b;
+  cursor: not-allowed;
 }
 
-/* Fade transition for Vue tooltip */
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+.seat-cross {
+  font-size: 0.62rem;
 }
 
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(-95%);
-}
-
-/* Legends with 3D Chair Silhouettes */
-.bus-legends {
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-.legend-item {
+.quantity-counter-wrapper {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-light);
-}
-.legend-dot {
-  position: relative;
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  box-shadow: 0 1px 0 #cbd5e1;
-}
-.legend-dot::before {
-  content: '';
-  position: absolute;
-  top: 1px;
-  left: 2px;
-  right: 2px;
-  bottom: 4px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: 1.5px;
-}
-.legend-dot::after {
-  content: '';
-  position: absolute;
-  bottom: 1px;
-  left: 3px;
-  right: 3px;
-  height: 1.8px;
-  background: #cbd5e1;
-  border-radius: 1px;
-}
-
-/* Legend items colors mapping */
-.legend-dot.available {
-  background: #ffffff;
-  border: 1.2px solid #cbd5e1;
-  box-shadow: 0 1px 0 #cbd5e1;
-}
-.legend-dot.selected {
-  background: #ef4444;
-  border: 1.2px solid #b91c1c;
-  box-shadow: 0 1px 0 #b91c1c;
-}
-.legend-dot.selected::before {
-  background: #ef4444;
-  border-color: #b91c1c;
-}
-.legend-dot.selected::after {
-  background: #b91c1c;
-}
-.legend-dot.occupied {
-  background: #374151;
-  border: 1.2px solid #1f2937;
-  box-shadow: 0 1px 0 #1f2937;
-}
-.legend-dot.occupied::before {
-  background: #4b5563;
-  border-color: #374151;
-}
-.legend-dot.occupied::after {
-  background: #1f2937;
-}
-
-/* Status Box */
-.seat-selection-status {
-  width: 100%;
-  padding: 16px 20px;
-  border-radius: 14px;
+  gap: 12px;
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 12px;
-  box-shadow: var(--shadow-sm);
-}
-.status-summary {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.status-lbl {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: var(--text-dark);
-}
-.selected-seats-badges {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-.seat-badge {
-  background: #ef4444;
-  color: white;
-  font-size: 0.72rem;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 5px;
-  box-shadow: 0 2px 4px rgba(239,68,68,0.2);
-}
-.no-seats-selected {
-  font-size: 0.82rem;
-  font-style: italic;
-  color: var(--text-light);
-}
-.status-counter {
-  font-size: 0.8rem;
-  color: var(--text-light);
-  border-top: 1.5px solid #f1f5f9;
-  padding-top: 10px;
-}
-.status-counter strong {
-  color: var(--text-dark);
-  font-weight: 800;
-}
-.seat-error-msg {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--primary);
-  text-align: center;
-  margin-top: 4px;
+  border-radius: 10px;
+  padding: 4px;
+  align-self: flex-start;
 }
 
-/* ===== ZOOM MODAL ===== */
-.zoom-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.6);
-  z-index: 2000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(6px);
-  padding: 20px;
-}
-.zoom-modal-content {
-  background: #ffffff;
-  width: 100%;
-  max-width: 900px;
-  border-radius: 24px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-  display: flex;
-  flex-direction: column;
-  max-height: 90vh;
-  overflow: hidden;
-  border: 1px solid #e2e8f0;
-}
-.zm-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 18px 24px;
-  border-bottom: 1px solid #f1f5f9;
-}
-.zm-header h3 {
-  font-size: 1.15rem;
-  font-weight: 900;
+.qty-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #f1f5f9;
   color: #0f172a;
-  margin: 0;
-}
-.zm-close {
-  background: none;
-  border: none;
-  font-size: 1.3rem;
-  color: #64748b;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-.zm-close:hover {
-  color: #dc2626;
-}
-.zm-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 24px;
-  background: #f8fafc;
-  border-bottom: 1px solid #f1f5f9;
-  flex-wrap: wrap;
-}
-.zoom-ctrl-btn {
-  background: #ffffff;
-  border: 1.5px solid #cbd5e1;
-  color: #334155;
-  font-weight: 700;
-  font-size: 0.8rem;
-  padding: 6px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.zoom-ctrl-btn:hover {
-  border-color: #94a3b8;
-  background: #f1f5f9;
-}
-.zoom-indicator {
-  font-size: 0.8rem;
+  font-size: 1.15rem;
   font-weight: 800;
-  color: #475569;
-  margin-left: auto;
-}
-.zm-body {
-  flex: 1;
-  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f1f5f9;
-  padding: 40px 20px;
+  cursor: pointer;
+  border: none;
 }
-.zm-scrollable-viewport {
+.qty-btn:hover:not(:disabled) {
+  background: #e2e8f0;
+}
+.qty-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.qty-val {
+  font-size: 1.05rem;
+  font-weight: 800;
+  min-width: 24px;
+  text-align: center;
+}
+
+.sidebar-form-input {
   width: 100%;
-  height: 100%;
-  overflow: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.zm-scale-container {
-  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  transform-origin: center center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.modal-cabin {
-  margin: 0 !important;
-  background: transparent !important;
-  border: none !important;
-  border-radius: 0 !important;
-  padding: 0 !important;
-  box-shadow: none !important;
-}
-.zm-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding: 16px 24px;
-  border-top: 1px solid #f1f5f9;
-  background: #f8fafc;
-}
-.zm-close-btn {
-  background: var(--primary);
-  color: white;
-  border: none;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
   font-family: inherit;
-  font-weight: 800;
-  font-size: 0.9rem;
-  padding: 10px 24px;
-  border-radius: 12px;
-  cursor: pointer;
+  font-size: 0.88rem;
+  outline: none;
   transition: all 0.2s;
 }
-.zm-close-btn:hover {
-  background: #b34242;
+.sidebar-form-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(201, 76, 76, 0.08);
+}
+.sidebar-form-input.has-error {
+  border-color: #ef4444;
 }
 
-/* Responsive adjust for mobile screens */
-@media (max-width: 580px) {
-  .bus-container {
-    padding: 16px;
-    border-radius: 18px;
-  }
-  .bus-cabin {
-    margin-bottom: 16px;
-  }
-  .bus-left-front {
-    padding-bottom: 8px;
-    margin-bottom: 2px;
-  }
-  .driver-seat-box {
-    width: 54px;
-  }
-  .bus-passenger-area {
-    gap: 8px;
-  }
-  .bus-row-vertical {
-    gap: 10px;
-  }
-  .seat-pair {
-    gap: 6px;
-  }
-  .bus-aisle-vertical {
-    width: 18px;
-    height: 24px;
-  }
-  .row-num-label {
-    font-size: 0.65rem;
-  }
-  .seat-spacer-pair {
-    width: 54px;
-    height: 24px;
-  }
-  .occupied-x {
-    font-size: 0.65rem;
-  }
-
-  .seat-btn {
-    width: 24px;
-    height: 24px;
-    border-width: 1.2px;
-    border-radius: 4px 4px 6px 6px;
-    box-shadow: 0 1.5px 0 #cbd5e1;
-  }
-  .seat-btn::before {
-    top: 1.5px;
-    left: 2px;
-    right: 2px;
-    bottom: 6px;
-    border-radius: 2px 2px 1px 1px;
-    border-width: 0.8px;
-  }
-  .seat-btn::after {
-    bottom: 1.5px;
-    left: 3px;
-    right: 3px;
-    height: 3px;
-    border-radius: 1px;
-  }
-  .seat-name {
-    font-size: 0.55rem;
-    margin-top: -4px;
-  }
-
-  .seat-btn.selected {
-    box-shadow: 0 1.5px 0 #b91c1c;
-  }
-  .seat-btn.occupied {
-    box-shadow: 0 1.5px 0 #1f2937;
-  }
-  .zoom-trigger-btn {
-    padding: 8px 14px;
-    font-size: 0.75rem;
-  }
-  .zoom-indicator {
-    margin-left: 0;
-    width: 100%;
-    margin-top: 6px;
-    text-align: center;
-  }
+.form-field-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 4px;
 }
 
-/* ===== NEW SEAT MODAL ===== */
-.sm-modal-overlay {
+.form-subheader {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 10px;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 12px;
+}
+
+.form-error-text {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #ef4444;
+  margin-top: 2px;
+  display: block;
+}
+
+/* ===== PAYMENT MODAL ===== */
+.payment-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(15, 23, 42, 0.5);
   z-index: 2000;
   display: flex;
   align-items: center;
@@ -2271,379 +3330,150 @@ const getSeatTextConfig = (seat) => {
   padding: 20px;
 }
 
-.sm-modal-content {
-  background: var(--card-bg);
+.payment-modal {
+  background: #ffffff;
   width: 100%;
-  max-width: 720px;
-  border-radius: 24px;
-  box-shadow: var(--shadow-lg);
+  max-width: 440px;
+  border-radius: 20px;
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.15);
   display: flex;
   flex-direction: column;
-  max-height: 90vh; /* Keep it compact on laptop screens */
   overflow: hidden;
-  border: 1px solid var(--border-color);
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.sm-drag-handle {
-  display: none;
-}
-
-.sm-header {
+.pm-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 20px;
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
+  padding: 16px 20px;
+  border-bottom: 1.5px solid #f1f5f9;
 }
 
-.sm-title {
+.pm-header h3 {
   font-size: 1.05rem;
   font-weight: 900;
-  color: var(--text-dark);
+  color: #0f172a;
   margin: 0;
 }
 
-.sm-close {
+.pm-close {
   background: none;
   border: none;
   font-size: 1.2rem;
-  color: var(--text-light);
+  color: #64748b;
   cursor: pointer;
-  padding: 0;
-  line-height: 1;
 }
 
-.sm-close:hover {
-  color: var(--primary);
+.pm-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* Trip card style */
-.sm-trip-card {
+.pm-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f8fafc;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.pm-total span {
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 700;
+}
+
+.pm-total strong {
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.pm-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pm-method-label {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 20px;
-  background: var(--bg-color);
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
+  padding: 14px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
 }
 
-.sm-vendor-icon {
+.pm-method-label:hover {
+  background: #f8fafc;
+  border-color: var(--primary);
+}
+
+.pm-method-label.active {
+  background: rgba(201, 76, 76, 0.03);
+  border-color: var(--primary);
+}
+
+.pm-radio {
+  display: none;
+}
+
+.pm-icon {
   font-size: 1.3rem;
 }
 
-.sm-trip-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.sm-vendor-name {
-  font-size: 0.85rem;
+.pm-name {
+  font-size: 0.9rem;
   font-weight: 800;
-  color: var(--text-dark);
+  color: #0f172a;
 }
 
-.sm-vendor-tag {
-  font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-light);
-}
-
-.sm-trip-time {
-  font-size: 0.72rem;
-  color: var(--text-light);
-  margin-top: 1px;
-}
-
-/* Passenger tabs */
-.sm-passengers-tabs {
-  display: flex;
-  gap: 10px;
-  padding: 8px 20px;
-  border-bottom: 1px solid var(--border-color);
-  overflow-x: auto;
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
-  flex-shrink: 0;
-}
-
-.sm-passengers-tabs::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
-}
-
-.sm-passenger-tab {
-  flex: 1;
-  max-width: 220px;
-  min-width: 120px;
-  padding: 6px 12px;
-  border: 1.5px solid var(--border-color);
-  border-radius: 12px;
-  background: var(--card-bg);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.sm-passenger-tab.active {
-  border-color: var(--primary);
-  background: rgba(201, 76, 76, 0.04);
-}
-
-.sm-passenger-lbl {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-light);
-}
-
-.sm-passenger-tab.active .sm-passenger-lbl {
+.pm-check {
+  margin-left: auto;
   color: var(--primary);
 }
 
-.sm-passenger-seat {
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: var(--text-dark);
-  margin-top: 2px;
+.pm-footer {
+  padding: 14px 20px;
+  border-top: 1.5px solid #f1f5f9;
+  background: #f8fafc;
 }
 
-.sm-passenger-seat.assigned {
-  color: var(--primary);
-}
-
-/* Legends */
-.sm-legends {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  padding: 6px 20px;
-  background: var(--bg-color);
-  border-bottom: 1px solid var(--border-color);
-  flex-shrink: 0;
-}
-
-.sm-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--text-light);
-}
-
-.sm-legend-box {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  border: 1.2px solid #cbd5e1;
-}
-
-.sm-legend-box.selected {
-  background-color: var(--primary);
-  border-color: var(--primary);
-}
-
-.sm-legend-box.available {
-  background-color: #ffffff;
-}
-
-.sm-legend-box.occupied {
-  background-color: #f1f5f9;
-  border-color: #e2e8f0;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.sm-legend-box.occupied::after {
-  content: "✕";
-  font-size: 8px;
-  color: #cbd5e1;
-}
-
-/* Grid layout */
-.sm-grid-container {
-  flex: 1;
-  background: #f1f5f9;
-  padding: 10px 20px;
-  display: flex;
-  justify-content: center;
-  overflow-y: auto;
-}
-
-[data-theme="dark"] .sm-grid-container {
-  background: #121212;
-}
-
-.sm-grid-scroll {
+.pm-submit-btn {
   width: 100%;
-  max-width: 240px;
-}
-
-.sm-cabin {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.sm-cockpit-row {
-  display: flex;
-  justify-content: flex-end;
-  padding-bottom: 4px;
-  border-bottom: 1.5px dashed #cbd5e1;
-  margin-bottom: 4px;
-}
-
-.sm-driver-wheel {
-  color: var(--text-light);
-  display: flex;
-  align-items: center;
-}
-
-.sm-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sm-seat-pair {
-  display: flex;
-  gap: 4px;
-}
-
-.sm-seat {
-  width: 26px;
-  height: 26px;
-  border-radius: 5px;
-  border: 1.2px solid #cbd5e1;
-  background: #ffffff;
-  color: #1e293b;
-  font-weight: 800;
-  font-size: 0.68rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-[data-theme="dark"] .sm-seat {
-  background: #1e1e1e;
-  color: #f1f5f9;
-  border-color: #475569;
-}
-
-.sm-seat:hover:not(:disabled) {
-  border-color: var(--primary);
-  background: rgba(201, 76, 76, 0.04);
-}
-
-.sm-seat.selected {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #ffffff;
-}
-
-.sm-seat.current-active {
-  box-shadow: 0 0 0 2.5px rgba(201, 76, 76, 0.25);
-}
-
-.sm-seat.occupied {
-  background-color: #e2e8f0;
-  border-color: #cbd5e1;
-  color: #94a3b8;
-  cursor: not-allowed;
-}
-
-[data-theme="dark"] .sm-seat.occupied {
-  background-color: #2d2d2d;
-  border-color: #3d3d3d;
-  color: #555555;
-}
-
-.sm-cross {
-  font-size: 0.7rem;
-  color: #cbd5e1;
-}
-
-[data-theme="dark"] .sm-cross {
-  color: #555555;
-}
-
-.sm-door-placeholder {
-  width: 58px;
-  height: 26px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1.2px dashed #cbd5e1;
-  border-radius: 5px;
-  font-size: 0.48rem;
-  color: var(--text-light);
-  text-align: center;
-}
-
-.sm-row-number {
-  font-size: 0.7rem;
-  font-weight: 800;
-  color: var(--text-light);
-  width: 24px;
-  text-align: center;
-}
-
-/* Footer styling */
-.sm-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 20px;
-  border-top: 1px solid var(--border-color);
-  background: var(--card-bg);
-  flex-shrink: 0;
-}
-
-.sm-footer-total {
-  display: flex;
-  flex-direction: column;
-}
-
-.sm-total-lbl {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-light);
-}
-
-.sm-total-sub {
-  font-size: 0.58rem;
-  font-weight: 500;
-}
-
-.sm-total-val {
-  font-size: 1.05rem;
-  font-weight: 900;
-  color: var(--text-dark);
-  margin-top: 1px;
-}
-
-.sm-continue-btn {
+  padding: 12px;
   background: var(--primary);
   color: #ffffff;
-  padding: 8px 18px;
-  border-radius: 10px;
-  font-weight: 800;
-  font-size: 0.85rem;
-  box-shadow: 0 4px 12px rgba(201, 76, 76, 0.2);
-  transition: all 0.2s;
   border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 800;
   cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 10px rgba(201, 76, 76, 0.15);
 }
 
-.sm-continue-btn:hover {
+.pm-submit-btn:hover:not(:disabled) {
   background: #b34242;
   transform: translateY(-1px);
 }
 
-/* Transition effects */
+.pm-submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+/* Modal Fade transition */
 .modal-fade-enter-active,
 .modal-fade-leave-active {
   transition: opacity 0.25s ease;
@@ -2653,505 +3483,1035 @@ const getSeatTextConfig = (seat) => {
   opacity: 0;
 }
 
-/* Modal Content Transition */
-.modal-fade-enter-active .sm-modal-content {
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-}
-.modal-fade-leave-active .sm-modal-content {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
-}
-
-/* Desktop transition state: scale slightly */
-@media (min-width: 581px) {
-  .modal-fade-enter-from .sm-modal-content,
-  .modal-fade-leave-to .sm-modal-content {
-    transform: scale(0.95);
-    opacity: 0;
-  }
-}
-
-/* Responsive adjust for mobile (Bottom Sheet Layout) */
-@media (max-width: 580px) {
-  /* Mobile transition state: slide up from bottom */
-  .modal-fade-enter-from .sm-modal-content,
-  .modal-fade-leave-to .sm-modal-content {
-    transform: translateY(100%);
-    opacity: 1;
-  }
-
-  .sm-modal-overlay {
-    align-items: flex-end; /* Sit sheet at the bottom */
-    padding: 0;
-  }
-
-  .sm-modal-content {
-    height: 82vh; /* Sits slightly lower on mobile screen by default, draggable down to close */
-    max-height: 90vh;
-    border-radius: 24px 24px 0 0; /* Rounded top corners only */
-    border: none;
-    border-top: 1px solid var(--border-color);
-  }
-
-  .sm-drag-handle {
-    display: block;
-    width: 36px;
-    height: 4px;
-    background: var(--border-color);
-    border-radius: 2px;
-    margin: 8px auto 8px;
-    flex-shrink: 0;
-  }
-
-  .sm-header {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 8px 20px 12px;
-    border-bottom: none; /* Clean layout with no hard separators */
-  }
-
-  .sm-title {
-    font-size: 1.45rem;
-    font-weight: 900;
-    order: 2; /* Put title under the close button */
-  }
-
-  .sm-close {
-    order: 1; /* Put close button on top */
-    align-self: flex-start;
-    font-size: 1.4rem;
-  }
-
-  .sm-trip-card {
-    padding: 4px 20px 10px;
-    border-bottom: none;
-  }
-
-  .sm-passengers-tabs {
-    padding: 6px 20px 12px;
-    border-bottom: none;
-  }
-
-  .sm-legends {
-    padding: 10px 20px;
-  }
-
-  .sm-grid-container {
-    padding: 14px 20px;
-  }
-
-  .sm-footer {
-    padding: 14px 20px 28px; /* Extra bottom padding for mobile viewports */
-  }
-}
-
-/* ===== PASSENGER ACCORDION CARDS ===== */
-.passenger-cards-list {
+/* Onpage Form Section */
+.booking-onpage-form-section {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  width: 100%;
 }
 
-.passenger-card-accordion {
-  background: var(--card-bg);
-  border: 1.5px solid var(--border-color);
-  border-radius: 16px;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-}
-
-.passenger-card-accordion.expanded {
-  border-color: rgba(201, 76, 76, 0.3);
-  box-shadow: var(--shadow-md);
-}
-
-.pca-header {
+.onpage-form-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  cursor: pointer;
-  user-select: none;
-  background: var(--card-bg);
-  transition: background-color 0.2s;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
-.pca-header:hover {
-  background: var(--input-bg);
+.onpage-form-title {
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 0;
 }
 
-.pca-header-left {
+.selected-ticket-info-pill {
+  background: var(--bg-color);
+  border: 1.5px solid var(--border-color);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+.onpage-form-card {
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 28px;
+  border: 1.5px solid var(--border-color);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.onpage-form-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 32px;
+  align-items: start;
+}
+
+/* Step 1 Two-Column Layout Grid */
+.step1-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 28px;
+  align-items: start;
+  width: 100%;
+}
+
+.step1-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.step1-right-col {
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 150px;
+  align-self: start;
+  z-index: 10;
+  transition: top 0.3s ease;
+}
+
+@media (max-width: 992px) {
+  .step1-right-col {
+    position: relative;
+    top: 0;
+  }
+}
+
+.sticky-summary-card {
+  position: relative;
+  top: 0;
+}
+
+.empty-summary-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background: #fafafb;
+  text-align: center;
+  gap: 12px;
+}
+
+/* Tiket Terpilih Card in Step 1 */
+.selected-summary-card {
+  background: #ffffff;
+  border-radius: 20px;
+  border: 1.5px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.summary-card-header {
+  padding: 16px 24px;
+  border-bottom: 1.5px dashed var(--border-color);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.summary-card-title-group {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
 }
 
-.pca-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(201, 76, 76, 0.08);
+.summary-card-title {
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 0;
+}
+
+.summary-card-ticket-name {
+  background: var(--bg-color);
+  color: var(--primary);
+  font-size: 0.78rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.btn-edit-seats {
+  color: var(--primary, #C94C4C);
+  font-size: 0.9rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+.btn-edit-seats:hover {
+  text-decoration: underline;
+  color: #b34242;
+}
+
+.edit-icon-svg {
+  margin-top: 1px;
+}
+
+.summary-ticket-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.summary-ticket-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ticket-icon-svg {
+  color: var(--primary, #C94C4C);
+  flex-shrink: 0;
+}
+
+.summary-ticket-name {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.summary-ticket-badge-count {
+  background-color: #ef4444; /* Red badge */
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 900;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.summary-ticket-seats-row {
+  font-size: 0.82rem;
+  color: #64748b;
+  font-weight: 600;
+  padding-left: 24px; /* Align nicely under name */
+}
+
+.summary-ticket-price-row {
+  align-self: flex-end;
+  font-size: 1.05rem;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.summary-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.summary-total-label {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.summary-total-price {
+  font-size: 1.15rem;
+  font-weight: 950;
+  color: #0f172a;
+}
+
+.sd-total-row {
+  border-top: 1px solid var(--border-color);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+
+.summary-card-divider-dashes {
+  border-top: 1px solid #f1f5f9;
+  margin: 10px 0;
+}
+
+[data-theme="dark"] .summary-card-divider-dashes {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.summary-card-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.summary-info-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.summary-info-value {
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.highlighted-seats {
+  color: var(--primary);
+  background: rgba(201, 76, 76, 0.05);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+/* Step 2 Form Card Adjustments */
+.btn-back-to-step1 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--primary);
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: none;
+  border: 1.5px solid var(--primary);
+  border-radius: 8px;
+  padding: 6px 12px;
+  transition: all 0.2s;
+}
+.btn-back-to-step1:hover {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.summary-details-box {
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.summary-detail-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.sd-label {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.sd-value {
+  color: #0f172a;
+  font-weight: 800;
+  text-align: right;
+}
+
+.seats-highlight {
+  color: var(--primary);
+}
+
+/* Sticky Bottom Checkout Bar */
+.desktop-bottom-bar-view {
+  display: block;
+}
+
+.mobile-bottom-bar-view {
+  display: none;
+}
+
+.booking-bottom-bar.desktop-bottom-bar-view {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1.5px solid var(--border-color);
+  box-shadow: 0 -10px 30px rgba(201, 76, 76, 0.05);
+  padding: 16px 0;
+}
+
+.bottom-bar-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.bottom-bar-left {
+  display: flex;
+  flex-direction: column;
+}
+
+.bottom-bar-ticket-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.bottom-bar-total-price {
+  font-size: 1.5rem;
+  font-weight: 950;
+  color: var(--primary);
+}
+
+.bottom-bar-buy-btn {
+  background: var(--primary);
+  color: #ffffff;
+  padding: 14px 44px;
+  border-radius: 14px;
+  font-size: 1rem;
+  font-weight: 800;
+  box-shadow: var(--shadow-btn);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.bottom-bar-buy-btn:hover:not(:disabled) {
+  background: #b34242;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(201, 76, 76, 0.4);
+}
+.bottom-bar-buy-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Bottom bar transition */
+.bottom-bar-fade-enter-active,
+.bottom-bar-fade-leave-active {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+}
+.bottom-bar-fade-enter-from,
+.bottom-bar-fade-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+/* Responsive queries */
+@media (max-width: 992px) {
+  .step1-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .banner-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .banner-image-container {
+    height: 240px;
+  }
+  
+
+
+  .onpage-form-grid {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+}
+
+@media (max-width: 576px) {
+  .banner-image-container {
+    height: 180px;
+  }
+
+  .bottom-bar-container {
+    padding: 0 20px;
+  }
+
+  .bottom-bar-total-price {
+    font-size: 1.25rem;
+  }
+
+  .bottom-bar-buy-btn {
+    padding: 10px 24px;
+    font-size: 0.9rem;
+  }
+
+  /* Responsive Ticket Category Card Overrides (Mobile) */
+  .ticket-top-section {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0 !important;
+    padding: 16px 20px !important;
+  }
+
+  .ticket-top-left {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 100% !important;
+    border-bottom: 1.5px dashed var(--border-color, #e2e8f0);
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+  }
+
+  .ticket-top-right {
+    width: 100% !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
+  }
+
+  .ticket-vertical-divider {
+    display: none !important;
+  }
+
+  .ticket-price-box {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start !important;
+    width: 100% !important;
+  }
+
+  .ticket-price-value-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between !important;
+    width: 100% !important;
+  }
+
+  .ticket-price-value {
+    font-size: 1.05rem !important;
+  }
+
+  .ticket-price-label {
+    font-size: 0.62rem !important;
+  }
+
+  .ticket-price-value-wrapper .accordion-chevron-toggle {
+    margin-left: 0 !important;
+  }
+
+  .features-title {
+    font-size: 0.72rem !important;
+  }
+
+  .feature-item {
+    font-size: 0.72rem !important;
+  }
+
+  .ticket-bottom-section {
+    padding: 16px 20px !important;
+  }
+
+  .ticket-bottom-footer-row {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: flex-end !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .ticket-footer-vertical-divider {
+    display: none !important;
+  }
+
+  .ticket-ending-details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 2px;
+  }
+
+  .ticket-ending-details .ending-label {
+    font-size: 0.55rem !important;
+  }
+
+  .ticket-ending-details .ending-value {
+    font-size: 0.68rem !important;
+    font-weight: 800 !important;
+  }
+
+  .ticket-action-subtotal-group {
+    width: auto !important;
+    align-items: flex-end !important;
+    gap: 8px !important;
+  }
+
+  .ticket-quantity-row {
+    justify-content: flex-end !important;
+    width: auto !important;
+    margin: 0 !important;
+  }
+
+  .ticket-quantity-row .quantity-counter-wrapper {
+    padding: 2px !important;
+    gap: 6px !important;
+    border-radius: 8px !important;
+    width: fit-content !important;
+  }
+
+  .ticket-quantity-row .qty-btn {
+    width: 24px !important;
+    height: 24px !important;
+    font-size: 0.8rem !important;
+    border-radius: 6px !important;
+  }
+
+  .ticket-quantity-row .qty-val {
+    font-size: 0.8rem !important;
+    min-width: 16px !important;
+  }
+
+  .select-ticket-btn {
+    width: auto !important;
+    min-width: 90px !important;
+    text-align: center;
+    padding: 6px 14px !important;
+    font-size: 0.8rem !important;
+    min-height: 32px !important;
+    border-radius: 8px !important;
+  }
+
+  .step1-right-col {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Inherit mobile styling from 576px */
+}
+
+/* ===== FULLSCREEN SEATMAP MODAL ===== */
+.fullscreen-seatmap-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--primary);
-  flex-shrink: 0;
+  padding: 24px;
 }
 
-.pca-title-block {
+.fullscreen-seatmap-card {
+  width: 100%;
+  max-width: 1200px;
+  height: 90vh;
+  background-color: var(--card-bg, #ffffff);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.pca-title {
-  font-size: 0.95rem;
-  font-weight: 850;
-  color: var(--text-dark);
-  margin: 0;
-  letter-spacing: -0.2px;
+.fullscreen-card-header {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--card-bg, #ffffff);
 }
 
-.pca-subtitle {
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: var(--text-light);
-  margin: 0;
-}
-
-.pca-chevron {
-  color: var(--text-light);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.pca-chevron.rotated {
-  transform: rotate(180deg);
-  color: var(--primary);
-}
-
-.pca-body {
-  padding: 20px;
-  border-top: 1px solid rgba(0, 0, 0, 0.05);
-  background: var(--card-bg);
-}
-
-.pca-header-right {
+.fullscreen-header-left {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
+  flex-wrap: wrap;
 }
 
-.header-toggle-wrapper {
+.fullscreen-title {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--text-dark, #0f172a);
+  margin-bottom: 0;
+}
+
+.fullscreen-selected-seats {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.header-toggle-label {
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: var(--text-light);
-  user-select: none;
-}
-
-.mobile-text {
-  display: none;
-}
-
-@media (max-width: 600px) {
-  .desktop-text {
-    display: none;
-  }
-  .mobile-text {
-    display: inline;
-  }
-  .pca-header-right {
-    gap: 8px;
-  }
-  .header-toggle-wrapper {
-    gap: 6px;
-  }
-}
-
-@media (max-width: 420px) {
-  .header-toggle-label {
-    display: none;
-  }
-}
-
-.ub-label {
+.fs-seats-label {
   font-size: 0.85rem;
   font-weight: 700;
-  color: var(--text-light);
+  color: var(--text-light, #64748b);
 }
 
-/* Toggle Switch Styling */
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 46px;
-  height: 24px;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
-.slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #e2e8f0;
-  transition: .3s;
-  border-radius: 24px;
-}
-
-.slider:before {
-  position: absolute;
-  content: "";
-  height: 18px;
-  width: 18px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .3s;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-input:checked + .slider {
-  background-color: var(--primary);
-}
-
-input:checked + .slider:before {
-  transform: translateX(22px);
-}
-
-/* Phone input group */
-.phone-input-group {
+.fs-seats-pills {
   display: flex;
-  gap: 10px;
-  width: 100%;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.phone-code-select-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.phone-code-select {
-  appearance: none;
-  background: var(--input-bg);
-  border: 1.5px solid var(--border-color);
-  border-radius: 12px;
-  padding: 14px 32px 14px 16px;
-  font-family: inherit;
-  font-weight: 700;
-  font-size: 0.92rem;
-  color: var(--text-dark);
-  cursor: pointer;
-  outline: none;
-  transition: all 0.2s;
-}
-
-.phone-code-select:focus {
-  border-color: var(--primary);
-  background: var(--card-bg);
-  box-shadow: 0 0 0 3px rgba(201,76,76,0.08);
-}
-
-.select-chevron {
-  position: absolute;
-  right: 12px;
-  pointer-events: none;
-  color: var(--text-light);
-}
-
-.phone-number-input {
-  flex: 1;
-}
-
-/* Identity Info section */
-.identity-info-section {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px dashed var(--border-color);
-}
-
-.identity-title {
-  font-size: 0.9rem;
+.fs-seat-pill {
+  background-color: #2563eb; /* Blue seat pills matching second mockup */
+  color: #ffffff;
+  font-size: 0.75rem;
   font-weight: 800;
-  color: var(--text-dark);
-  margin-bottom: 16px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
 }
 
-.identity-radios {
-  display: flex;
-  gap: 28px;
-  margin-bottom: 18px;
+.fullscreen-close-btn-top {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--text-light, #64748b);
+  cursor: pointer;
+  padding: 4px;
+  transition: all 0.2s;
+}
+.fullscreen-close-btn-top:hover {
+  color: var(--primary, #C94C4C);
+  transform: scale(1.1);
 }
 
-.identity-radio-label {
+.fs-viewport {
+  flex-grow: 1;
+  height: auto; /* override 420px limit */
+  min-height: 0;
+  background-color: #dbe1e8; /* Slate light blue-grey background */
+  border-left: none;
+  border-right: none;
+  border-radius: 0;
+}
+
+.fs-floating-controls {
+  position: absolute;
+  top: 24px;
+  right: 24px;
   display: flex;
   align-items: center;
   gap: 10px;
+  z-index: 100;
+  background-color: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(4px);
+  padding: 4px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.fs-float-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--text-dark);
-}
-
-.identity-info-section .form-group {
-  margin-top: 18px;
-}
-
-.identity-radio-input {
-  display: none;
-}
-
-.custom-radio {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--border-color);
-  border-radius: 50%;
-  display: inline-block;
-  position: relative;
+  color: #334155;
   transition: all 0.2s;
-  background: var(--card-bg);
+  font-weight: 900;
+}
+.fs-float-btn:hover {
+  border-color: var(--primary, #C94C4C);
+  background-color: #fff5f5;
+  color: var(--primary, #C94C4C);
 }
 
-.identity-radio-input:checked + .custom-radio {
-  border-color: #1565C0;
-}
-
-.identity-radio-input:checked + .custom-radio::after {
-  content: '';
-  width: 10px;
-  height: 10px;
-  background: #1565C0;
-  border-radius: 50%;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-}
-
-[data-theme="dark"] .custom-radio {
-  background: #1e1e1e;
-  border-color: #3d3d3d;
-}
-
-/* Accordion Transition */
-.accordion-slide-enter-active,
-.accordion-slide-leave-active {
-  transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease-out;
-  overflow: hidden;
-}
-
-.accordion-slide-enter-from,
-.accordion-slide-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-
-.accordion-slide-enter-to,
-.accordion-slide-leave-from {
-  max-height: 1000px;
-  opacity: 1;
-}
-
-/* ===== PARENT ACCORDION SECTIONS ===== */
-.accordion-section {
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.accordion-section.expanded {
-  box-shadow: var(--shadow-md);
-}
-
-.accordion-trigger {
+.fullscreen-card-footer {
+  padding: 16px 28px;
+  border-top: 1px solid var(--border-color, #e2e8f0);
+  background-color: var(--card-bg, #ffffff);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: pointer;
-  user-select: none;
+  justify-content: center;
 }
 
-.accordion-section .section-heading {
-  display: flex;
+.fullscreen-close-btn-bottom {
   width: 100%;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0;
-  border-bottom: none;
-  padding-bottom: 0;
-  transition: all 0.2s ease;
+  padding: 14px;
+  background-color: var(--primary, #C94C4C);
+  color: #ffffff;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(201, 76, 76, 0.25);
+}
+.fullscreen-close-btn-bottom:hover {
+  background-color: #b34242;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(201, 76, 76, 0.35);
 }
 
-.accordion-section.expanded .section-heading {
-  margin-bottom: 20px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  padding-bottom: 16px;
+/* Dark theme overrides for fullscreen modal */
+[data-theme="dark"] .fullscreen-seatmap-card {
+  background-color: var(--card-bg, #1a1a1a);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .fullscreen-card-header,
+[data-theme="dark"] .fullscreen-card-footer {
+  background-color: var(--card-bg, #1a1a1a);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .fs-floating-controls {
+  background-color: rgba(26, 26, 26, 0.85);
+}
+[data-theme="dark"] .fs-float-btn {
+  background-color: #1a1a1a;
+  border-color: #334155;
+  color: #f1f5f9;
 }
 
-.section-heading-left {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-
-.section-chevron {
-  color: var(--text-light);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  flex-shrink: 0;
-  margin-left: 16px;
-}
-
-.section-chevron.rotated {
-  transform: rotate(180deg);
-  color: var(--primary);
-}
-
-/* ===== VALIDATION ERRORS ===== */
-.form-input.input-error {
-  border-color: #ef4444 !important;
-  background-color: rgba(239, 68, 68, 0.01) !important;
-}
-
-[data-theme="dark"] .form-input.input-error {
-  background-color: rgba(239, 68, 68, 0.05) !important;
-}
-
-.form-input.input-error:focus {
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
-}
-
-.error-msg-small {
-  display: block;
-  font-size: 0.76rem;
-  font-weight: 700;
-  color: #ef4444;
-  margin-top: 6px;
-  animation: fadeInError 0.2s ease-out;
-}
-
-@keyframes fadeInError {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
+/* Responsive fullscreen queries */
+@media (max-width: 768px) {
+  .fullscreen-seatmap-overlay {
+    padding: 12px;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  .fullscreen-seatmap-card {
+    height: 95vh;
+    border-radius: 16px;
   }
+  .fullscreen-card-header {
+    padding: 16px 20px;
+  }
+  .fullscreen-title {
+    font-size: 1.2rem;
+  }
+  .fs-floating-controls {
+    top: 16px;
+    right: 16px;
+  }
+  
+  /* Full screen page-like seatmap selection styling on mobile viewports */
+  .selected-seatmap-canvas-container {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 2000;
+    background-color: var(--bg-color, #FFF8F8);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  
+  .selected-seatmap-canvas-container .seatmap-canvas-header {
+    display: none !important;
+  }
+
+  .mobile-seatmap-header {
+    display: flex !important;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background-color: var(--card-bg, #FAF9F9);
+    border-bottom: 1.5px solid var(--border-color);
+    width: 100%;
+    z-index: 30;
+  }
+
+  .btn-close-seatmap-mobile {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    font-weight: 300;
+    color: var(--text-dark, #2A2A2A);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 4px;
+    transition: transform 0.2s;
+  }
+
+  .btn-close-seatmap-mobile:active {
+    transform: scale(0.9);
+  }
+
+  .mobile-seatmap-header-title {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--text-dark, #2A2A2A);
+    margin-bottom: 0;
+  }
+  
+  .selected-seatmap-canvas-container .seatmap-canvas-body {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    margin-top: 0;
+    position: relative;
+    height: 100%;
+  }
+  
+  .selected-seatmap-canvas-container .bus-cabin-canvas-viewport {
+    flex-grow: 1;
+    height: 100% !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    border: none;
+    border-radius: 0;
+    margin: 0;
+  }
+  
+  .selected-seatmap-canvas-container .canvas-top-controls {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 15;
+    background: transparent;
+    padding: 0;
+    display: block;
+  }
+
+  .selected-seatmap-canvas-container .canvas-quantity-control {
+    display: none !important;
+  }
+
+  .selected-seatmap-canvas-container .canvas-zoom-controls {
+    position: absolute;
+    bottom: 84px;
+    right: 16px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background-color: rgba(250, 249, 249, 0.95);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    padding: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    pointer-events: auto;
+  }
+
+  .selected-seatmap-canvas-container .canvas-zoom-controls .zoom-control-btn {
+    width: 28px !important;
+    height: 28px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+    border-radius: 50%;
+    background-color: #ffffff;
+    border: none;
+    font-size: 0.85rem !important;
+    cursor: pointer;
+    color: var(--text-dark);
+  }
+
+  .selected-seatmap-canvas-container .canvas-zoom-controls .zoom-control-btn:first-child,
+  .selected-seatmap-canvas-container .canvas-zoom-controls .zoom-control-btn.text-btn {
+    display: none !important;
+  }
+
+  .selected-seatmap-canvas-container .inline-legends {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    z-index: 20;
+    background-color: rgba(250, 249, 249, 0.9);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 8px 12px;
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+  
+  .mobile-canvas-confirm-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--card-bg, #FAF9F9);
+    border-top: 1.5px solid var(--border-color);
+    padding: 12px 16px;
+    z-index: 2100;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04);
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .m-confirm-bar-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .m-confirm-label {
+    font-size: 0.65rem;
+    color: var(--text-light, #6b6b6b);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .m-confirm-value {
+    font-size: 1.25rem;
+    font-weight: 900;
+    color: var(--text-dark, #2A2A2A);
+  }
+  
+  .btn-confirm-seats-mobile {
+    width: auto !important;
+    min-width: 120px;
+    padding: 10px 24px !important;
+    background-color: var(--primary, #C94C4C);
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.95rem;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    box-shadow: var(--shadow-btn);
+    transition: transform 0.2s;
+  }
+
+  .btn-confirm-seats-mobile:disabled {
+    background-color: #cbd5e1 !important;
+    color: #94a3b8 !important;
+    cursor: not-allowed;
+    box-shadow: none !important;
+  }
+  
+  .btn-confirm-seats-mobile:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+/* Dark theme overrides for mobile canvas confirm bar */
+[data-theme="dark"] .mobile-canvas-confirm-bar {
+  background-color: var(--card-bg, #1a1a1a) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .m-confirm-value {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .selected-seatmap-canvas-container .canvas-zoom-controls,
+[data-theme="dark"] .selected-seatmap-canvas-container .inline-legends {
+  background-color: rgba(26, 26, 26, 0.9) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .selected-seatmap-canvas-container .canvas-zoom-controls .zoom-control-btn {
+  background-color: #252525 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .mobile-seatmap-header {
+  background-color: var(--card-bg, #1a1a1a) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+[data-theme="dark"] .btn-close-seatmap-mobile,
+[data-theme="dark"] .mobile-seatmap-header-title {
+  color: #f1f5f9 !important;
 }
 </style>
