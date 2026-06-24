@@ -543,8 +543,15 @@ const scrollToTickets = () => {
 const goToBuyerDetails = () => {
   validateSeats();
   if (!errors.value.seats) {
-    currentStep.value = 2;
-    window.scrollTo({ top: 400, behavior: 'smooth' });
+    // Populate bookingStore with event, ticket, seats, and quantity
+    bookingStore.selectedEvent = event.value;
+    bookingStore.selectedTicket = selectedTicket.value;
+    bookingStore.selectedSeats = [...selectedSeats.value];
+    bookingStore.adults = quantity.value;
+    bookingStore.toddlers = 0;
+    
+    // Direct user to transaction page
+    router.push('/transaksi');
   }
 };
 
@@ -661,7 +668,43 @@ const handleProceedToCheckout = () => {
   validateSeats();
 
   if (isSelectionComplete.value && !errors.value.name && !errors.value.email && !errors.value.phone && !errors.value.seats) {
-    showPaymentModal.value = true;
+    // Save to bookingStore and go directly to confirmation/transaction page
+    bookingStore.customer = {
+      name: buyer.value.name,
+      email: buyer.value.email,
+      phone: buyer.value.phone
+    };
+    bookingStore.adults = quantity.value;
+    bookingStore.toddlers = 0;
+    bookingStore.selectedSeats = [...selectedSeats.value];
+    bookingStore.selectedTicket = selectedTicket.value;
+    bookingStore.selectedPickup = {
+      name: 'Venue Acara (' + event.value.location_name + ')',
+      address: event.value.location_address || event.value.location_name
+    };
+
+    const code = bookingStore.generateBookingCode();
+    const payload = {
+      code,
+      date: new Date().toISOString(),
+      event: event.value,
+      pickup: bookingStore.selectedPickup,
+      customer: { ...bookingStore.customer },
+      adults: bookingStore.adults,
+      selectedSeats: [...bookingStore.selectedSeats],
+      totalPrice: selectedTicket.value.price * quantity.value,
+      paymentMethod: 'QRIS'
+    };
+
+    let existing = [];
+    try {
+      const cached = localStorage.getItem('ajak_bookings');
+      if (cached) existing = JSON.parse(cached);
+    } catch(e) {}
+    existing.push(payload);
+    localStorage.setItem('ajak_bookings', JSON.stringify(existing));
+
+    router.push('/confirmation');
   }
 };
 
@@ -944,54 +987,6 @@ const confirmBooking = () => {
                         </div>
 
                         <div class="seatmap-canvas-body">
-                          <!-- Canvas Controls Area -->
-                          <div class="canvas-top-controls">
-                            <div class="canvas-quantity-control">
-                              
-                              <div class="quantity-counter-wrapper">
-                                <button 
-                                  type="button" 
-                                  class="qty-btn" 
-                                  :disabled="quantity <= 1" 
-                                  @click="decreaseQuantity"
-                                >-</button>
-                                <span class="qty-val">{{ quantity }}</span>
-                                <button 
-                                  type="button" 
-                                  class="qty-btn" 
-                                  :disabled="quantity >= maxTickets" 
-                                  @click="increaseQuantity"
-                                >+</button>
-                              </div>
-                            </div>
-                            
-                            <div class="canvas-zoom-controls">
-                              <!-- Fullscreen Button -->
-                              <button type="button" class="zoom-control-btn" @click="isFullscreen = true" title="Fullscreen">
-                                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
-                              </button>
-                              <button type="button" class="zoom-control-btn" @click="zoomIn" title="Zoom In">➕</button>
-                              <button type="button" class="zoom-control-btn" @click="zoomOut" title="Zoom Out">➖</button>
-                              <button type="button" class="zoom-control-btn text-btn" @click="resetZoomPan">Reset Layout</button>
-                            </div>
-                          </div>
-
-                          <!-- Legends -->
-                          <div class="inline-legends">
-                            <div class="legend-item">
-                              <span class="legend-box selected"></span>
-                              <span>Dipilih</span>
-                            </div>
-                            <div class="legend-item">
-                              <span class="legend-box available"></span>
-                              <span>Tersedia</span>
-                            </div>
-                            <div class="legend-item">
-                              <span class="legend-box occupied"></span>
-                              <span>Tidak Tersedia</span>
-                            </div>
-                          </div>
-                          
                           <!-- Bus cabin layout -->
                           <div 
                             class="bus-cabin-canvas-viewport"
@@ -1004,6 +999,32 @@ const confirmBooking = () => {
                             @touchmove="onPanTouch"
                             @touchend="endPan"
                           >
+                            <!-- Desktop Legends Overlay (Visible on Desktop Only) -->
+                            <div class="inline-legends" @mousedown.stop @touchstart.stop>
+                              <div class="legend-item">
+                                <span class="legend-box selected"></span>
+                                <span>Dipilih</span>
+                              </div>
+                              <div class="legend-item">
+                                <span class="legend-box available"></span>
+                                <span>Tersedia</span>
+                              </div>
+                              <div class="legend-item">
+                                <span class="legend-box occupied"></span>
+                                <span>Tidak Tersedia</span>
+                              </div>
+                            </div>
+
+                            <!-- Desktop Zoom Controls Overlay (Visible on Desktop Only) -->
+                            <div class="canvas-zoom-controls" @mousedown.stop @touchstart.stop>
+                              <button type="button" class="zoom-control-btn" @click="isFullscreen = true" title="Fullscreen">
+                                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
+                              </button>
+                              <button type="button" class="zoom-control-btn" @click="zoomIn" title="Zoom In">➕</button>
+                              <button type="button" class="zoom-control-btn" @click="zoomOut" title="Zoom Out">➖</button>
+                              <button type="button" class="zoom-control-btn text-btn" @click="resetZoomPan">Reset Layout</button>
+                            </div>
+
                             <!-- Mobile Legends (Visible on Mobile Only) -->
                             <div class="mobile-legends-overlay" @touchstart.stop>
                               <div class="legend-item">
@@ -1093,7 +1114,7 @@ const confirmBooking = () => {
                           </div>
 
                           <!-- Mobile Confirm Bar inside the seatmap selection screen -->
-                          <div class="mobile-canvas-confirm-bar">
+                          <!-- <div class="mobile-canvas-confirm-bar">
                             <div class="m-confirm-bar-left">
                               <span class="m-confirm-label">Total Harga</span>
                               <span class="m-confirm-value">{{ selectedSeats.length > 0 ? formatRp(t.price * selectedSeats.length) : 'Rp 0' }}</span>
@@ -1101,7 +1122,7 @@ const confirmBooking = () => {
                             <button type="button" class="btn-confirm-seats-mobile" :disabled="selectedSeats.length === 0" @click="clearSelectedTicket">
                               Lanjut
                             </button>
-                          </div>
+                          </div> -->
                         </div>
                       </div><!-- end sheet-inner-card -->
                     </div>
@@ -3123,7 +3144,17 @@ const confirmBooking = () => {
   font-size: 0.75rem;
   color: #64748b;
   font-weight: 600;
-  margin-bottom: 12px;
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .inline-cabin-box {
@@ -3187,35 +3218,21 @@ const confirmBooking = () => {
   display: none;
 }
 
-.canvas-top-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 20px;
-  background: #f8fafc;
-  padding: 12px 18px;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-}
-
-.canvas-quantity-control {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.quantity-label {
-  font-size: 0.85rem;
-  font-weight: 800;
-  color: #334155;
-}
-
 .canvas-zoom-controls {
   display: flex;
   align-items: center;
   gap: 8px;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 10;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 6px 10px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .zoom-control-btn {
@@ -3230,11 +3247,13 @@ const confirmBooking = () => {
   cursor: pointer;
   font-size: 0.85rem;
   transition: all 0.2s;
+  color: #334155;
 }
 
 .zoom-control-btn:hover {
   border-color: var(--primary);
   background: #fff5f5;
+  color: var(--primary);
 }
 
 .zoom-control-btn.text-btn {
@@ -4638,7 +4657,7 @@ const confirmBooking = () => {
     touch-action: none;
   }
   
-  .sheet-inner-card .canvas-top-controls {
+  .sheet-inner-card .canvas-zoom-controls {
     display: none !important;
   }
 
@@ -4818,6 +4837,37 @@ const confirmBooking = () => {
 /* Drag handle pill stays white/light on dark */
 [data-theme="dark"] .sheet-drag-handle-pill {
   background-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* Dark theme overrides for desktop canvas overlays */
+[data-theme="dark"] .inline-legends,
+[data-theme="dark"] .canvas-zoom-controls {
+  background-color: rgba(26, 26, 26, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-theme="dark"] .inline-legends {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .zoom-control-btn {
+  background-color: #252525 !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .zoom-control-btn:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  border-color: var(--primary) !important;
+  color: var(--primary) !important;
+}
+
+[data-theme="dark"] .zoom-control-btn.text-btn {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .zoom-control-btn.text-btn:hover {
+  color: var(--primary) !important;
 }
 
 /* Prevent main page scrolling when sheet is open */

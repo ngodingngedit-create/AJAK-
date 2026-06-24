@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { CheckCircle, MapPin, Clock, Users, Calendar, Download, ArrowRight, Home } from 'lucide-vue-next';
+import { CheckCircle, MapPin, Clock, Users, Calendar, Home, Search, ChevronRight, Bus, Ticket, CreditCard, Phone, Mail, User } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
 
 const router = useRouter();
@@ -14,13 +14,20 @@ onMounted(() => {
 
 const event = computed(() => bookingStore.selectedEvent);
 const pickup = computed(() => bookingStore.selectedPickup);
-const schedule = computed(() => bookingStore.selectedSchedule);
 const code = computed(() => bookingStore.bookingCode);
+const ticket = computed(() => bookingStore.selectedTicket);
+const customer = computed(() => bookingStore.customer);
 
-const formatRp = (num) => 'Rp ' + num.toLocaleString('id-ID');
+const formatRp = (num) => {
+  if (!num) return 'Rp 0';
+  return 'Rp ' + num.toLocaleString('id-ID');
+};
 
-const totalRide = computed(() => {
-  return bookingStore.totalPrice;
+const totalPrice = computed(() => {
+  if (ticket.value && bookingStore.adults) {
+    return ticket.value.price * bookingStore.adults;
+  }
+  return bookingStore.totalPrice || 0;
 });
 
 const getNextDay = (dateStr) => {
@@ -60,582 +67,1125 @@ const termsList = [
   "Tidak menerima pembelian tiket shuttle dalam pembayaran uang tunai/cash",
   "Tidak menerima penitipan barang customer didalam shuttle bus"
 ];
+
+// QR pattern cells (simulated)
+const qrPattern = [1,2,3,4,5,7,11,13,15,17,19,21,22,23,24,25];
 </script>
 
 <template>
-  <div class="confirm-page" v-if="event && code">
-    <!-- Success Header -->
-    <section class="confirm-hero">
-      <div class="confirm-hero-bg"></div>
-      <div class="confirm-hero-content">
+  <div class="txn-page" v-if="event && code">
+
+    <!-- ===== HERO SECTION ===== -->
+    <section class="txn-hero">
+      <div class="txn-hero-bg">
+        <div class="txn-hero-blob blob1"></div>
+        <div class="txn-hero-blob blob2"></div>
+        <div class="txn-hero-blob blob3"></div>
+      </div>
+      <div class="txn-hero-content">
+        <!-- Success Icon -->
         <div class="success-anim">
-          <div class="success-ring"></div>
-          <div class="success-ring ring2"></div>
-          <CheckCircle :size="52" class="success-ico" />
+          <div class="success-ring r1"></div>
+          <div class="success-ring r2"></div>
+          <div class="success-ring r3"></div>
+          <CheckCircle :size="48" class="success-ico" />
         </div>
-        <h1 class="confirm-title">Pesanan Dikonfirmasi!</h1>
-        <p class="confirm-sub">Shuttle kamu sudah siap. Selamat menikmati {{ event.name }}! 🎉</p>
+
+        <div class="txn-hero-text">
+          <span class="txn-hero-eyebrow">Transaksi Berhasil</span>
+          <h1 class="txn-hero-title">Pesanan Dikonfirmasi!</h1>
+          <p class="txn-hero-sub">
+            Shuttle kamu sudah siap. Selamat menikmati <strong>{{ event.name }}</strong>! 🎉
+          </p>
+        </div>
+
+        <!-- Booking Code Badge -->
         <div class="booking-code-badge">
-          <span class="code-label">Kode Booking</span>
-          <span class="code-value">{{ code }}</span>
+          <div class="code-badge-inner">
+            <span class="code-badge-label">Kode Booking</span>
+            <span class="code-badge-value">{{ code }}</span>
+          </div>
+          <div class="code-badge-status">
+            <span class="status-dot"></span>
+            <span class="status-text">Lunas</span>
+          </div>
         </div>
       </div>
     </section>
 
-    <div class="container confirm-body">
-      <!-- Booking Detail Card -->
-      <div class="confirm-card">
-        <div class="cc-header">
-          <div class="cc-event-img">
-            <img :src="event.image" :alt="event.name" />
-            <div class="cc-img-overlay"></div>
-          </div>
-          <div class="cc-event-info">
-            <span class="cc-tag">{{ event.tag }}</span>
-            <h2 class="cc-event-name">{{ event.name }}</h2>
-            <div class="cc-event-meta">
-              <span><Calendar :size="13" /> {{ event.dateLabel }}</span>
-              <span><Clock :size="13" /> 14:00 WIB</span>
-              <span><MapPin :size="13" /> {{ event.location }}, {{ event.city }}</span>
+    <!-- ===== MAIN CONTENT ===== -->
+    <div class="txn-body">
+      <div class="txn-container">
+
+        <!-- ===== LEFT / MAIN COLUMN ===== -->
+        <div class="txn-main">
+
+          <!-- E-TICKET CARD -->
+          <div class="section-block">
+            <div class="section-title-row">
+              <Ticket :size="18" class="section-icon" />
+              <h2 class="section-title">E-Tiket Shuttle</h2>
             </div>
-          </div>
-        </div>
 
-        <div class="cc-divider cc-divider-dashed"></div>
+            <div class="eticket-card">
+              <!-- Ticket Header with event info -->
+              <div class="eticket-header">
+                <div class="eticket-event-img-wrap">
+                  <img :src="event.image" :alt="event.name" class="eticket-event-img" />
+                  <div class="eticket-img-overlay"></div>
+                </div>
+                <div class="eticket-event-info">
+                  <span class="eticket-tag">{{ event.tag }}</span>
+                  <h3 class="eticket-event-name">{{ event.name }}</h3>
+                  <div class="eticket-meta-row">
+                    <span class="eticket-meta-item"><Calendar :size="12" /> {{ event.dateLabel || event.date }}</span>
+                    <span class="eticket-meta-item"><MapPin :size="12" /> {{ event.city }}</span>
+                  </div>
+                  <div class="eticket-category-badge" v-if="ticket">
+                    {{ ticket.name }}
+                  </div>
+                </div>
+              </div>
 
-        <div class="cc-details-grid">
-          <div class="cc-detail-item">
-            <div class="cc-detail-icon"><MapPin :size="18" /></div>
-            <div>
-              <div class="cc-detail-label">Titik Jemput</div>
-              <div class="cc-detail-value">{{ pickup?.name }}</div>
-              <div class="cc-detail-sub">{{ pickup?.address }}</div>
-            </div>
-          </div>
+              <!-- Ticket Tear Line -->
+              <div class="ticket-tear-line">
+                <div class="notch notch-left"></div>
+                <div class="tear-dashes"></div>
+                <div class="notch notch-right"></div>
+              </div>
 
-          <div class="cc-detail-item">
-            <div class="cc-detail-icon"><MapPin :size="18" /></div>
-            <div>
-              <div class="cc-detail-label">Titik Pulang (Tujuan Akhir)</div>
-              <div class="cc-detail-value">{{ event?.location }}</div>
-              <div class="cc-detail-sub">Lokasi Tempat Diselenggarakannya Acara</div>
-            </div>
-          </div>
+              <!-- Ticket Body: QR + Details -->
+              <div class="eticket-body">
+                <div class="eticket-qr-section">
+                  <div class="qr-wrapper">
+                    <div class="qr-mock-grid">
+                      <div v-for="n in 25" :key="n" class="qr-cell" :class="{ dark: qrPattern.includes(n) }"></div>
+                    </div>
+                  </div>
+                  <span class="qr-label">Scan di pintu shuttle</span>
+                </div>
 
-          <div class="cc-detail-item">
-            <div class="cc-detail-icon"><Clock :size="18" /></div>
-            <div>
-              <div class="cc-detail-label">Jadwal Keberangkatan</div>
-              <div class="cc-detail-value">12:00 WIB</div>
-              <div class="cc-detail-sub">{{ event.dateLabel || event.date }}</div>
-            </div>
-          </div>
+                <div class="eticket-detail-section">
+                  <div class="eticket-brand">AJAK!</div>
+                  <div class="eticket-code">{{ code }}</div>
 
-          <div class="cc-detail-item">
-            <div class="cc-detail-icon"><Clock :size="18" /></div>
-            <div>
-              <div class="cc-detail-label">Jadwal Kepulangan</div>
-              <div class="cc-detail-value">01:00 WIB</div>
-              <div class="cc-detail-sub">{{ getNextDay(event.dateLabel || event.date) }}</div>
-            </div>
-          </div>
-
-          <div class="cc-detail-item">
-            <div class="cc-detail-icon"><Users :size="18" /></div>
-            <div>
-              <div class="cc-detail-label">Penumpang</div>
-              <div class="cc-detail-value">{{ bookingStore.adults }} Dewasa{{ bookingStore.toddlers > 0 ? ` + ${bookingStore.toddlers} Balita` : '' }}</div>
-            </div>
-          </div>
-
-          <div class="cc-detail-item" v-if="bookingStore.selectedSeats && bookingStore.selectedSeats.length > 0">
-            <div class="cc-detail-icon">💺</div>
-            <div>
-              <div class="cc-detail-label">Nomor Kursi</div>
-              <div class="cc-detail-value">{{ bookingStore.selectedSeats.join(', ') }}</div>
-            </div>
-          </div>
-
-          <div class="cc-detail-item">
-            <div class="cc-detail-icon">💳</div>
-            <div>
-              <div class="cc-detail-label">Status Pembayaran</div>
-              <div class="cc-detail-value green">✓ Lunas</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="cc-divider"></div>
-
-        <!-- Price -->
-        <div class="cc-price-row">
-          <span class="cc-price-label">Total Shuttle</span>
-          <span class="cc-price-total">{{ formatRp(totalRide) }}</span>
-        </div>
-
-        <!-- Ticket QR Mockup -->
-        <div class="cc-ticket-area">
-          <div class="cc-ticket-card">
-            <div class="ticket-left">
-              <div class="ticket-code-label">Scan di pintu shuttle</div>
-              <div class="qr-mock">
-                <div class="qr-inner">
-                  <div class="qr-grid">
-                    <div v-for="n in 25" :key="n" class="qr-cell" :class="{ dark: [1,2,3,4,5,7,11,13,15,17,19,21,22,23,24,25].includes(n) }"></div>
+                  <div class="eticket-details-list">
+                    <div class="eticket-detail-row">
+                      <span class="ed-icon">📍</span>
+                      <div>
+                        <div class="ed-label">Titik Jemput</div>
+                        <div class="ed-value">{{ pickup?.name }}</div>
+                      </div>
+                    </div>
+                    <div class="eticket-detail-row" v-if="bookingStore.selectedSeats?.length > 0">
+                      <span class="ed-icon">💺</span>
+                      <div>
+                        <div class="ed-label">Nomor Kursi</div>
+                        <div class="ed-value">{{ bookingStore.selectedSeats.join(', ') }}</div>
+                      </div>
+                    </div>
+                    <div class="eticket-detail-row">
+                      <span class="ed-icon">🕑</span>
+                      <div>
+                        <div class="ed-label">Keberangkatan</div>
+                        <div class="ed-value">12:00 WIB</div>
+                      </div>
+                    </div>
+                    <div class="eticket-detail-row">
+                      <span class="ed-icon">👥</span>
+                      <div>
+                        <div class="ed-label">Penumpang</div>
+                        <div class="ed-value">{{ bookingStore.adults }} Orang</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            <div class="ticket-sep">
-              <div class="ticket-notch top"></div>
-              <div class="ticket-dashes"></div>
-              <div class="ticket-notch bottom"></div>
+          </div>
+
+          <!-- BOOKING DETAILS CARD -->
+          <div class="section-block">
+            <div class="section-title-row">
+              <Bus :size="18" class="section-icon" />
+              <h2 class="section-title">Detail Pemesanan</h2>
             </div>
-            <div class="ticket-right">
-              <div class="ticket-ajak">AJAK!</div>
-              <div class="ticket-code-big">{{ code }}</div>
-              <div class="ticket-event-nm">{{ event.name }}</div>
-              <div class="ticket-pickup">📍 {{ pickup?.name }}</div>
-              <div class="ticket-dep" v-if="bookingStore.selectedSeats && bookingStore.selectedSeats.length > 0">💺 Kursi: {{ bookingStore.selectedSeats.join(', ') }}</div>
-              <div class="ticket-dep">🕑 12:00 WIB</div>
+
+            <div class="details-card">
+              <!-- Route visual -->
+              <div class="route-visual">
+                <div class="route-point">
+                  <div class="route-dot start-dot"></div>
+                  <div class="route-info">
+                    <div class="route-label">Titik Jemput</div>
+                    <div class="route-value">{{ pickup?.name }}</div>
+                    <div class="route-sub">{{ pickup?.address }}</div>
+                    <div class="route-time">🕑 12:00 WIB — {{ event.dateLabel || event.date }}</div>
+                  </div>
+                </div>
+                <div class="route-line">
+                  <div class="route-line-inner"></div>
+                  <div class="route-bus-icon"><Bus :size="14" /></div>
+                </div>
+                <div class="route-point">
+                  <div class="route-dot end-dot"></div>
+                  <div class="route-info">
+                    <div class="route-label">Tujuan Akhir</div>
+                    <div class="route-value">{{ event.location }}</div>
+                    <div class="route-sub">Lokasi penyelenggaraan acara</div>
+                    <div class="route-time">🌙 Kepulangan 01:00 WIB — {{ getNextDay(event.dateLabel || event.date) }}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="details-divider"></div>
+
+              <!-- Info Grid -->
+              <div class="detail-info-grid">
+                <div class="di-item">
+                  <div class="di-icon-wrap"><Users :size="16" /></div>
+                  <div>
+                    <div class="di-label">Penumpang</div>
+                    <div class="di-value">{{ bookingStore.adults }} Dewasa{{ bookingStore.toddlers > 0 ? ` + ${bookingStore.toddlers} Balita` : '' }}</div>
+                  </div>
+                </div>
+                <div class="di-item" v-if="bookingStore.selectedSeats?.length > 0">
+                  <div class="di-icon-wrap">💺</div>
+                  <div>
+                    <div class="di-label">Nomor Kursi</div>
+                    <div class="di-value">{{ bookingStore.selectedSeats.join(', ') }}</div>
+                  </div>
+                </div>
+                <div class="di-item" v-if="ticket">
+                  <div class="di-icon-wrap"><Ticket :size="16" /></div>
+                  <div>
+                    <div class="di-label">Kategori Tiket</div>
+                    <div class="di-value">{{ ticket.name }}</div>
+                  </div>
+                </div>
+                <div class="di-item">
+                  <div class="di-icon-wrap"><CreditCard :size="16" /></div>
+                  <div>
+                    <div class="di-label">Status Pembayaran</div>
+                    <div class="di-value paid">✓ Lunas</div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="details-divider"></div>
+
+              <!-- Price Breakdown -->
+              <div class="price-breakdown">
+                <div class="pb-row" v-if="ticket">
+                  <span class="pb-label">{{ ticket.name }} × {{ bookingStore.adults }}</span>
+                  <span class="pb-value">{{ formatRp(ticket.price * bookingStore.adults) }}</span>
+                </div>
+                <div class="pb-row pb-total">
+                  <span class="pb-label">Total Pembayaran</span>
+                  <span class="pb-value-total">{{ formatRp(totalPrice) }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- TERMS & CONDITIONS -->
+          <div class="section-block">
+            <div class="section-title-row">
+              <span class="section-icon-emoji">📋</span>
+              <h2 class="section-title">Syarat & Ketentuan</h2>
+            </div>
+            <div class="terms-card">
+              <div class="terms-list">
+                <div class="term-item" v-for="(term, i) in termsList" :key="i">
+                  <div class="term-num">{{ String(i + 1).padStart(2, '0') }}</div>
+                  <p class="term-text">{{ term }}</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Terms and Conditions -->
-      <div class="whats-next">
-        <h3 class="wn-title">Syarat dan Ketentuan</h3>
-        <div class="wn-steps">
-          <div class="wn-step" v-for="(term, index) in termsList" :key="index">
-            <div class="wn-num">0{{ index + 1 }}</div>
-            <div>
-              <div class="wn-step-desc">{{ term }}</div>
+        <!-- ===== RIGHT / SIDEBAR COLUMN ===== -->
+        <aside class="txn-sidebar">
+
+          <!-- Customer Info Card -->
+          <div class="sidebar-card">
+            <div class="sc-title-row">
+              <User :size="16" class="sc-icon" />
+              <h3 class="sc-title">Informasi Pemesan</h3>
+            </div>
+            <div class="sc-info-list">
+              <div class="sc-info-item">
+                <div class="sc-info-icon"><User :size="14" /></div>
+                <div>
+                  <div class="sc-info-label">Nama Lengkap</div>
+                  <div class="sc-info-value">{{ customer?.name }}</div>
+                </div>
+              </div>
+              <div class="sc-info-item">
+                <div class="sc-info-icon"><Mail :size="14" /></div>
+                <div>
+                  <div class="sc-info-label">Email</div>
+                  <div class="sc-info-value">{{ customer?.email }}</div>
+                </div>
+              </div>
+              <div class="sc-info-item">
+                <div class="sc-info-icon"><Phone :size="14" /></div>
+                <div>
+                  <div class="sc-info-label">Nomor HP</div>
+                  <div class="sc-info-value">+62 {{ customer?.phone }}</div>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- Action Buttons -->
-      <div class="confirm-actions">
-        <button class="action-btn outline" @click="goHome">
-          <Home :size="18" />
-          Kembali ke Beranda
-        </button>
-        <button class="action-btn primary" @click="browseMore">
-          Cari Event Lain <ArrowRight :size="18" />
-        </button>
+          <!-- Summary Card -->
+          <div class="sidebar-card summary-card">
+            <div class="sc-title-row">
+              <CreditCard :size="16" class="sc-icon" />
+              <h3 class="sc-title">Ringkasan Transaksi</h3>
+            </div>
+            <div class="summary-event-row">
+              <img :src="event.image" :alt="event.name" class="summary-event-img" />
+              <div>
+                <div class="summary-event-name">{{ event.name }}</div>
+                <div class="summary-event-date">{{ event.dateLabel || event.date }}</div>
+              </div>
+            </div>
+            <div class="summary-divider"></div>
+            <div class="summary-amount">
+              <span class="summary-amount-label">Total Bayar</span>
+              <span class="summary-amount-value">{{ formatRp(totalPrice) }}</span>
+            </div>
+            <div class="summary-code-row">
+              <span class="summary-code-label">Kode Booking</span>
+              <span class="summary-code-val">{{ code }}</span>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="sidebar-actions">
+            <button class="action-btn primary" @click="browseMore">
+              <Search :size="16" />
+              Cari Event Lain
+              <ChevronRight :size="16" />
+            </button>
+            <button class="action-btn secondary" @click="goHome">
+              <Home :size="16" />
+              Kembali ke Beranda
+            </button>
+          </div>
+        </aside>
+
       </div>
     </div>
+
+    <!-- ===== MOBILE BOTTOM ACTION BAR ===== -->
+    <div class="mobile-action-bar">
+      <button class="mab-btn-secondary" @click="goHome">
+        <Home :size="18" />
+      </button>
+      <button class="mab-btn-primary" @click="browseMore">
+        <Search :size="16" />
+        Cari Event Lain
+      </button>
+    </div>
+
   </div>
 </template>
 
 <style scoped>
-/* ===== HERO ===== */
-.confirm-page {
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+/* ===== ROOT ===== */
+.txn-page {
   min-height: 100vh;
-  background: var(--bg-color);
-  padding-bottom: 80px;
-  padding-top: 80px;
+  background: var(--bg-color, #0d0d0d);
+  font-family: 'Inter', sans-serif;
+  padding-bottom: 100px;
 }
 
-.confirm-hero {
+/* ===== HERO ===== */
+.txn-hero {
   position: relative;
-  padding: 60px 24px 80px;
+  padding: 80px 24px 60px;
   text-align: center;
   overflow: hidden;
+  padding-top: 100px;
 }
-.confirm-hero-bg {
+.txn-hero-bg {
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, #0d0d0d 0%, #1a0a0a 100%);
+  background: linear-gradient(160deg, #0d0d0d 0%, #1a0505 60%, #0d0d0d 100%);
 }
-.confirm-hero-bg::before {
-  content: '';
+.txn-hero-blob {
   position: absolute;
-  top: -30%;
-  left: 50%;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+}
+.blob1 {
+  width: 600px; height: 600px;
+  top: -200px; left: 50%;
   transform: translateX(-50%);
-  width: 700px;
-  height: 700px;
-  background: radial-gradient(circle, rgba(46,125,50,0.2) 0%, transparent 65%);
+  background: radial-gradient(circle, rgba(201,76,76,0.15) 0%, transparent 70%);
+}
+.blob2 {
+  width: 300px; height: 300px;
+  bottom: -100px; left: 10%;
+  background: radial-gradient(circle, rgba(255,100,50,0.08) 0%, transparent 70%);
+}
+.blob3 {
+  width: 400px; height: 400px;
+  bottom: -150px; right: 5%;
+  background: radial-gradient(circle, rgba(100,50,200,0.06) 0%, transparent 70%);
 }
 
-.confirm-hero-content {
+.txn-hero-content {
   position: relative;
   z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 24px;
 }
 
 /* Success animation */
 .success-anim {
   position: relative;
-  width: 100px;
-  height: 100px;
+  width: 96px;
+  height: 96px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 28px;
+  flex-shrink: 0;
 }
 .success-ring {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  border: 2px solid rgba(46,125,50,0.3);
-  animation: ring-pulse 2s ease infinite;
+  border: 2px solid rgba(76,175,80,0.25);
+  animation: ring-expand 2.4s ease-out infinite;
 }
-.ring2 {
-  animation-delay: 0.5s;
-  border-color: rgba(46,125,50,0.15);
-}
-@keyframes ring-pulse {
+.r2 { animation-delay: 0.6s; border-color: rgba(76,175,80,0.15); }
+.r3 { animation-delay: 1.2s; border-color: rgba(76,175,80,0.08); }
+@keyframes ring-expand {
   0% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(2.2); opacity: 0; }
 }
-.success-ico { color: #4caf50; position: relative; z-index: 2; filter: drop-shadow(0 0 20px rgba(76,175,80,0.4)); }
+.success-ico {
+  color: #4caf50;
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 0 24px rgba(76,175,80,0.5));
+}
 
-.confirm-title {
-  font-size: 2.8rem;
+/* Hero text */
+.txn-hero-text { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.txn-hero-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(76,175,80,0.9);
+}
+.txn-hero-title {
+  font-size: clamp(1.8rem, 5vw, 3.2rem);
   font-weight: 900;
-  color: white;
+  color: #fff;
   letter-spacing: -1.5px;
-  margin-bottom: 12px;
+  line-height: 1.1;
+  margin: 0;
 }
-.confirm-sub {
-  font-size: 1rem;
-  color: rgba(255,255,255,0.65);
-  max-width: 440px;
-  margin-bottom: 32px;
-  line-height: 1.6;
+.txn-hero-sub {
+  font-size: clamp(0.85rem, 2vw, 1rem);
+  color: rgba(255,255,255,0.6);
+  max-width: 480px;
+  line-height: 1.65;
+  margin: 0;
 }
+.txn-hero-sub strong { color: rgba(255,255,255,0.9); }
 
+/* Booking code badge */
 .booking-code-badge {
   display: flex;
   align-items: center;
-  gap: 16px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.15);
+  gap: 20px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 20px;
-  padding: 14px 28px;
-  backdrop-filter: blur(10px);
+  padding: 16px 28px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
-.code-label {
-  font-size: 0.72rem;
+.code-badge-inner { display: flex; flex-direction: column; gap: 4px; }
+.code-badge-label {
+  font-size: 0.62rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 2px;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.4);
 }
-.code-value {
-  font-size: 1.6rem;
+.code-badge-value {
+  font-size: clamp(1.2rem, 3vw, 1.7rem);
   font-weight: 900;
-  color: white;
-  letter-spacing: 3px;
+  color: #fff;
+  letter-spacing: 4px;
   font-family: 'Courier New', monospace;
+  line-height: 1;
+}
+.code-badge-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(255,255,255,0.1);
+}
+.status-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #4caf50;
+  box-shadow: 0 0 10px rgba(76,175,80,0.6);
+  animation: pulse-dot 2s ease infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { box-shadow: 0 0 10px rgba(76,175,80,0.6); }
+  50% { box-shadow: 0 0 20px rgba(76,175,80,0.9); }
+}
+.status-text {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #4caf50;
 }
 
-/* ===== CONFIRM CARD ===== */
-.confirm-body { padding: 40px 24px 20px; max-width: 800px; margin: 0 auto; }
+/* ===== BODY LAYOUT ===== */
+.txn-body {
+  padding: 40px 20px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.txn-container {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 28px;
+  align-items: start;
+}
 
-.confirm-card {
-  background: var(--card-bg);
-  border-radius: 28px;
+/* ===== SECTIONS ===== */
+.section-block { margin-bottom: 24px; }
+.section-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.section-icon { color: var(--primary, #c94c4c); }
+.section-icon-emoji { font-size: 1.1rem; }
+.section-title {
+  font-size: 1rem;
+  font-weight: 900;
+  color: var(--text-dark, #f0f0f0);
+  margin: 0;
+  letter-spacing: -0.3px;
+}
+
+/* ===== E-TICKET ===== */
+.eticket-card {
+  background: linear-gradient(135deg, #1a1a1a 0%, #111 100%);
+  border-radius: 24px;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  border: 1px solid var(--border-color);
-  margin-bottom: 28px;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
 }
 
-/* Card header */
-.cc-header {
+/* Ticket header */
+.eticket-header {
   display: flex;
   align-items: flex-start;
-  gap: 20px;
-  padding: 28px;
+  gap: 16px;
+  padding: 24px 24px 20px;
 }
-.cc-event-img {
-  width: 100px;
-  height: 100px;
-  border-radius: 16px;
+.eticket-event-img-wrap {
+  width: 80px;
+  height: 80px;
+  border-radius: 14px;
   overflow: hidden;
   flex-shrink: 0;
   position: relative;
 }
-.cc-event-img img { width: 100%; height: 100%; object-fit: cover; }
-.cc-img-overlay { position: absolute; inset: 0; background: linear-gradient(135deg, rgba(201,76,76,0.2), transparent); }
-.cc-tag {
+.eticket-event-img { width: 100%; height: 100%; object-fit: cover; }
+.eticket-img-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(201,76,76,0.25), transparent);
+}
+.eticket-event-info { flex: 1; min-width: 0; }
+.eticket-tag {
   display: inline-block;
-  font-size: 0.65rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--primary);
-  margin-bottom: 6px;
-}
-.cc-event-name {
-  font-size: 1.4rem;
-  font-weight: 900;
-  color: var(--text-dark);
-  letter-spacing: -0.5px;
-  margin-bottom: 12px;
-}
-.cc-event-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--text-light);
-}
-.cc-event-meta span { display: flex; align-items: center; gap: 5px; }
-.cc-event-meta svg { color: var(--primary); }
-
-/* Dividers */
-.cc-divider {
-  height: 1px;
-  background: var(--border-color);
-  margin: 0 28px;
-}
-.cc-divider-dashed {
-  background: none;
-  border-top: 2px dashed var(--border-color);
-}
-
-/* Details grid */
-.cc-details-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  padding: 28px;
-}
-.cc-detail-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 14px;
-}
-.cc-detail-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: rgba(201,76,76,0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary);
-  font-size: 1.1rem;
-  flex-shrink: 0;
-}
-.cc-detail-label {
-  font-size: 0.66rem;
+  font-size: 0.6rem;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 1.5px;
-  color: var(--primary);
+  color: var(--primary, #c94c4c);
   margin-bottom: 4px;
 }
-.cc-detail-value { font-size: 0.92rem; font-weight: 800; color: var(--text-dark); margin-bottom: 2px; }
-.cc-detail-value.green { color: #2e7d32; }
-.cc-detail-sub { font-size: 0.78rem; color: var(--text-light); }
-
-/* Price row */
-.cc-price-row {
+.eticket-event-name {
+  font-size: clamp(0.9rem, 2vw, 1.15rem);
+  font-weight: 900;
+  color: #fff;
+  margin: 0 0 8px;
+  line-height: 1.3;
+}
+.eticket-meta-row {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.eticket-meta-item {
+  display: flex;
   align-items: center;
-  padding: 20px 28px;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.45);
 }
-.cc-price-label { font-size: 0.88rem; font-weight: 700; color: var(--text-light); }
-.cc-price-total { font-size: 1.4rem; font-weight: 900; color: var(--text-dark); }
+.eticket-meta-item svg { color: var(--primary, #c94c4c); }
+.eticket-category-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  background: rgba(201,76,76,0.15);
+  border: 1px solid rgba(201,76,76,0.25);
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--primary, #c94c4c);
+  letter-spacing: 0.5px;
+}
 
-/* ===== TICKET ===== */
-.cc-ticket-area { padding: 0 28px 28px; }
-.cc-ticket-card {
+/* Tear line */
+.ticket-tear-line {
   display: flex;
-  background: #1a1a1a;
-  border-radius: 20px;
-  overflow: hidden;
-  min-height: 160px;
+  align-items: center;
+  padding: 0 -10px;
+  position: relative;
 }
-.ticket-left {
-  flex: 0 0 140px;
+.notch {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg-color, #0d0d0d);
+  flex-shrink: 0;
+}
+.notch-left { margin-left: -10px; }
+.notch-right { margin-right: -10px; }
+.tear-dashes {
+  flex: 1;
+  border-top: 2px dashed rgba(255,255,255,0.08);
+  margin: 0 4px;
+}
+
+/* Ticket body */
+.eticket-body {
+  display: flex;
+  gap: 0;
+  padding: 20px 24px 24px;
+}
+
+/* QR section */
+.eticket-qr-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 20px;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
+  padding-right: 24px;
+  border-right: 1px dashed rgba(255,255,255,0.08);
+  margin-right: 24px;
 }
-.ticket-code-label {
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: rgba(255,255,255,0.4);
-  text-align: center;
-}
-.qr-mock {
-  width: 80px;
-  height: 80px;
-  background: white;
-  border-radius: 8px;
+.qr-wrapper {
+  width: 88px;
+  height: 88px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
 }
-.qr-inner { width: 100%; height: 100%; }
-.qr-grid {
+.qr-mock-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 2px;
   width: 100%;
   height: 100%;
 }
-.qr-cell { border-radius: 1px; background: #eee; }
+.qr-cell { border-radius: 1px; background: #e5e5e5; }
 .qr-cell.dark { background: #1a1a1a; }
-
-.ticket-sep {
-  width: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  position: relative;
-}
-.ticket-notch {
-  width: 20px;
-  height: 20px;
-  background: var(--bg-color);
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-.ticket-notch.top { margin-top: -10px; }
-.ticket-notch.bottom { margin-bottom: -10px; }
-.ticket-dashes {
-  flex: 1;
-  border-left: 2px dashed rgba(255,255,255,0.1);
+.qr-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: rgba(255,255,255,0.3);
+  text-align: center;
 }
 
-.ticket-right {
-  flex: 1;
-  padding: 22px 24px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 6px;
-}
-.ticket-ajak {
-  font-size: 0.72rem;
+/* Detail section */
+.eticket-detail-section { flex: 1; min-width: 0; }
+.eticket-brand {
+  font-size: 0.65rem;
   font-weight: 900;
   letter-spacing: 3px;
-  color: var(--primary);
+  color: var(--primary, #c94c4c);
   text-transform: uppercase;
+  margin-bottom: 2px;
 }
-.ticket-code-big {
-  font-size: 1.6rem;
+.eticket-code {
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
   font-weight: 900;
-  color: white;
+  color: #fff;
   letter-spacing: 3px;
   font-family: 'Courier New', monospace;
   line-height: 1;
+  margin-bottom: 14px;
 }
-.ticket-event-nm {
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: rgba(255,255,255,0.85);
-}
-.ticket-pickup, .ticket-dep {
-  font-size: 0.78rem;
-  color: rgba(255,255,255,0.5);
-  font-weight: 600;
-}
-
-/* ===== WHAT'S NEXT ===== */
-.whats-next {
-  background: var(--card-bg);
-  border-radius: 24px;
-  padding: 28px;
-  border: 1px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
-  margin-bottom: 28px;
-}
-.wn-title {
-  font-size: 1.1rem;
-  font-weight: 900;
-  color: var(--text-dark);
-  margin-bottom: 24px;
-}
-.wn-steps { display: flex; flex-direction: column; gap: 20px; }
-.wn-step {
+.eticket-details-list { display: flex; flex-direction: column; gap: 10px; }
+.eticket-detail-row {
   display: flex;
   align-items: flex-start;
-  gap: 16px;
+  gap: 8px;
 }
-.wn-num {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: var(--primary);
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 900;
+.ed-icon { font-size: 0.9rem; line-height: 1.4; flex-shrink: 0; }
+.ed-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 1px;
+}
+.ed-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  line-height: 1.3;
+}
+
+/* ===== DETAILS CARD ===== */
+.details-card {
+  background: var(--card-bg, #161616);
+  border: 1px solid var(--border-color, rgba(255,255,255,0.06));
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+/* Route visual */
+.route-visual {
+  padding: 24px 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.route-point { display: flex; align-items: flex-start; gap: 14px; }
+.route-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 3px;
+  position: relative;
+  z-index: 1;
+}
+.start-dot { background: var(--primary, #c94c4c); box-shadow: 0 0 12px rgba(201,76,76,0.5); }
+.end-dot { background: #4caf50; box-shadow: 0 0 12px rgba(76,175,80,0.5); }
+.route-info { flex: 1; min-width: 0; }
+.route-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--primary, #c94c4c);
+  margin-bottom: 4px;
+}
+.route-value { font-size: 0.92rem; font-weight: 800; color: var(--text-dark, #f0f0f0); margin-bottom: 2px; }
+.route-sub { font-size: 0.75rem; color: var(--text-light, rgba(255,255,255,0.45)); margin-bottom: 4px; }
+.route-time { font-size: 0.72rem; font-weight: 600; color: rgba(255,255,255,0.5); }
+.route-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 8px 6px;
+  margin-left: 0;
+}
+.route-line-inner {
+  width: 2px;
+  height: 32px;
+  background: linear-gradient(to bottom, var(--primary, #c94c4c), #4caf50);
+  border-radius: 2px;
+  margin-left: 0;
+}
+.route-bus-icon {
+  color: rgba(255,255,255,0.3);
+  margin-left: 16px;
+}
+
+.details-divider {
+  height: 1px;
+  background: var(--border-color, rgba(255,255,255,0.06));
+  margin: 0 24px;
+}
+
+/* Detail info grid */
+.detail-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 20px 24px;
+}
+.di-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.di-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(201,76,76,0.08);
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--primary, #c94c4c);
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+.di-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 3px;
+}
+.di-value {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-dark, #f0f0f0);
+}
+.di-value.paid { color: #4caf50; }
+
+/* Price breakdown */
+.price-breakdown { padding: 20px 24px; }
+.pb-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+}
+.pb-label { font-size: 0.85rem; font-weight: 600; color: var(--text-light, rgba(255,255,255,0.55)); }
+.pb-value { font-size: 0.88rem; font-weight: 700; color: var(--text-dark, #f0f0f0); }
+.pb-total {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-color, rgba(255,255,255,0.06));
+}
+.pb-total .pb-label { font-size: 0.9rem; font-weight: 800; color: var(--text-dark, #f0f0f0); }
+.pb-value-total { font-size: 1.25rem; font-weight: 900; color: var(--text-dark, #f0f0f0); }
+
+/* ===== TERMS ===== */
+.terms-card {
+  background: var(--card-bg, #161616);
+  border: 1px solid var(--border-color, rgba(255,255,255,0.06));
+  border-radius: 24px;
+  padding: 24px;
+}
+.terms-list { display: flex; flex-direction: column; gap: 14px; }
+.term-item { display: flex; align-items: flex-start; gap: 14px; }
+.term-num {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(201,76,76,0.1);
+  border: 1px solid rgba(201,76,76,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: var(--primary, #c94c4c);
   flex-shrink: 0;
   letter-spacing: 0.5px;
 }
-.wn-step-title { font-size: 0.92rem; font-weight: 800; color: var(--text-dark); margin-bottom: 4px; }
-.wn-step-desc { font-size: 0.82rem; color: var(--text-light); line-height: 1.5; }
-
-/* ===== ACTIONS ===== */
-.confirm-actions {
-  display: flex;
-  gap: 14px;
-  justify-content: center;
-  flex-wrap: wrap;
+.term-text {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-light, rgba(255,255,255,0.55));
+  line-height: 1.6;
+  margin: 0;
+  padding-top: 7px;
 }
-.action-btn {
+
+/* ===== SIDEBAR ===== */
+.txn-sidebar {
+  position: sticky;
+  top: 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sidebar-card {
+  background: var(--card-bg, #161616);
+  border: 1px solid var(--border-color, rgba(255,255,255,0.06));
+  border-radius: 20px;
+  padding: 20px;
+}
+.sc-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 16px 28px;
-  border-radius: 16px;
-  font-family: inherit;
-  font-size: 0.92rem;
+  margin-bottom: 16px;
+}
+.sc-icon { color: var(--primary, #c94c4c); }
+.sc-title { font-size: 0.88rem; font-weight: 900; color: var(--text-dark, #f0f0f0); margin: 0; }
+
+/* Customer info */
+.sc-info-list { display: flex; flex-direction: column; gap: 12px; }
+.sc-info-item { display: flex; align-items: flex-start; gap: 10px; }
+.sc-info-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: rgba(201,76,76,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary, #c94c4c);
+  flex-shrink: 0;
+}
+.sc-info-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.35);
+  margin-bottom: 2px;
+}
+.sc-info-value {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-dark, #f0f0f0);
+  word-break: break-word;
+}
+
+/* Summary card */
+.summary-card { background: linear-gradient(135deg, #1e0808 0%, #161010 100%); }
+.summary-event-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.summary-event-img { width: 48px; height: 48px; border-radius: 10px; object-fit: cover; flex-shrink: 0; }
+.summary-event-name { font-size: 0.82rem; font-weight: 800; color: #fff; margin-bottom: 2px; line-height: 1.3; }
+.summary-event-date { font-size: 0.68rem; font-weight: 600; color: rgba(255,255,255,0.4); }
+.summary-divider { height: 1px; background: rgba(255,255,255,0.06); margin: 14px 0; }
+.summary-amount { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.summary-amount-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.35); }
+.summary-amount-value { font-size: 1.5rem; font-weight: 900; color: #fff; letter-spacing: -0.5px; }
+.summary-code-row { display: flex; justify-content: space-between; align-items: center; }
+.summary-code-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.3); }
+.summary-code-val { font-size: 0.78rem; font-weight: 900; color: rgba(255,255,255,0.7); font-family: 'Courier New', monospace; letter-spacing: 2px; }
+
+/* Action buttons sidebar */
+.sidebar-actions { display: flex; flex-direction: column; gap: 10px; }
+.action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.88rem;
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.25s;
-}
-.action-btn.outline {
-  background: var(--card-bg);
-  color: var(--text-dark);
-  border: 1.5px solid var(--border-color);
-}
-.action-btn.outline:hover {
-  background: var(--input-bg);
-  border-color: var(--primary);
+  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  border: none;
+  width: 100%;
 }
 .action-btn.primary {
-  background: var(--primary);
-  color: white;
-  border: none;
+  background: var(--primary, #c94c4c);
+  color: #fff;
   box-shadow: 0 8px 24px rgba(201,76,76,0.3);
 }
 .action-btn.primary:hover {
-  background: #b34242;
+  background: #b03a3a;
   transform: translateY(-2px);
-  box-shadow: 0 12px 30px rgba(201,76,76,0.4);
+  box-shadow: 0 12px 32px rgba(201,76,76,0.45);
+}
+.action-btn.secondary {
+  background: var(--card-bg, #161616);
+  color: var(--text-dark, #f0f0f0);
+  border: 1.5px solid var(--border-color, rgba(255,255,255,0.08));
+}
+.action-btn.secondary:hover {
+  border-color: var(--primary, #c94c4c);
+  background: rgba(201,76,76,0.06);
 }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 700px) {
-  .confirm-title { font-size: 2rem; }
-  .cc-details-grid { grid-template-columns: 1fr; }
-  .cc-header { flex-direction: column; }
-  .ticket-left { flex: 0 0 120px; }
-  .confirm-actions { flex-direction: column; }
-  .action-btn { justify-content: center; }
+/* ===== MOBILE BOTTOM BAR ===== */
+.mobile-action-bar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 12px 16px;
+  background: rgba(13,13,13,0.95);
+  border-top: 1px solid rgba(255,255,255,0.06);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  gap: 10px;
+  align-items: center;
+}
+.mab-btn-secondary {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+.mab-btn-secondary:hover { background: rgba(255,255,255,0.1); }
+.mab-btn-primary {
+  flex: 1;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--primary, #c94c4c);
+  border: none;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(201,76,76,0.35);
+}
+.mab-btn-primary:hover { background: #b03a3a; }
+
+/* ===== RESPONSIVE: TABLET (< 1024px) ===== */
+@media (max-width: 1024px) {
+  .txn-container {
+    grid-template-columns: 1fr 300px;
+    gap: 20px;
+  }
+}
+
+/* ===== RESPONSIVE: MOBILE (< 768px) ===== */
+@media (max-width: 768px) {
+  .txn-page { padding-bottom: 80px; }
+
+  .txn-hero {
+    padding: 80px 16px 48px;
+    padding-top: 90px;
+  }
+
+  .booking-code-badge {
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 20px;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+  }
+  .code-badge-status {
+    flex-direction: row;
+    padding-left: 0;
+    border-left: none;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    padding-top: 12px;
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .txn-body { padding: 24px 16px 16px; }
+
+  .txn-container {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  /* Move sidebar below main content on mobile */
+  .txn-sidebar {
+    position: static;
+    order: -1; /* show above main on mobile */
+    margin-bottom: 24px;
+  }
+
+  /* Customer info card appears inline before main tickets */
+  .txn-sidebar .sidebar-card:first-child { order: 2; }
+  .txn-sidebar .summary-card { order: 1; }
+  .txn-sidebar .sidebar-actions { display: none; }
+
+  /* Show mobile bottom bar */
+  .mobile-action-bar { display: flex; }
+
+  /* E-Ticket adjustments */
+  .eticket-header { padding: 16px 16px 14px; gap: 12px; }
+  .eticket-event-img-wrap { width: 64px; height: 64px; }
+
+  .eticket-body {
+    flex-direction: column;
+    gap: 16px;
+    padding: 14px 16px 20px;
+  }
+  .eticket-qr-section {
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding-right: 0;
+    border-right: none;
+    border-bottom: 1px dashed rgba(255,255,255,0.06);
+    padding-bottom: 16px;
+    margin-right: 0;
+    margin-bottom: 0;
+  }
+  .qr-label { text-align: left; }
+
+  /* Detail info grid: 1 column on mobile */
+  .detail-info-grid { grid-template-columns: 1fr; gap: 12px; }
+
+  .route-visual { padding: 16px 16px 12px; }
+  .details-divider { margin: 0 16px; }
+  .price-breakdown { padding: 16px 16px; }
+  .detail-info-grid { padding: 16px 16px; }
+
+  /* Terms */
+  .terms-card { padding: 16px; }
+  .term-num { width: 32px; height: 32px; }
+
+  /* Sidebar card on mobile */
+  .sidebar-card { padding: 16px; }
+  .sc-title { font-size: 0.85rem; }
+}
+
+/* ===== RESPONSIVE: SMALL MOBILE (< 400px) ===== */
+@media (max-width: 400px) {
+  .eticket-meta-row { gap: 6px; }
+  .eticket-event-name { font-size: 0.85rem; }
+  .code-badge-value { font-size: 1.1rem; letter-spacing: 2px; }
+  .summary-amount-value { font-size: 1.25rem; }
 }
 </style>

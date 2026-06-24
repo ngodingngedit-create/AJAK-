@@ -4,6 +4,7 @@ export const bookingStore = reactive({
   selectedEvent: null,
   selectedPickup: null,
   selectedReturn: null,
+  selectedTicket: null,
   customer: {
     name: '',
     email: '',
@@ -18,6 +19,7 @@ export const bookingStore = reactive({
     this.selectedEvent = null;
     this.selectedPickup = null;
     this.selectedReturn = null;
+    this.selectedTicket = null;
     this.customer = { name: '', email: '', phone: '' };
     this.adults = 1;
     this.toddlers = 0;

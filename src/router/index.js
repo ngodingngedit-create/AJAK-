@@ -6,6 +6,7 @@ import ComingSoonView from '../views/ComingSoonView.vue'
 import EventsView from '../views/EventsView.vue'
 import BookingView from '../views/BookingView.vue'
 import ConfirmationView from '../views/ConfirmationView.vue'
+import TransactionView from '../views/TransactionView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -13,6 +14,7 @@ const router = createRouter({
     { path: '/', name: 'home', component: HomeView },
     { path: '/events', name: 'events', component: EventsView },
     { path: '/booking/:id', name: 'booking', component: BookingView },
+    { path: '/transaksi', name: 'transaksi', component: TransactionView },
     { path: '/confirmation', name: 'confirmation', component: ConfirmationView },
     { path: '/login', name: 'login', component: LoginView },
     { path: '/dashboard', name: 'dashboard', component: () => import('../views/DashboardView.vue') },
