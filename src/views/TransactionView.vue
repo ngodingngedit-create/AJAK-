@@ -2594,8 +2594,8 @@ const isLongText = (str, limit = 20) => {
 
 /* Informational Alert Box */
 .modal-alert-box-info {
-  background-color: rgba(37, 99, 235, 0.04);
-  border: 1px solid rgba(37, 99, 235, 0.12);
+  background-color: rgba(201, 76, 76, 0.04);
+  border: 1px solid rgba(201, 76, 76, 0.12);
   border-radius: 12px;
   padding: 16px;
   margin-bottom: 24px;
@@ -2606,8 +2606,8 @@ const isLongText = (str, limit = 20) => {
 }
 
 [data-theme="dark"] .modal-alert-box-info {
-  background-color: rgba(37, 99, 235, 0.08);
-  border-color: rgba(37, 99, 235, 0.2);
+  background-color: rgba(201, 76, 76, 0.08);
+  border-color: rgba(201, 76, 76, 0.2);
 }
 
 .alert-info-point-row {
@@ -2620,7 +2620,7 @@ const isLongText = (str, limit = 20) => {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background-color: #1e40af;
+  background-color: #C94C4C;
   color: #ffffff;
   font-size: 0.75rem;
   font-weight: 800;
@@ -2632,7 +2632,7 @@ const isLongText = (str, limit = 20) => {
 }
 
 [data-theme="dark"] .point-num-circle {
-  background-color: #3b82f6;
+  background-color: #C94C4C;
 }
 
 .point-text-content {
@@ -2675,39 +2675,39 @@ const isLongText = (str, limit = 20) => {
 
 .btn-modal-edit {
   background-color: #ffffff;
-  color: #0b2f64;
-  border: 1.5px solid #0b2f64;
+  color: #C94C4C;
+  border: 1.5px solid #C94C4C;
 }
 
 .btn-modal-edit:hover {
-  background-color: rgba(11, 47, 100, 0.04);
+  background-color: rgba(201, 76, 76, 0.04);
 }
 
 [data-theme="dark"] .btn-modal-edit {
   background-color: transparent;
-  color: #60a5fa;
-  border-color: #60a5fa;
+  color: #C94C4C;
+  border-color: #C94C4C;
 }
 
 [data-theme="dark"] .btn-modal-edit:hover {
-  background-color: rgba(96, 165, 250, 0.08);
+  background-color: rgba(201, 76, 76, 0.08);
 }
 
 .btn-modal-submit {
-  background-color: #0b2f64;
+  background-color: #C94C4C;
   color: #ffffff;
 }
 
 .btn-modal-submit:hover {
-  background-color: #071f43;
+  background-color: #b34242;
 }
 
 [data-theme="dark"] .btn-modal-submit {
-  background-color: #2563eb;
+  background-color: #C94C4C;
 }
 
 [data-theme="dark"] .btn-modal-submit:hover {
-  background-color: #1d4ed8;
+  background-color: #b34242;
 }
 
 @media (max-width: 480px) {

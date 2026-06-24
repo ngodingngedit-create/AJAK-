@@ -81,6 +81,7 @@ const activeTab = ref('tiket'); // 'deskripsi', 'tiket', 'terms'
 const selectedTicket = ref(null);
 const expandedTicketId = ref(null);
 const currentStep = ref(1); // 1 = Select seat, 2 = Buyer details form
+const isEditMode = ref(false);
 
 // Booking states (Quantity, selected seats, and buyer information)
 const quantity = ref(1);
@@ -480,6 +481,7 @@ const selectTicketCategory = (t) => {
     selectedTicket.value = t;
     selectedSeats.value = [];
     errors.value.seats = '';
+    isEditMode.value = false;
   }
   router.push({ hash: '#seatmap' });
 };
@@ -527,6 +529,23 @@ const handleEditSeats = () => {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, 100);
+};
+
+const toggleEditMode = () => {
+  isEditMode.value = !isEditMode.value;
+};
+
+const deleteTicketSelection = () => {
+  selectedTicket.value = null;
+  selectedSeats.value = [];
+  isEditMode.value = false;
+  errors.value.seats = '';
+  showMobileDetailSheet.value = false;
+  if (route.hash === '#seatmap') {
+    router.back();
+  } else {
+    isCanvasOpen.value = false;
+  }
 };
 
 const scrollToTickets = () => {
@@ -1249,10 +1268,11 @@ const confirmBooking = () => {
                       v-if="selectedTicket && selectedSeats.length > 0" 
                       type="button" 
                       class="btn-edit-seats" 
-                      @click="handleEditSeats"
+                      :class="{ 'is-editing': isEditMode }"
+                      @click="toggleEditMode"
                     >
-                      <span>Edit</span>
-                      <svg class="edit-icon-svg" viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                      <span>{{ isEditMode ? 'Selesai Edit' : 'Edit' }}</span>
+                      <svg v-if="!isEditMode" class="edit-icon-svg" viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                     </button>
                   </div>
                   
@@ -1273,6 +1293,16 @@ const confirmBooking = () => {
                         
                         <span class="summary-ticket-name">Tiket {{ selectedTicket.name }}</span>
                         <span class="summary-ticket-badge-count">{{ selectedSeats.length }}X</span>
+                        
+                        <button 
+                          v-if="isEditMode" 
+                          type="button" 
+                          class="btn-delete-ticket-summary" 
+                          @click="deleteTicketSelection"
+                          title="Hapus Tiket"
+                        >
+                          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                        </button>
                       </div>
                       
                       <div class="summary-ticket-seats-row">
@@ -1662,6 +1692,16 @@ const confirmBooking = () => {
               <div class="mobile-sheet-drag-handle"></div>
               <h3 class="mobile-sheet-title">Detail Tiket</h3>
             </div>
+            <button 
+              v-if="selectedTicket && selectedSeats.length > 0" 
+              type="button" 
+              class="btn-edit-seats-mobile" 
+              :class="{ 'is-editing': isEditMode }"
+              @click="toggleEditMode"
+            >
+              <span>{{ isEditMode ? 'Selesai Edit' : 'Edit' }}</span>
+              <svg v-if="!isEditMode" class="edit-icon-svg" viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+            </button>
             <button class="mobile-sheet-close-btn" @click="showMobileDetailSheet = false">✕</button>
           </div>
           
@@ -1682,6 +1722,16 @@ const confirmBooking = () => {
                   <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
                   <span class="summary-ticket-name">Tiket {{ selectedTicket.name }}</span>
                   <span class="summary-ticket-badge-count">{{ selectedSeats.length }}X</span>
+                  
+                  <button 
+                    v-if="isEditMode" 
+                    type="button" 
+                    class="btn-delete-ticket-summary" 
+                    @click="deleteTicketSelection"
+                    title="Hapus Tiket"
+                  >
+                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                  </button>
                 </div>
                 
                 <div class="summary-ticket-seats-row">
@@ -4876,5 +4926,68 @@ html.lock-scroll, body.lock-scroll {
   height: 100vh !important;
   position: relative !important;
   touch-action: none;
+}
+
+/* Button Edit / Delete style additions */
+.btn-delete-ticket-summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--primary, #C94C4C);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  margin-left: auto;
+}
+
+.btn-delete-ticket-summary:hover {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+[data-theme="dark"] .btn-delete-ticket-summary:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.btn-edit-seats-mobile {
+  color: var(--primary, #C94C4C);
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  background: none;
+  border: 1px solid var(--primary, #C94C4C);
+  border-radius: 8px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.btn-edit-seats-mobile:hover,
+.btn-edit-seats-mobile.is-editing {
+  background: var(--primary, #C94C4C);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .btn-edit-seats-mobile {
+  border-color: var(--primary, #C94C4C);
+  color: var(--primary, #C94C4C);
+}
+
+.btn-edit-seats.is-editing {
+  border: 1px solid var(--primary, #C94C4C);
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+.btn-edit-seats.is-editing:hover {
+  background: var(--primary, #C94C4C);
+  color: #ffffff !important;
 }
 </style>
