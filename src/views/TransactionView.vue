@@ -25,11 +25,30 @@ const ticket = computed(() => bookingStore.selectedTicket);
 const selectedSeats = computed(() => bookingStore.selectedSeats);
 const quantity = computed(() => bookingStore.adults || 1);
 
+// Fetch extra detail
+const shuttleDetail = ref(null);
+
 // Redirect to events if store is empty
-onMounted(() => {
+onMounted(async () => {
   if (!event.value || !ticket.value) {
     router.push('/events');
+    return;
   }
+  
+  if (event.value.slug) {
+    try {
+      const res = await fetch(`https://api.kolektix.my.id/api/shuttle/${event.value.slug}`);
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success && result.data) {
+          shuttleDetail.value = result.data;
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching shuttle detail for transaction view:', e);
+    }
+  }
+
   startTimer();
 });
 
@@ -327,8 +346,11 @@ const validateOwners = () => {
 // Confirmation Modal State
 const showConfirmModal = ref(false);
 
-const executeCheckout = () => {
+const isSubmitting = ref(false);
+
+const executeCheckout = async () => {
   showConfirmModal.value = false;
+  isSubmitting.value = true;
 
   // Populate bookingStore details
   bookingStore.customer = {
@@ -337,41 +359,67 @@ const executeCheckout = () => {
     phone: registrant.value.phoneNumber
   };
 
-  // Generate Booking Code
-  const code = bookingStore.generateBookingCode();
+  // Generate Booking Code for local usage
+  const invoice_no = "INV-SHT-" + Date.now();
 
-  // Create local storage history payload
   const payload = {
-    code,
-    date: new Date().toISOString(),
-    event: event.value,
-    pickup: bookingStore.selectedPickup,
-    customer: { ...bookingStore.customer },
-    adults: quantity.value,
-    selectedSeats: [...selectedSeats.value],
-    totalPrice: totalPayment.value,
-    paymentMethod: 'QRIS',
-    ticketOwners: ticketOwners.value.map(o => ({
-      fullName: o.fullName,
-      email: o.email,
-      phoneNumber: o.phoneNumber,
-      ktpNumber: o.ktpNumber,
-      profession: o.profession,
-      company: o.company,
-      birthDate: o.birthDate
+    shuttle_id: event.value.id || 1,
+    trip_id: 5,
+    invoice_no: invoice_no,
+    total_qty: quantity.value,
+    total_price: baseTicketPrice.value,
+    total_voucher: totalDiscount.value,
+    grandtotal: totalPayment.value,
+    admin_fee: adminFee.value,
+    ppn: 0,
+    payment_status: "PENDING",
+    transaction_status_id: 1,
+    tickets: selectedSeats.value.map(seat => ({
+      shuttle_ticket_id: ticket.value.id || 1,
+      order_seat_number: seat,
+      qty_ticket: 1,
+      price: ticket.value.price || 0,
+      ticket_fee: 5000,
+      is_promo: totalDiscount.value > 0 ? 1 : 0,
+      promo_price: totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0,
+      subtotal_price: (ticket.value.price || 0) + 5000 - (totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0)
+    })),
+    passengers: ticketOwners.value.map((owner, index) => ({
+      is_pemesan: index === 0 ? 1 : 0,
+      trip_seat_id: index + 11,
+      passenger_name: owner.fullName,
+      phone: owner.phoneNumber,
+      email: owner.email,
+      identity_type: "KTP",
+      identity_number: owner.ktpNumber || "0000000000000000",
+      emergency_contact: owner.phoneNumber
     }))
   };
 
-  let existing = [];
   try {
-    const cached = localStorage.getItem('ajak_bookings');
-    if (cached) existing = JSON.parse(cached);
-  } catch (e) {}
-  existing.push(payload);
-  localStorage.setItem('ajak_bookings', JSON.stringify(existing));
+    const res = await fetch('https://api.kolektix.my.id/api/shuttle-order', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
 
-  // Direct to confirmation page
-  router.push('/confirmation');
+    if (!res.ok) {
+      throw new Error('Gagal memproses pesanan.');
+    }
+
+    const result = await res.json();
+    bookingStore.lastOrderResponse = result;
+
+    // Direct to confirmation page
+    router.push('/confirmation');
+  } catch (error) {
+    console.error('Checkout error:', error);
+    alert('Terjadi kesalahan saat memproses pesanan. Silakan coba lagi.');
+  } finally {
+    isSubmitting.value = false;
+  }
 };
 
 // Form submission (proceed to confirmation)
@@ -861,15 +909,16 @@ const isLongText = (str, limit = 20) => {
               <div class="summary-route-section">
                 <div class="summary-route-label">TITIK PULANG (TUJUAN AKHIR)</div>
                 <div class="summary-route-value" v-if="!isLongText(event?.location, 25)">
-                  {{ event?.location }}
+                  {{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }}
                 </div>
                 <div class="marquee-container" v-else>
                   <div class="marquee-inner-scroll">
-                    <span class="summary-route-value">{{ event?.location }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                    <span class="summary-route-value">{{ event?.location }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                    <span class="summary-route-value">{{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                    <span class="summary-route-value">{{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
                   </div>
                 </div>
-                <div class="summary-route-sub">Lokasi Tempat Diselenggarakannya Acara</div>
+                <div class="summary-route-sub" v-if="shuttleDetail?.description">{{ shuttleDetail.description }}</div>
+                <div class="summary-route-sub" v-else>Lokasi Tujuan Shuttle</div>
               </div>
 
               <!-- Pemesan -->
@@ -1024,15 +1073,16 @@ const isLongText = (str, limit = 20) => {
             <div class="summary-route-section">
               <div class="summary-route-label">TITIK PULANG (TUJUAN AKHIR)</div>
               <div class="summary-route-value" v-if="!isLongText(event?.location, 25)">
-                {{ event?.location }}
+                {{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }}
               </div>
               <div class="marquee-container" v-else>
                 <div class="marquee-inner-scroll">
-                  <span class="summary-route-value">{{ event?.location }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                  <span class="summary-route-value">{{ event?.location }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                  <span class="summary-route-value">{{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+                  <span class="summary-route-value">{{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
                 </div>
               </div>
-              <div class="summary-route-sub">Lokasi Tempat Diselenggarakannya Acara</div>
+              <div class="summary-route-sub" v-if="shuttleDetail?.description">{{ shuttleDetail.description }}</div>
+              <div class="summary-route-sub" v-else>Lokasi Tujuan Shuttle</div>
             </div>
 
             <!-- Pemesan -->

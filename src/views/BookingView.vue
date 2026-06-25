@@ -170,7 +170,8 @@ const selectedSeats = ref([]);
 const buyer = ref({
   name: '',
   email: '',
-  phone: ''
+  phone: '',
+  identity: ''
 });
 
 // Interactive canvas state
@@ -341,59 +342,124 @@ const paymentMethods = [
 ];
 
 // Bus cabin seats configuration layout (generated dynamically from layout & capacity)
-const busRows = computed(() => {
+const parsedSeatmap = computed(() => {
   if (!event.value) return [];
   
-  // Custom parsing for Seatmap BTS (id: 107) which uses standard 2_2
-  const layout = event.value.seat_layout || '2_2';
-  const totalSeats = event.value.total_seat || 36;
-  const parts = layout.split('_').map(Number);
-  const leftCount = parts[0] || 2;
-  const rightCount = parts[1] || 2;
-  const seatsPerRow = leftCount + rightCount;
-  
-  const rows = [];
-  let seatIndex = 0;
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  
-  // Calculate total rows needed
-  const numRows = Math.ceil(totalSeats / seatsPerRow);
-  
-  for (let r = 1; r <= numRows; r++) {
-    const leftSeats = [];
-    const rightSeats = [];
-    
-    // Left side seats
-    for (let l = 0; l < leftCount; l++) {
-      const seatLetter = alphabet[l];
-      const seatId = `${seatLetter}${r}`;
-      if (seatIndex < totalSeats) {
-        leftSeats.push({ id: seatId, label: seatId });
-        seatIndex++;
-      }
+  // Try to parse the seatmap string from the backend
+  let config = [];
+  try {
+    if (event.value.seatmap) {
+      // It can be a string or already an object depending on fetch, handle both
+      config = typeof event.value.seatmap === 'string' ? JSON.parse(event.value.seatmap) : event.value.seatmap;
+    } else {
+      // Fallback or empty if no seatmap is provided
+      return [];
     }
-    
-    // Right side seats
-    for (let rx = 0; rx < rightCount; rx++) {
-      const seatLetter = alphabet[leftCount + rx];
-      const seatId = `${seatLetter}${r}`;
-      if (seatIndex < totalSeats) {
-        rightSeats.push({ id: seatId, label: seatId });
-        seatIndex++;
-      }
-    }
-    
-    // On the very last row, check if there's any seat, otherwise don't add empty row
-    if (leftSeats.length > 0 || rightSeats.length > 0) {
-      rows.push({
-        rowNum: r,
-        left: leftSeats,
-        right: rightSeats
-      });
-    }
+  } catch (e) {
+    console.error('Error parsing seatmap JSON:', e);
+    return [];
   }
-  
-  return rows;
+
+  const shapes = [];
+
+  config.forEach((item, index) => {
+    if (item.type === 'box') {
+      shapes.push({
+        id: `box-${index}`,
+        type: 'box',
+        x: item.position[0],
+        y: item.position[1],
+        width: item.size[0],
+        height: item.size[1],
+        text: item.text,
+        background: item.background || '#fff',
+        radius: item.radius || [0, 0, 0, 0]
+      });
+    } else {
+      // It is a column/row configuration for seats
+      const cols = item.col || 1;
+      const rows = item.row || 1;
+      const seatWidth = item.size[0] / cols;
+      const seatHeight = item.size[1] / rows;
+      const startX = item.position[0];
+      const startY = item.position[1];
+      const prefix = item.prefix || '';
+
+      // Generate individual seats
+      for (let c = 0; c < cols; c++) {
+        for (let r = 0; r < rows; r++) {
+          const seatLabel = `${prefix}${r + 1}`; // e.g. A1, A2
+          
+          shapes.push({
+            id: seatLabel,
+            type: 'seat',
+            x: startX + c * seatWidth,
+            y: startY + r * seatHeight,
+            width: seatWidth,
+            height: seatHeight,
+            label: seatLabel
+          });
+        }
+      }
+    }
+  });
+
+  // Pre-calculate full Konva configs to prevent massive Vue re-renders on every zoom/drag event
+  return shapes.map(shape => {
+    if (shape.type === 'box') {
+      return {
+        ...shape,
+        groupConfig: { x: shape.x, y: shape.y },
+        rectConfig: {
+          width: shape.width,
+          height: shape.height,
+          fill: shape.background,
+          cornerRadius: 6,
+          stroke: '#cbd5e1',
+          strokeWidth: 1
+        },
+        textConfig: {
+          text: shape.text,
+          width: shape.width,
+          height: shape.height,
+          align: 'center',
+          verticalAlign: 'middle',
+          fontSize: 12,
+          fontStyle: 'bold',
+          fill: '#475569'
+        }
+      };
+    } else {
+      const available = isSeatAvailable(shape.id);
+      const selected = selectedSeats.value.includes(shape.id);
+      
+      return {
+        ...shape,
+        available,
+        groupConfig: { x: shape.x, y: shape.y },
+        rectConfig: {
+          width: shape.width - 4,
+          height: shape.height - 4,
+          x: 2,
+          y: 2,
+          fill: !available ? '#e2e8f0' : (selected ? '#ef4444' : '#fff'),
+          cornerRadius: 8,
+          stroke: !available ? '#cbd5e1' : (selected ? '#ef4444' : '#94a3b8'),
+          strokeWidth: 2
+        },
+        textConfig: {
+          text: !available ? '✕' : shape.label,
+          width: shape.width,
+          height: shape.height,
+          align: 'center',
+          verticalAlign: 'middle',
+          fontSize: !available ? 14 : 12,
+          fontStyle: 'bold',
+          fill: !available ? '#94a3b8' : (selected ? '#fff' : '#0f172a')
+        }
+      };
+    }
+  });
 });
 
 const getFacilityIcon = (facility) => {
@@ -445,18 +511,110 @@ watch([isCanvasOpen, isSheetClosing], ([isOpen, isClosing]) => {
   }
 });
 
-onMounted(() => {
-  const id = parseInt(route.params.id);
-  const found = allEvents.find(e => e.id === id);
-  if (found) {
-    event.value = found;
-    bookingStore.selectedEvent = found;
-    // Set default expanded ticket accordion
-    if (found.has_event_ticket && found.has_event_ticket.length > 0) {
-      expandedTicketId.value = found.has_event_ticket[0].id;
+onMounted(async () => {
+  const slug = route.params.slug;
+  
+  try {
+    const response = await fetch(`https://api.kolektix.my.id/api/shuttle/${slug}`);
+    if (!response.ok) throw new Error('API fetch failed');
+    
+    const result = await response.json();
+    if (result.success && result.data) {
+      const item = result.data;
+      
+      const dateObj = new Date(item.start_date || new Date());
+      const day = dateObj.getDate();
+      const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+      const month = monthNames[dateObj.getMonth()];
+      const year = dateObj.getFullYear();
+      
+      let seats = 0;
+      try {
+        if (item.seatmap) {
+          const seatmap = JSON.parse(item.seatmap);
+          seats = seatmap.rows * seatmap.cols;
+        }
+      } catch (e) {
+        console.warn('Invalid seatmap JSON', e);
+      }
+
+      let mappedTickets = [];
+      if (item.tickets && item.tickets.length > 0) {
+        mappedTickets = item.tickets.map(t => {
+          return {
+            id: t.id,
+            name: t.name,
+            ticket_category: 'Regular Shuttle',
+            description: t.description || '',
+            price: parseInt(t.price),
+            available_seat_number: t.available_seat_number || '', 
+            taken_seat_number: t.taken_seat_number || '',
+            pending_seat_number: t.pending_seat_number || '',
+            reserved_seat_number: t.reserved_seat_number || '',
+            ticket_end: t.ticket_end_date ? t.ticket_end_date.split('T')[0] : '',
+            ending_time: t.ticket_end_time || ''
+          };
+        });
+      }
+
+      const fetchedEvent = {
+        id: item.id,
+        name: item.name || 'Unknown',
+        slug: item.slug,
+        bus_code: '-',
+        bus_type: 'MINIBUS',
+        plate_number: '-',
+        seat_layout: '2_2',
+        total_seat: seats,
+        facilities: ['AC', 'USB CHARGER'],
+        date: item.start_date ? item.start_date.split('T')[0] : '2026-10-15',
+        start_date: item.start_date,
+        end_date: item.end_date,
+        start_time: item.start_time ? item.start_time.slice(0, 5) : '00:00',
+        end_time: item.end_time ? item.end_time.slice(0, 5) : '00:00',
+        zone_time: 'WIB',
+        dateLabel: `${day} ${month} ${year}`,
+        time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '18:00 WIB',
+        departureTime: '12:00 WIB',
+        returnTime: '01:00 WIB',
+        location: item.description || 'TBA',
+        city: 'Jakarta',
+        price: mappedTickets.length > 0 ? `Rp ${mappedTickets[0].price.toLocaleString('id-ID')}` : 'Lihat Detail',
+        priceNum: mappedTickets.length > 0 ? mappedTickets[0].price : 0,
+        image: item.image_url || '/hiace.jpg',
+        description: item.description || '',
+        term_condition: item.terms || '',
+        seats: seats,
+        seatmap: item.seatmap, // Map the seatmap property!
+        is_name: item.is_name,
+        is_email: item.is_email,
+        is_phone: item.is_phone,
+        is_noidentity: item.is_noidentity,
+        tag: 'Shuttle Bersama',
+        has_event_ticket: mappedTickets
+      };
+
+      event.value = fetchedEvent;
+      bookingStore.selectedEvent = fetchedEvent;
+      if (fetchedEvent.has_event_ticket && fetchedEvent.has_event_ticket.length > 0) {
+        expandedTicketId.value = fetchedEvent.has_event_ticket[0].id;
+      }
+    } else {
+      throw new Error('No data found');
     }
-  } else {
-    router.push('/events');
+  } catch (err) {
+    console.error('Error fetching event data:', err);
+    // fallback
+    const found = allEvents.find(e => e.slug === slug);
+    if (found) {
+      event.value = found;
+      bookingStore.selectedEvent = found;
+      if (found.has_event_ticket && found.has_event_ticket.length > 0) {
+        expandedTicketId.value = found.has_event_ticket[0].id;
+      }
+    } else {
+      router.push('/events');
+    }
   }
 
   window.addEventListener('scroll', handleScrollTabs, { passive: true });
@@ -484,17 +642,26 @@ const formatEventDates = (evt) => {
   if (evt.id === 107) {
     return '5 Mei - 6 Mei 2027';
   }
+  if (evt.start_date) {
+    return formatDateLabel(evt.start_date);
+  }
   return evt.dateLabel || evt.date || 'TBA';
 };
 
 const formatDateLabel = (dateStr) => {
   if (!dateStr) return '';
-  const dateObj = new Date(dateStr);
-  if (isNaN(dateObj.getTime())) return dateStr;
-  const days = dateObj.getDate();
+  // Split by 'T' and '-' to prevent JS Date UTC conversion from shifting the day
+  const pureDate = dateStr.split('T')[0];
+  const parts = pureDate.split('-');
+  if (parts.length !== 3) return dateStr;
+  
+  const year = parts[0];
+  const monthNum = parseInt(parts[1], 10);
+  const days = parseInt(parts[2], 10);
+  
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const monthStr = months[dateObj.getMonth()];
-  const year = dateObj.getFullYear();
+  const monthStr = months[monthNum - 1];
+  
   return `${days} ${monthStr} ${year}`;
 };
 
@@ -519,8 +686,22 @@ const isSeatAvailable = (seatId) => {
 };
 
 const hasAvailableSeats = (t) => {
+  if (t.is_soldout || t.is_fullbook || t.is_finish) return false;
+  if (t.ticket_type_id === 0) return true;
   if (!t.available_seat_number) return false;
   return t.available_seat_number.split(',').map(s => s.trim()).filter(Boolean).length > 0;
+};
+
+const getTicketStatus = (t) => {
+  if (t.is_soldout) return 'TIKET HABIS';
+  if (t.is_fullbook) return 'FULL BOOKED';
+  if (t.is_finish) return 'PENJUALAN SELESAI';
+  return hasAvailableSeats(t) ? 'Tersedia' : 'TIKET HABIS';
+};
+
+const getTicketStatusClass = (t) => {
+  if (t.is_soldout || t.is_fullbook || t.is_finish || !hasAvailableSeats(t)) return 'sold-out';
+  return '';
 };
 
 const selectTicketCategory = (t) => {
@@ -530,7 +711,11 @@ const selectTicketCategory = (t) => {
     errors.value.seats = '';
     isEditMode.value = false;
   }
-  router.push({ hash: '#seatmap' });
+  if (t.ticket_type_id === 0) {
+    goToBuyerDetails();
+  } else {
+    router.push({ hash: '#seatmap' });
+  }
 };
 
 const toggleTicketAccordion = (ticketId) => {
@@ -626,12 +811,11 @@ const goBackToStep1 = () => {
 };
 
 const isFormValid = computed(() => {
-  return buyer.value.name.trim().length >= 3 &&
-         buyer.value.email.trim().length > 0 &&
-         buyer.value.phone.trim().length >= 8 &&
-         !errors.value.name &&
-         !errors.value.email &&
-         !errors.value.phone;
+  const isNameValid = !event.value?.is_name || (buyer.value.name.trim().length >= 3 && !errors.value.name);
+  const isEmailValid = !event.value?.is_email || (buyer.value.email.trim().length > 0 && !errors.value.email);
+  const isPhoneValid = !event.value?.is_phone || (buyer.value.phone.trim().length >= 8 && !errors.value.phone);
+  const isIdentityValid = !event.value?.is_noidentity || (buyer.value.identity.trim().length >= 3 && !errors.value.identity);
+  return isNameValid && isEmailValid && isPhoneValid && isIdentityValid;
 });
 
 const increaseQuantity = () => {
@@ -666,6 +850,7 @@ const toggleSeatSelection = (seatId) => {
 };
 
 const validateName = () => {
+  if (!event.value?.is_name) { errors.value.name = ''; return; }
   const val = buyer.value.name.trim();
   if (!val) {
     errors.value.name = 'Nama lengkap wajib diisi.';
@@ -677,6 +862,7 @@ const validateName = () => {
 };
 
 const validateEmail = () => {
+  if (!event.value?.is_email) { errors.value.email = ''; return; }
   const val = buyer.value.email.trim();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!val) {
@@ -689,6 +875,7 @@ const validateEmail = () => {
 };
 
 const validatePhone = () => {
+  if (!event.value?.is_phone) { errors.value.phone = ''; return; }
   const val = buyer.value.phone.trim();
   if (!val) {
     errors.value.phone = 'Nomor telepon wajib diisi.';
@@ -703,7 +890,21 @@ const validatePhone = () => {
   }
 };
 
+const validateIdentity = () => {
+  if (!event.value?.is_noidentity) { errors.value.identity = ''; return; }
+  const val = buyer.value.identity.trim();
+  if (!val) {
+    errors.value.identity = 'Nomor identitas wajib diisi.';
+  } else {
+    errors.value.identity = '';
+  }
+};
+
 const validateSeats = () => {
+  if (selectedTicket.value && selectedTicket.value.ticket_type_id === 0) {
+    errors.value.seats = '';
+    return;
+  }
   if (selectedSeats.value.length !== quantity.value) {
     errors.value.seats = `Silakan pilih tepat ${quantity.value} kursi.`;
   } else {
@@ -712,11 +913,19 @@ const validateSeats = () => {
 };
 
 const isSelectionComplete = computed(() => {
+  const seatsValid = (selectedTicket.value && selectedTicket.value.ticket_type_id === 0) || 
+                     (selectedSeats.value.length === quantity.value);
+  const isNameValid = !event.value?.is_name || (buyer.value.name.trim().length >= 3);
+  const isEmailValid = !event.value?.is_email || (buyer.value.email.trim().length > 0);
+  const isPhoneValid = !event.value?.is_phone || (buyer.value.phone.trim().length >= 8);
+  const isIdentityValid = !event.value?.is_noidentity || (buyer.value.identity.trim().length >= 3);
+  
   return selectedTicket.value &&
-         buyer.value.name.trim().length >= 3 &&
-         buyer.value.email.trim().length > 0 &&
-         buyer.value.phone.trim().length >= 8 &&
-         selectedSeats.value.length === quantity.value;
+         isNameValid &&
+         isEmailValid &&
+         isPhoneValid &&
+         isIdentityValid &&
+         seatsValid;
 });
 
 const goBack = () => {
@@ -731,14 +940,16 @@ const handleProceedToCheckout = () => {
   validateName();
   validateEmail();
   validatePhone();
+  validateIdentity();
   validateSeats();
 
-  if (isSelectionComplete.value && !errors.value.name && !errors.value.email && !errors.value.phone && !errors.value.seats) {
+  if (isSelectionComplete.value && !errors.value.name && !errors.value.email && !errors.value.phone && !errors.value.identity && !errors.value.seats) {
     // Save to bookingStore and go directly to confirmation/transaction page
     bookingStore.customer = {
       name: buyer.value.name,
       email: buyer.value.email,
-      phone: buyer.value.phone
+      phone: buyer.value.phone,
+      identity: buyer.value.identity
     };
     bookingStore.adults = quantity.value;
     bookingStore.toddlers = 0;
@@ -860,12 +1071,7 @@ const confirmBooking = () => {
                 <span>{{ event.start_time }} - {{ event.end_time }} {{ event.zone_time }}</span>
               </div>
             </div>
-            <div class="detail-row">
-              <MapPin :size="18" class="detail-icon" />
-              <div class="detail-text">
-                <span>{{ event.location_name }}</span>
-              </div>
-            </div>
+
             
             <div class="organizer-section-new">
               <span class="org-label">Diselenggarakan Oleh</span>
@@ -901,10 +1107,7 @@ const confirmBooking = () => {
             <Clock :size="20" class="mobile-meta-icon" />
             <span class="mobile-meta-text">{{ event.start_time }} - {{ event.end_time }} {{ event.zone_time }}</span>
           </div>
-          <div class="mobile-meta-row">
-            <MapPin :size="20" class="mobile-meta-icon" />
-            <span class="mobile-meta-text">{{ event.location_name }}</span>
-          </div>
+
         </div>
         
         <div class="mobile-header-divider-dashed"></div>
@@ -985,6 +1188,7 @@ const confirmBooking = () => {
                     v-for="t in event.has_event_ticket" 
                     :key="t.id" 
                     class="ticket-card-voucher"
+                    :id="selectedTicket?.id === t.id ? 'seatmap' : null"
                     :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen }"
                   >
                     <!-- Voucher Side notches -->
@@ -1056,14 +1260,8 @@ const confirmBooking = () => {
                           <!-- Bus cabin layout -->
                           <div 
                             class="bus-cabin-canvas-viewport"
-                            @mousedown="startPan"
-                            @mousemove="onPan"
-                            @mouseup="endPan"
-                            @mouseleave="endPan"
+                            :class="{ 'is-fullscreen-mode': isFullscreen }"
                             @wheel.prevent="onWheel"
-                            @touchstart="startPanTouch"
-                            @touchmove="onPanTouch"
-                            @touchend="endPan"
                           >
                             <!-- Desktop Legends Overlay (Visible on Desktop Only) -->
                             <div class="inline-legends" @mousedown.stop @touchstart.stop>
@@ -1083,8 +1281,9 @@ const confirmBooking = () => {
 
                             <!-- Desktop Zoom Controls Overlay (Visible on Desktop Only) -->
                             <div class="canvas-zoom-controls" @mousedown.stop @touchstart.stop>
-                              <button type="button" class="zoom-control-btn" @click="isFullscreen = true" title="Fullscreen">
-                                <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
+                              <button type="button" class="zoom-control-btn" @click="isFullscreen = !isFullscreen" :title="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'">
+                                <svg v-if="!isFullscreen" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
+                                <svg v-else viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"></path></svg>
                               </button>
                               <button type="button" class="zoom-control-btn" @click="zoomIn" title="Zoom In">➕</button>
                               <button type="button" class="zoom-control-btn" @click="zoomOut" title="Zoom Out">➖</button>
@@ -1109,73 +1308,53 @@ const confirmBooking = () => {
 
                             <!-- Mobile Zoom Controls (Visible on Mobile Only) -->
                             <div class="mobile-zoom-controls-overlay" @touchstart.stop>
+                              <button type="button" class="m-zoom-btn" @click="isFullscreen = !isFullscreen">
+                                <svg v-if="!isFullscreen" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
+                                <svg v-else viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"></path></svg>
+                              </button>
                               <button type="button" class="m-zoom-btn" @click="zoomIn">➕</button>
                               <button type="button" class="m-zoom-btn" @click="zoomOut">➖</button>
                             </div>
 
                             <div 
-                              class="bus-cabin-container"
-                              :style="{
-                                transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
-                                transformOrigin: 'center center',
-                                transition: isPanning ? 'none' : 'transform 0.15s ease-out'
-                              }"
+                              class="bus-cabin-container konva-container"
+                              style="width: 100%; height: 100%; overflow: hidden; background: #f8fafc; border-radius: 12px; position: relative; z-index: 1;"
                             >
-                              <!-- Grid lines overlay inside the transformed canvas area -->
-                              <div class="canvas-axis-x"></div>
-                              <div class="canvas-axis-y"></div>
-                              <div class="bus-cockpit-front">
-                                <span class="driver-wheel-icon">🧭 Kemudi</span>
-                                <span class="cockpit-label">DEPAN</span>
-                              </div>
+                              <v-stage 
+                                :config="{ 
+                                  width: 800, 
+                                  height: 600, 
+                                  draggable: true, 
+                                  scaleX: zoom, 
+                                  scaleY: zoom 
+                                }"
+                                @wheel="onWheel"
+                              >
+                                <v-layer>
+                                  <!-- Translate layer to center the layout initially -->
+                                  <v-group :config="{ x: 400, y: 100 }">
+                                    <template v-for="shape in parsedSeatmap" :key="shape.id">
+                                              <!-- Box type (e.g. KEMUDI) -->
+                                      <v-group v-if="shape.type === 'box'" :config="shape.groupConfig">
+                                        <v-rect :config="shape.rectConfig" />
+                                        <v-text :config="shape.textConfig" />
+                                      </v-group>
 
-                              <!-- Rows 1 to 9 -->
-                              <div v-for="row in busRows" :key="'bus-row-' + row.rowNum" class="bus-grid-row">
-                                <div class="seat-pair-col">
-                                  <button 
-                                    v-for="seat in row.left"
-                                    :key="seat.id"
-                                    type="button"
-                                    class="cabin-seat-btn"
-                                    :class="{
-                                      selected: selectedSeats.includes(seat.id),
-                                      occupied: !isSeatAvailable(seat.id),
-                                    }"
-                                    :disabled="!isSeatAvailable(seat.id)"
-                                    @click.stop="toggleSeatSelection(seat.id)"
-                                    @touchstart.stop.prevent="toggleSeatSelection(seat.id)"
-                                  >
-                                    <span v-if="!isSeatAvailable(seat.id)" class="seat-cross">✕</span>
-                                    <span v-else class="seat-lbl">{{ seat.label }}</span>
-                                    <span class="seat-tooltip">Seat {{ seat.label }}</span>
-                                  </button>
-                                  <div v-if="row.rowNum === (busRows.length > 8 ? 9 : (busRows.length > 5 ? 6 : busRows.length))" class="door-placeholder-col">
-                                    <span>🚪 Pintu</span>
-                                  </div>
-                                </div>
+                                      <!-- Seat type -->
+                                      <v-group 
+                                        v-else-if="shape.type === 'seat'" 
+                                        :config="shape.groupConfig"
+                                        @click="shape.available ? toggleSeatSelection(shape.id) : null"
+                                        @tap="shape.available ? toggleSeatSelection(shape.id) : null"
+                                      >
+                                        <v-rect :config="shape.rectConfig" />
+                                        <v-text :config="shape.textConfig" />
+                                      </v-group>
 
-                                <div class="row-num-badge">{{ row.rowNum }}</div>
-
-                                <div class="seat-pair-col">
-                                  <button 
-                                    v-for="seat in row.right"
-                                    :key="seat.id"
-                                    type="button"
-                                    class="cabin-seat-btn"
-                                    :class="{
-                                      selected: selectedSeats.includes(seat.id),
-                                      occupied: !isSeatAvailable(seat.id),
-                                    }"
-                                    :disabled="!isSeatAvailable(seat.id)"
-                                    @click.stop="toggleSeatSelection(seat.id)"
-                                    @touchstart.stop.prevent="toggleSeatSelection(seat.id)"
-                                  >
-                                    <span v-if="!isSeatAvailable(seat.id)" class="seat-cross">✕</span>
-                                    <span v-else class="seat-lbl">{{ seat.label }}</span>
-                                    <span class="seat-tooltip">Seat {{ seat.label }}</span>
-                                  </button>
-                                </div>
-                              </div>
+                                    </template>
+                                  </v-group>
+                                </v-layer>
+                              </v-stage>
                             </div>
                           </div>
 
@@ -1202,9 +1381,15 @@ const confirmBooking = () => {
                       <div class="ticket-top-section" @click="toggleTicketAccordion(t.id)" style="cursor: pointer;">
                         <div class="ticket-top-left">
                           <h3 class="ticket-category-title">{{ t.name }}</h3>
-                          <div class="ticket-status-badge" :class="{ 'sold-out': !hasAvailableSeats(t) }">
+                          <div v-if="t.route" class="ticket-route-info" style="font-size: 0.8rem; color: #64748b; margin-top: 4px; font-weight: 700; text-transform: capitalize;">
+                            Rute: {{ t.route.origin_name }} ➔ {{ t.route.destination_name }}
+                          </div>
+                          <div v-if="t.description" class="ticket-description" style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px; margin-bottom: 8px;">
+                            {{ t.description }}
+                          </div>
+                          <div class="ticket-status-badge" :class="getTicketStatusClass(t)">
                             <span class="status-dot"></span>
-                            <span>{{ hasAvailableSeats(t) ? 'Tersedia' : 'TIKET HABIS' }}</span>
+                            <span>{{ getTicketStatus(t) }}</span>
                           </div>
                         </div>
                         
@@ -1286,7 +1471,7 @@ const confirmBooking = () => {
                               :disabled="!hasAvailableSeats(t)"
                               @click.stop="selectTicketCategory(t)"
                             >
-                              {{ !hasAvailableSeats(t) ? 'Habis' : (selectedSeats.length > 0 && selectedTicket?.id === t.id ? `Pilih Seat (${selectedSeats.length})` : 'Pilih Seat') }}
+                              {{ !hasAvailableSeats(t) ? 'Habis' : (t.ticket_type_id === 0 ? 'Beli Tiket' : (selectedSeats.length > 0 && selectedTicket?.id === t.id ? `Pilih Seat (${selectedSeats.length})` : 'Pilih Seat')) }}
                             </button>
                             
                             
@@ -1405,7 +1590,7 @@ const confirmBooking = () => {
 
                   <!-- Right column: Input fields -->
                   <div class="onpage-form-right-col">
-                    <div class="form-input-group mb-3">
+                    <div class="form-input-group mb-3" v-if="event?.is_name">
                       <label class="form-field-label"><User :size="12" /> Nama Lengkap</label>
                       <input 
                         type="text" 
@@ -1419,7 +1604,7 @@ const confirmBooking = () => {
                       <span v-if="errors.name" class="form-error-text">{{ errors.name }}</span>
                     </div>
 
-                    <div class="form-input-group mb-3">
+                    <div class="form-input-group mb-3" v-if="event?.is_email">
                       <label class="form-field-label"><Mail :size="12" /> Email</label>
                       <input 
                         type="email" 
@@ -1433,7 +1618,7 @@ const confirmBooking = () => {
                       <span v-if="errors.email" class="form-error-text">{{ errors.email }}</span>
                     </div>
 
-                    <div class="form-input-group mb-3">
+                    <div class="form-input-group mb-3" v-if="event?.is_phone">
                       <label class="form-field-label"><Phone :size="12" /> Nomor WhatsApp</label>
                       <input 
                         type="tel" 
@@ -1445,6 +1630,20 @@ const confirmBooking = () => {
                         :class="{ 'has-error': errors.phone }"
                       />
                       <span v-if="errors.phone" class="form-error-text">{{ errors.phone }}</span>
+                    </div>
+
+                    <div class="form-input-group mb-3" v-if="event?.is_noidentity">
+                      <label class="form-field-label"><User :size="12" /> Nomor Identitas (KTP/NIK)</label>
+                      <input 
+                        type="text" 
+                        v-model="buyer.identity"
+                        @input="validateIdentity"
+                        @blur="validateIdentity"
+                        placeholder="Masukkan nomor identitas"
+                        class="sidebar-form-input"
+                        :class="{ 'has-error': errors.identity }"
+                      />
+                      <span v-if="errors.identity" class="form-error-text">{{ errors.identity }}</span>
                     </div>
                   </div>
                 </div>
@@ -1462,126 +1661,6 @@ const confirmBooking = () => {
       </div>
     </div>
 
-    <!-- Fullscreen Seatmap Modal -->
-    <transition name="modal-fade">
-      <div v-if="isFullscreen" class="fullscreen-seatmap-overlay" @click.self="isFullscreen = false">
-        <div class="fullscreen-seatmap-card">
-          <div class="fullscreen-card-header">
-            <div class="fullscreen-header-left">
-              <h3 class="fullscreen-title">Pilih Seat</h3>
-              <div class="fullscreen-selected-seats" v-if="selectedSeats.length > 0">
-                <span class="fs-seats-label">Seat No:</span>
-                <div class="fs-seats-pills">
-                  <span v-for="s in selectedSeats" :key="'fs-seat-' + s" class="fs-seat-pill">
-                    {{ s }}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <button class="fullscreen-close-btn-top" @click="isFullscreen = false">✕</button>
-          </div>
-          
-          <!-- Fullscreen viewport -->
-          <div 
-            class="bus-cabin-canvas-viewport fs-viewport"
-            @mousedown="startPan"
-            @mousemove="onPan"
-            @mouseup="endPan"
-            @mouseleave="endPan"
-            @wheel.prevent="onWheel"
-            @touchstart="startPanTouch"
-            @touchmove="onPanTouch"
-            @touchend="endPan"
-          >
-            <!-- Floating controls in top right -->
-            <div class="fs-floating-controls">
-              <button type="button" class="fs-float-btn" @click="resetZoomPan" title="Recenter">
-                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              </button>
-              <button type="button" class="fs-float-btn" @click="zoomOut" title="Zoom Out">
-                <span style="font-size: 1.2rem; line-height: 1;">—</span>
-              </button>
-              <button type="button" class="fs-float-btn" @click="zoomIn" title="Zoom In">
-                <span style="font-size: 1.2rem; line-height: 1;">＋</span>
-              </button>
-            </div>
-
-            <div 
-              class="bus-cabin-container"
-              :style="{
-                transform: `translate(${panX}px, ${panY}px) scale(${zoom})`,
-                transformOrigin: 'center center',
-                transition: isPanning ? 'none' : 'transform 0.15s ease-out'
-              }"
-            >
-              <!-- Center axis lines only, no background grid lines -->
-              <div class="canvas-axis-x"></div>
-              <div class="canvas-axis-y"></div>
-              
-              <div class="bus-cockpit-front">
-                <span class="driver-wheel-icon">🧭 Kemudi</span>
-                <span class="cockpit-label">DEPAN</span>
-              </div>
-
-              <!-- Rows 1 to 9 -->
-              <div v-for="row in busRows" :key="'fs-bus-row-' + row.rowNum" class="bus-grid-row">
-                <div class="seat-pair-col">
-                  <button 
-                    v-for="seat in row.left"
-                    :key="'fs-left-' + seat.id"
-                    type="button"
-                    class="cabin-seat-btn"
-                    :class="{
-                      selected: selectedSeats.includes(seat.id),
-                      occupied: !isSeatAvailable(seat.id),
-                    }"
-                    :disabled="!isSeatAvailable(seat.id)"
-                    @click.stop="toggleSeatSelection(seat.id)"
-                    @touchstart.stop.prevent="toggleSeatSelection(seat.id)"
-                  >
-                    <span v-if="!isSeatAvailable(seat.id)" class="seat-cross">✕</span>
-                    <span v-else class="seat-lbl">{{ seat.label }}</span>
-                    <span class="seat-tooltip">Seat {{ seat.label }}</span>
-                  </button>
-                  <div v-if="row.rowNum === 9" class="door-placeholder-col">
-                    <span>🚪 Pintu</span>
-                  </div>
-                </div>
-
-                <div class="row-num-badge">{{ row.rowNum }}</div>
-
-                <div class="seat-pair-col">
-                  <button 
-                    v-for="seat in row.right"
-                    :key="'fs-right-' + seat.id"
-                    type="button"
-                    class="cabin-seat-btn"
-                    :class="{
-                      selected: selectedSeats.includes(seat.id),
-                      occupied: !isSeatAvailable(seat.id),
-                    }"
-                    :disabled="!isSeatAvailable(seat.id)"
-                    @click.stop="toggleSeatSelection(seat.id)"
-                    @touchstart.stop.prevent="toggleSeatSelection(seat.id)"
-                  >
-                    <span v-if="!isSeatAvailable(seat.id)" class="seat-cross">✕</span>
-                    <span v-else class="seat-lbl">{{ seat.label }}</span>
-                    <span class="seat-tooltip">Seat {{ seat.label }}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Bottom Action Button -->
-          <div class="fullscreen-card-footer">
-            <button class="fullscreen-close-btn-bottom" @click="isFullscreen = false">
-              Tutup Fullscreen
-            </button>
-          </div>
-        </div>
-      </div>
-    </transition>
 
     <!-- Sticky Bottom Checkout Bar -->
     <!-- Desktop Bottom Bar View -->
@@ -3267,8 +3346,8 @@ const confirmBooking = () => {
 }
 
 .legend-box.selected {
-  background: var(--primary);
-  border-color: var(--primary);
+  background: #ef4444;
+  border-color: #ef4444;
 }
 
 .legend-box.available {
@@ -3287,7 +3366,9 @@ const confirmBooking = () => {
   overflow: hidden;
   background-color: #dbe1e8; /* Slate light blue-grey background matching the image */
   border: 1.5px solid var(--border-color);
-  border-radius: 14px;
+  border-radius: 16px;
+  box-shadow: inset 0 2px 10px rgba(0,0,0,0.02), 0 4px 14px rgba(0,0,0,0.05);
+  transition: box-shadow 0.3s ease;
   cursor: grab;
   user-select: none;
   display: flex;
@@ -3298,6 +3379,18 @@ const confirmBooking = () => {
 
 .bus-cabin-canvas-viewport:active {
   cursor: grabbing;
+}
+
+.is-fullscreen-mode {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background: #f8fafc !important;
 }
 
 .mobile-legends-overlay,
@@ -3315,13 +3408,11 @@ const confirmBooking = () => {
   top: 16px;
   right: 16px;
   z-index: 10;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 12px;
   padding: 6px 10px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
 }
 
 .zoom-control-btn {
@@ -4758,18 +4849,16 @@ const confirmBooking = () => {
   .sheet-inner-card .mobile-legends-overlay {
     display: flex !important;
     position: absolute;
-    top: 10px;
+    top: 12px;
     left: 12px;
     z-index: 25;
-    background-color: rgba(250, 249, 249, 0.9);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 4px 7px;
+    background-color: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(0,0,0,0.05);
+    border-radius: 10px;
+    padding: 6px 10px;
     justify-content: center;
     gap: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     pointer-events: auto;
   }
 
@@ -4792,14 +4881,11 @@ const confirmBooking = () => {
     bottom: 90px;
     right: 14px;
     z-index: 25;
-    background-color: rgba(250, 249, 249, 0.9);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 1px solid var(--border-color);
+    background-color: rgba(255, 255, 255, 0.98);
+    border: 1px solid rgba(0,0,0,0.05);
     border-radius: 20px;
-    padding: 4px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    pointer-events: auto;
+    padding: 6px;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
   }
 
   .sheet-inner-card .mobile-zoom-controls-overlay .m-zoom-btn {

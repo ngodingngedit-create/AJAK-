@@ -57,6 +57,9 @@ onMounted(() => {
   } else {
     selectedLocation.value = 'Jakarta, Indonesia';
   }
+
+  fetchUpcomingEvents();
+  fetchShuttleBuses();
 });
 
 onUnmounted(() => {
@@ -64,81 +67,70 @@ onUnmounted(() => {
   if (ekslusifInterval) clearInterval(ekslusifInterval);
 });
 
-// Mock Data
-const events = [
-  {
-    id: 3,
-    name: 'Hiace Premium Jakarta',
-    slug: 'hiace-premium-jakarta-6a3d03e22e0fb',
-    bus_code: 'HC001',
-    bus_type: 'MINIBUS',
-    plate_number: 'B 1234 XYZ',
-    seat_layout: '2_1',
-    total_seat: 12,
-    facilities: ['AC', 'WiFi', 'USB Charger', 'Reclining Seat'],
-    date: '2026-10-15',
-    dateLabel: '15 Okt 2026',
-    time: '18:00 WIB',
-    departureTime: '12:00 WIB',
-    returnTime: '01:00 WIB',
-    location: 'Ancol Ecovention & Ecopark (FX Sudirman pick-up)',
-    city: 'Jakarta',
-    price: 'Rp 250.000',
-    priceNum: 250000,
-    image: '/hiace.jpg',
-    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
-    seats: 12,
-    tag: 'Shuttle Eksklusif'
-  },
-  {
-    id: 1,
-    name: 'Kolektix Big Bus 59',
-    slug: 'bigbus-59',
-    bus_code: 'BB59-01',
-    bus_type: 'BIG_BUS',
-    plate_number: 'B 1234 KTX',
-    seat_layout: '2_3',
-    total_seat: 59,
-    facilities: ['AC', 'WIFI', 'USB CHARGER', 'TOILET'],
-    date: '2026-10-15',
-    dateLabel: '15 Okt 2026',
-    time: '18:00 WIB',
-    departureTime: '12:00 WIB',
-    returnTime: '01:00 WIB',
-    location: 'Ancol Ecovention & Ecopark (Bekasi West pick-up)',
-    city: 'Jakarta',
-    price: 'Rp 100.000',
-    priceNum: 100000,
-    image: '/busbiru.png',
-    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
-    seats: 59,
-    tag: 'Shuttle Bersama'
-  },
-  {
-    id: 2,
-    name: 'Kolektix Medium Bus 29',
-    slug: 'mediumbus-29',
-    bus_code: 'MB29-01',
-    bus_type: 'MEDIUM_BUS',
-    plate_number: 'D 5678 KTX',
-    seat_layout: '2_2',
-    total_seat: 29,
-    facilities: ['AC', 'USB CHARGER'],
-    date: '2026-10-15',
-    dateLabel: '15 Okt 2026',
-    time: '18:00 WIB',
-    departureTime: '12:00 WIB',
-    returnTime: '01:00 WIB',
-    location: 'Ancol Ecovention & Ecopark (Depok Margonda pick-up)',
-    city: 'Jakarta',
-    price: 'Rp 120.000',
-    priceNum: 120000,
-    image: '/busputih.png',
-    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
-    seats: 29,
-    tag: 'Shuttle Bersama'
+// API Data
+const events = ref([]);
+const shuttleBuses = ref([]);
+
+const fetchShuttleBuses = async () => {
+  try {
+    const response = await fetch('https://api.kolektix.my.id/api/shuttlebuses');
+    if (!response.ok) throw new Error('Network response was not ok');
+    const result = await response.json();
+    if (result.success && result.data && result.data.data) {
+      shuttleBuses.value = result.data.data;
+    }
+  } catch (error) {
+    console.error('Failed to fetch shuttle buses:', error);
   }
-];
+};
+
+const fetchUpcomingEvents = async () => {
+  try {
+    const response = await fetch('https://api.kolektix.my.id/api/shuttle');
+    if (!response.ok) throw new Error('Network response was not ok');
+    const result = await response.json();
+    if (result.success && result.data && result.data.data) {
+      events.value = result.data.data.map(item => {
+        const dateObj = new Date(item.start_date);
+        const day = dateObj.getDate();
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+        const month = monthNames[dateObj.getMonth()];
+        const year = dateObj.getFullYear();
+        
+        let seats = 0;
+        try {
+          if (item.seatmap) {
+            const seatmap = JSON.parse(item.seatmap);
+            seats = seatmap.rows * seatmap.cols;
+          }
+        } catch (e) {
+          console.warn('Invalid seatmap JSON', e);
+        }
+
+        return {
+          id: item.id,
+          name: item.name,
+          slug: item.slug,
+          image: item.image_url,
+          desc: item.description,
+          date: item.start_date ? item.start_date.split('T')[0] : '',
+          dateLabel: `${day} ${month} ${year}`,
+          time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
+          location: item.description || 'TBA',
+          city: 'Jakarta',
+          price: 'Lihat Detail',
+          priceNum: 0,
+          tag: 'Shuttle Bersama',
+          bus_type: 'MINIBUS',
+          plate_number: '-',
+          seats: seats
+        };
+      });
+    }
+  } catch (error) {
+    console.error('Failed to fetch shuttle events:', error);
+  }
+};
 
 // Event Modal
 const selectedEvent = ref(null);
@@ -148,7 +140,7 @@ const modalToddlers = ref(0);
 const openEventModal = (event) => {
   // Navigate directly to booking flow
   bookingStore.selectedEvent = event;
-  router.push(`/booking/${event.id}`);
+  router.push(`/booking/${event.slug}`);
 };
 
 const closeEventModal = () => {
@@ -159,7 +151,7 @@ const closeEventModal = () => {
 const bookEvent = () => {
   if (!selectedEvent.value) return;
   bookingStore.selectedEvent = selectedEvent.value;
-  router.push(`/booking/${selectedEvent.value.id}`);
+  router.push(`/booking/${selectedEvent.value.slug}`);
   closeEventModal();
 };
 
@@ -530,46 +522,24 @@ const tagColors = {
         </div>
 
         <div class="tiers-grid">
-          <div class="tier-card public">
+          <div v-for="bus in shuttleBuses" :key="bus.id" class="tier-card public">
             <div class="tier-visual">
-              <img src="/busmerah.png" alt="Public Shuttle" />
-              <div class="tier-badge">Favorit Penggemar</div>
+              <img :src="bus.bus_type === 'BIG_BUS' ? '/busbiru.png' : (bus.bus_type === 'MEDIUM_BUS' ? '/busputih.png' : '/hiace.jpg')" :alt="bus.bus_name" />
+              <div class="tier-badge">{{ bus.bus_code }}</div>
             </div>
             <div class="tier-info">
-              <div class="tier-tag">Komunitas Bersama</div>
-              <h3>Shuttle Bersama</h3>
-              <p>Cara terbaik untuk bepergian bersama sesama penggemar. Efisien, aman, dan menyenangkan.</p>
+              <div class="tier-tag">{{ bus.bus_type === 'BIG_BUS' ? 'Big Bus' : (bus.bus_type === 'MEDIUM_BUS' ? 'Medium Bus' : 'Minibus') }}</div>
+              <h3>{{ bus.bus_name }}</h3>
+              <p>Fasilitas armada eksklusif dengan kapasitas {{ bus.total_seat }} kursi (Layout {{ bus.seat_layout }}). Plat Nomor: {{ bus.plate_number }}</p>
               <ul class="tier-list">
-                <li><Zap size="16"/> Titik Jemput Strategis</li>
-                <li><Zap size="16"/> Keberangkatan Terjadwal</li>
-                <li><Zap size="16"/> Keamanan Pulang-Pergi</li>
-                <li><Zap size="16"/> Terdapat Liaison Officer di tiap armada</li>
-                <li><Zap size="16"/> Full entertainment</li>
-                <li><Zap size="16"/> Kenyamanan Perjalanan</li>
+                <li v-for="fac in bus.facilities" :key="fac"><Zap size="16"/> {{ fac }}</li>
               </ul>
-            </div>
-          </div>
-
-          <div class="tier-card dark" style="opacity: 0.5; pointer-events: none; filter: grayscale(100%);">
-            <div class="tier-visual">
-              <transition-group name="fade-slideshow" tag="div">
-                <div v-for="(img, index) in ekslusifImages" :key="img" v-show="currentEkslusifIndex === index" class="slide-layer">
-                  <img :src="img" alt="VIP Car" />
-                </div>
-              </transition-group>
-            </div>
-            <div class="tier-info">
-              <div class="tier-tag">Layanan Premium</div>
-              <h3>Shuttle Eksklusif</h3>
-              <p>Privasi premium untuk perjalanan Anda. Kontrol penuh atas jadwal perjalanan Anda.</p>
-              <ul class="tier-list">
-                <li><Zap size="16"/> Sopir Mewah Profesional</li>
-                <li><Zap size="16"/> Langsung Pintu ke Pintu</li>
-                <li><Zap size="16"/> Privasi Mutlak</li>
-                <li><Zap size="16"/> Bisa menentukan titik jemput</li>
-                <li><Zap size="16"/> Bisa menentukan jam keberangkatan & kepulangan sesuka hati</li>
-                <li><Zap size="16"/> Terdapat Air Mineral</li>
-              </ul>
+              <button 
+                style="margin-top: 1rem; width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;"
+                @click="router.push(`/shuttlebus/${bus.slug}`)"
+              >
+                Lihat Detail Armada →
+              </button>
             </div>
           </div>
         </div>
@@ -1529,7 +1499,7 @@ const tagColors = {
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; transform: scale(0.95); }
 
 /* ===== TIERS ===== */
-.tiers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.tiers-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 30px; }
 .tier-card { border-radius: 36px; overflow: hidden; background: var(--card-bg); box-shadow: var(--shadow-md); display: flex; flex-direction: column; }
 .tier-card.dark { background: #111; color: white; }
 .tier-visual { height: 320px; position: relative; }

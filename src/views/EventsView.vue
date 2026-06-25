@@ -71,61 +71,48 @@ const fallbackBuses = [
   }
 ];
 
-const mapBusToEvent = (bus) => {
-  let image = '/hiace.jpg';
-  let tag = 'Shuttle Eksklusif';
-  let price = 'Rp 150.000';
-  let priceNum = 150000;
-  let city = 'Jakarta';
-  let location = 'Ancol Ecovention & Ecopark';
-  let date = '2026-10-15';
-  let dateLabel = '15 Okt 2026';
-  let time = '18:00 WIB';
-  let desc = `Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.`;
+const mapBusToEvent = (item) => {
+  const dateObj = new Date(item.start_date || new Date());
+  const day = dateObj.getDate();
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+  const month = monthNames[dateObj.getMonth()];
+  const year = dateObj.getFullYear();
   
-  if (bus.bus_type === 'BIG_BUS') {
-    image = '/busbiru.png';
-    tag = 'Shuttle Bersama';
-    price = 'Rp 100.000';
-    priceNum = 100000;
-    location = 'Ancol Ecovention & Ecopark (Bekasi West pick-up)';
-  } else if (bus.bus_type === 'MEDIUM_BUS') {
-    image = '/busputih.png';
-    tag = 'Shuttle Bersama';
-    price = 'Rp 120.000';
-    priceNum = 120000;
-    location = 'Ancol Ecovention & Ecopark (Depok Margonda pick-up)';
-  } else if (bus.bus_type === 'MINIBUS') {
-    image = '/hiace.jpg';
-    tag = 'Shuttle Eksklusif';
-    price = 'Rp 250.000';
-    priceNum = 250000;
-    location = 'Ancol Ecovention & Ecopark (FX Sudirman pick-up)';
+  let seats = 0;
+  try {
+    if (item.seatmap) {
+      const seatmap = JSON.parse(item.seatmap);
+      seats = seatmap.rows * seatmap.cols;
+    } else if (item.total_seat) {
+      seats = item.total_seat;
+    }
+  } catch (e) {
+    console.warn('Invalid seatmap JSON', e);
   }
 
   return {
-    id: bus.id,
-    name: bus.bus_name,
-    slug: bus.slug,
-    bus_code: bus.bus_code,
-    bus_type: bus.bus_type,
-    plate_number: bus.plate_number,
-    seat_layout: bus.seat_layout,
-    total_seat: bus.total_seat,
-    facilities: bus.facilities,
-    date,
-    dateLabel,
-    time,
+    id: item.id,
+    name: item.name || item.bus_name || 'Unknown',
+    slug: item.slug,
+    bus_code: item.bus_code || '-',
+    bus_type: item.bus_type || 'MINIBUS',
+    plate_number: item.plate_number || '-',
+    seat_layout: item.seat_layout || '-',
+    total_seat: seats,
+    facilities: item.facilities || ['AC', 'USB CHARGER'],
+    date: item.start_date ? item.start_date.split('T')[0] : '2026-10-15',
+    dateLabel: `${day} ${month} ${year}`,
+    time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '18:00 WIB',
     departureTime: '12:00 WIB',
     returnTime: '01:00 WIB',
-    location,
-    city,
-    price,
-    priceNum,
-    image,
-    desc,
-    seats: bus.total_seat,
-    tag
+    location: item.description || 'TBA',
+    city: 'Jakarta',
+    price: 'Lihat Detail',
+    priceNum: 0,
+    image: item.image_url || '/hiace.jpg',
+    desc: item.description || '',
+    seats: seats,
+    tag: 'Shuttle Bersama'
   };
 };
 
@@ -133,7 +120,7 @@ const fetchShuttleBuses = async () => {
   isLoading.value = true;
   fetchError.value = null;
   try {
-    const response = await fetch('https://api.kolektix.my.id/api/shuttlebuses');
+    const response = await fetch('https://api.kolektix.my.id/api/shuttle');
     if (!response.ok) throw new Error('Gagal mengambil data dari API server.');
     const result = await response.json();
     if (result.success && result.data && result.data.data) {
@@ -214,7 +201,7 @@ const clearFilters = () => {
 
 const selectEvent = (event) => {
   bookingStore.selectedEvent = event;
-  router.push(`/booking/${event.id}`);
+  router.push(`/booking/${event.slug}`);
 };
 
 const tagColors = {

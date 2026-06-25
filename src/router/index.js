@@ -13,7 +13,8 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomeView },
     { path: '/events', name: 'events', component: EventsView },
-    { path: '/booking/:id', name: 'booking', component: BookingView },
+    { path: '/booking/:slug', name: 'booking', component: BookingView },
+    { path: '/shuttlebus/:slug', name: 'shuttlebus-detail', component: () => import('../views/ShuttleBusDetailView.vue') },
     { path: '/transaksi', name: 'transaksi', component: TransactionView },
     { path: '/confirmation', name: 'confirmation', component: ConfirmationView },
     { path: '/login', name: 'login', component: LoginView },
