@@ -41,14 +41,7 @@ export const bookingStore = reactive({
 
   get basePrice() {
     if (!this.selectedEvent) return 0;
-    let price = this.selectedEvent.priceNum;
-    if (this.selectedPickup && this.selectedPickup.region) {
-      const region = this.selectedPickup.region;
-      if (region === 'Sudirman') price = 120000;
-      else if (region === 'Bogor') price = 175000;
-      else price = 150000;
-    }
-    return price;
+    return this.selectedEvent.priceNum || 0;
   },
 
   get ridePrice() {

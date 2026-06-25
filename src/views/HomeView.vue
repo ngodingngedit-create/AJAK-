@@ -66,7 +66,78 @@ onUnmounted(() => {
 
 // Mock Data
 const events = [
-  { id: 1, name: 'The Sounds Project', date: 'Oct 15, 2026', dateLabel: '15 Okt 2026', time: '18:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', desc: 'Festival musik terbesar di Indonesia. Nikmati malam yang penuh musik yang menggetarkan jiwa.', seats: 42, tag: 'Shuttle Bersama' }
+  {
+    id: 3,
+    name: 'Hiace Premium Jakarta',
+    slug: 'hiace-premium-jakarta-6a3d03e22e0fb',
+    bus_code: 'HC001',
+    bus_type: 'MINIBUS',
+    plate_number: 'B 1234 XYZ',
+    seat_layout: '2_1',
+    total_seat: 12,
+    facilities: ['AC', 'WiFi', 'USB Charger', 'Reclining Seat'],
+    date: '2026-10-15',
+    dateLabel: '15 Okt 2026',
+    time: '18:00 WIB',
+    departureTime: '12:00 WIB',
+    returnTime: '01:00 WIB',
+    location: 'Ancol Ecovention & Ecopark (FX Sudirman pick-up)',
+    city: 'Jakarta',
+    price: 'Rp 250.000',
+    priceNum: 250000,
+    image: '/hiace.jpg',
+    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
+    seats: 12,
+    tag: 'Shuttle Eksklusif'
+  },
+  {
+    id: 1,
+    name: 'Kolektix Big Bus 59',
+    slug: 'bigbus-59',
+    bus_code: 'BB59-01',
+    bus_type: 'BIG_BUS',
+    plate_number: 'B 1234 KTX',
+    seat_layout: '2_3',
+    total_seat: 59,
+    facilities: ['AC', 'WIFI', 'USB CHARGER', 'TOILET'],
+    date: '2026-10-15',
+    dateLabel: '15 Okt 2026',
+    time: '18:00 WIB',
+    departureTime: '12:00 WIB',
+    returnTime: '01:00 WIB',
+    location: 'Ancol Ecovention & Ecopark (Bekasi West pick-up)',
+    city: 'Jakarta',
+    price: 'Rp 100.000',
+    priceNum: 100000,
+    image: '/busbiru.png',
+    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
+    seats: 59,
+    tag: 'Shuttle Bersama'
+  },
+  {
+    id: 2,
+    name: 'Kolektix Medium Bus 29',
+    slug: 'mediumbus-29',
+    bus_code: 'MB29-01',
+    bus_type: 'MEDIUM_BUS',
+    plate_number: 'D 5678 KTX',
+    seat_layout: '2_2',
+    total_seat: 29,
+    facilities: ['AC', 'USB CHARGER'],
+    date: '2026-10-15',
+    dateLabel: '15 Okt 2026',
+    time: '18:00 WIB',
+    departureTime: '12:00 WIB',
+    returnTime: '01:00 WIB',
+    location: 'Ancol Ecovention & Ecopark (Depok Margonda pick-up)',
+    city: 'Jakarta',
+    price: 'Rp 120.000',
+    priceNum: 120000,
+    image: '/busputih.png',
+    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
+    seats: 29,
+    tag: 'Shuttle Bersama'
+  }
 ];
 
 // Event Modal
@@ -393,6 +464,10 @@ const tagColors = {
               </div>
             </div>
             <div class="event-card-body">
+              <div class="event-bus-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                <span class="bus-badge-type" style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(201, 76, 76, 0.1); color: var(--primary); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(201, 76, 76, 0.2);">{{ event.bus_type === 'BIG_BUS' ? 'Big Bus' : (event.bus_type === 'MEDIUM_BUS' ? 'Medium Bus' : 'Minibus / Hiace') }}</span>
+                <span class="bus-badge-plate" style="font-family: 'Courier New', Courier, monospace; font-size: 0.72rem; font-weight: 700; color: var(--text-dark); background: var(--input-bg); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border-color); letter-spacing: 0.5px;">{{ event.plate_number }}</span>
+              </div>
               <h3 class="event-name">{{ event.name }}</h3>
               <!-- <p class="event-desc">{{ event.desc }}</p> -->
               <div class="event-meta">

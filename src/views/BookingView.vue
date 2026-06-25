@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { MapPin, Clock, Calendar, ChevronLeft, ChevronDown, Check, Info, User, Mail, Phone, Wind, Zap, Music, ShieldCheck } from 'lucide-vue-next';
+import { MapPin, Clock, Calendar, ChevronLeft, ChevronDown, Check, Info, User, Mail, Phone, Wind, Zap, Music, ShieldCheck, Wifi, Sofa } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
 
 const route = useRoute();
@@ -9,28 +9,109 @@ const router = useRouter();
 
 // Events data with Seatmap BTS (id: 107) matching the user's API payload
 const allEvents = [
-  { 
-    id: 1, 
-    name: 'The Sounds Project', 
-    date: '2026-10-15', 
-    dateLabel: '15 Okt 2026', 
-    time: '18:00 WIB', 
-    departureTime: '12:00 WIB', 
-    returnTime: '01:00 WIB', 
-    location: 'Ancol Ecovention & Ecopark', 
-    city: 'Jakarta', 
-    price: 'Rp 150.000', 
-    priceNum: 150000, 
-    image: '/TSP.jpeg', 
+  {
+    id: 3,
+    name: 'Hiace Premium Jakarta',
+    slug: 'hiace-premium-jakarta-6a3d03e22e0fb',
+    bus_code: 'HC001',
+    bus_type: 'MINIBUS',
+    plate_number: 'B 1234 XYZ',
+    seat_layout: '2_1',
+    total_seat: 12,
+    facilities: ['AC', 'WiFi', 'USB Charger', 'Reclining Seat'],
+    date: '2026-10-15',
+    dateLabel: '15 Okt 2026',
+    time: '18:00 WIB',
+    departureTime: '12:00 WIB',
+    returnTime: '01:00 WIB',
+    location: 'Ancol Ecovention & Ecopark (FX Sudirman pick-up)',
+    city: 'Jakarta',
+    price: 'Rp 250.000',
+    priceNum: 250000,
+    image: '/hiace.jpg',
+    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
+    seats: 12,
+    tag: 'Shuttle Eksklusif',
+    has_event_ticket: [
+      {
+        id: 301,
+        name: 'VIP Minibus Seat',
+        ticket_category: 'VIP Shuttle',
+        description: 'Kursi premium Hiace dengan reclining seat dan WiFi.',
+        price: 250000,
+        available_seat_number: 'A1,B1,C1,A2,B2,C2,A3,B3,C3,A4,B4,C4',
+        ticket_end: '2026-10-14',
+        ending_time: '23:59:00'
+      }
+    ]
+  },
+  {
+    id: 1,
+    name: 'Kolektix Big Bus 59',
+    slug: 'bigbus-59',
+    bus_code: 'BB59-01',
+    bus_type: 'BIG_BUS',
+    plate_number: 'B 1234 KTX',
+    seat_layout: '2_3',
+    total_seat: 59,
+    facilities: ['AC', 'WIFI', 'USB CHARGER', 'TOILET'],
+    date: '2026-10-15',
+    dateLabel: '15 Okt 2026',
+    time: '18:00 WIB',
+    departureTime: '12:00 WIB',
+    returnTime: '01:00 WIB',
+    location: 'Ancol Ecovention & Ecopark (Bekasi West pick-up)',
+    city: 'Jakarta',
+    price: 'Rp 100.000',
+    priceNum: 100000,
+    image: '/busbiru.png',
+    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
+    seats: 59,
     tag: 'Shuttle Bersama',
     has_event_ticket: [
       {
-        id: 1,
-        name: 'Regular Shuttle',
-        ticket_category: 'Shuttle',
-        description: 'Shuttle bersahabat menuju venue event.',
-        price: 150000,
-        available_seat_number: 'B1,B2,B3,B4,B5',
+        id: 101,
+        name: 'Regular Big Bus Seat',
+        ticket_category: 'Regular Shuttle',
+        description: 'Kursi nyaman Big Bus dengan Toilet dan WiFi.',
+        price: 100000,
+        available_seat_number: 'A1,B1,C1,D1,E1,A2,B2,C2,D2,E2,A3,B3,C3,D3,E3,A4,B4,C4,D4,E4,A5,B5,C5,D5,E5,A6,B6,C6,D6,E6,A7,B7,C7,D7,E7,A8,B8,C8,D8,E8,A9,B9,C9,D9,E9,A10,B10,C10,D10,E10,A11,B11,C11,D11,E11,A12,B12,C12,D12',
+        ticket_end: '2026-10-14',
+        ending_time: '23:59:00'
+      }
+    ]
+  },
+  {
+    id: 2,
+    name: 'Kolektix Medium Bus 29',
+    slug: 'mediumbus-29',
+    bus_code: 'MB29-01',
+    bus_type: 'MEDIUM_BUS',
+    plate_number: 'D 5678 KTX',
+    seat_layout: '2_2',
+    total_seat: 29,
+    facilities: ['AC', 'USB CHARGER'],
+    date: '2026-10-15',
+    dateLabel: '15 Okt 2026',
+    time: '18:00 WIB',
+    departureTime: '12:00 WIB',
+    returnTime: '01:00 WIB',
+    location: 'Ancol Ecovention & Ecopark (Depok Margonda pick-up)',
+    city: 'Jakarta',
+    price: 'Rp 120.000',
+    priceNum: 120000,
+    image: '/busputih.png',
+    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
+    seats: 29,
+    tag: 'Shuttle Bersama',
+    has_event_ticket: [
+      {
+        id: 201,
+        name: 'Standard Medium Bus Seat',
+        ticket_category: 'Standard Shuttle',
+        description: 'Kursi AC Medium Bus dengan port USB Charger.',
+        price: 120000,
+        available_seat_number: 'A1,B1,C1,D1,A2,B2,C2,D2,A3,B3,C3,D3,A4,B4,C4,D4,A5,B5,C5,D5,A6,B6,C6,D6,A7,B7,C7,D7,A8',
         ticket_end: '2026-10-14',
         ending_time: '23:59:00'
       }
@@ -259,105 +340,71 @@ const paymentMethods = [
   { id: 'bca', name: 'BCA Virtual Account', icon: '🏦' }
 ];
 
-// Bus cabin seats configuration layout (Row 1-9)
-const busRows = [
-  {
-    rowNum: 1,
-    left: [
-      { id: 'A1', label: 'A1' },
-      { id: 'B1', label: 'B1' }
-    ],
-    right: [
-      { id: 'C1', label: 'C1' },
-      { id: 'D1', label: 'D1' }
-    ]
-  },
-  {
-    rowNum: 2,
-    left: [
-      { id: 'A2', label: 'A2' },
-      { id: 'B2', label: 'B2' }
-    ],
-    right: [
-      { id: 'C2', label: 'C2' },
-      { id: 'D2', label: 'D2' }
-    ]
-  },
-  {
-    rowNum: 3,
-    left: [
-      { id: 'A3', label: 'A3' },
-      { id: 'B3', label: 'B3' }
-    ],
-    right: [
-      { id: 'C3', label: 'C3' },
-      { id: 'D3', label: 'D3' }
-    ]
-  },
-  {
-    rowNum: 4,
-    left: [
-      { id: 'A4', label: 'A4' },
-      { id: 'B4', label: 'B4' }
-    ],
-    right: [
-      { id: 'C4', label: 'C4' },
-      { id: 'D4', label: 'D4' }
-    ]
-  },
-  {
-    rowNum: 5,
-    left: [
-      { id: 'A5', label: 'A5' },
-      { id: 'B5', label: 'B5' }
-    ],
-    right: [
-      { id: 'C5', label: 'C5' },
-      { id: 'D5', label: 'D5' }
-    ]
-  },
-  {
-    rowNum: 6,
-    left: [
-      { id: 'A6', label: 'A6' },
-      { id: 'B6', label: 'B6' }
-    ],
-    right: [
-      { id: 'C6', label: 'C6' },
-      { id: 'D6', label: 'D6' }
-    ]
-  },
-  {
-    rowNum: 7,
-    left: [
-      { id: 'A7', label: 'A7' },
-      { id: 'B7', label: 'B7' }
-    ],
-    right: [
-      { id: 'C7', label: 'C7' },
-      { id: 'D7', label: 'D7' }
-    ]
-  },
-  {
-    rowNum: 8,
-    left: [
-      { id: 'A8', label: 'A8' },
-      { id: 'B8', label: 'B8' }
-    ],
-    right: [
-      { id: 'C8', label: 'C8' },
-      { id: 'D8', label: 'D8' }
-    ]
-  },
-  {
-    rowNum: 9,
-    left: [],
-    right: [
-      { id: 'C9', label: 'C9' },
-      { id: 'D9', label: 'D9' }
-    ]
+// Bus cabin seats configuration layout (generated dynamically from layout & capacity)
+const busRows = computed(() => {
+  if (!event.value) return [];
+  
+  // Custom parsing for Seatmap BTS (id: 107) which uses standard 2_2
+  const layout = event.value.seat_layout || '2_2';
+  const totalSeats = event.value.total_seat || 36;
+  const parts = layout.split('_').map(Number);
+  const leftCount = parts[0] || 2;
+  const rightCount = parts[1] || 2;
+  const seatsPerRow = leftCount + rightCount;
+  
+  const rows = [];
+  let seatIndex = 0;
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  
+  // Calculate total rows needed
+  const numRows = Math.ceil(totalSeats / seatsPerRow);
+  
+  for (let r = 1; r <= numRows; r++) {
+    const leftSeats = [];
+    const rightSeats = [];
+    
+    // Left side seats
+    for (let l = 0; l < leftCount; l++) {
+      const seatLetter = alphabet[l];
+      const seatId = `${seatLetter}${r}`;
+      if (seatIndex < totalSeats) {
+        leftSeats.push({ id: seatId, label: seatId });
+        seatIndex++;
+      }
+    }
+    
+    // Right side seats
+    for (let rx = 0; rx < rightCount; rx++) {
+      const seatLetter = alphabet[leftCount + rx];
+      const seatId = `${seatLetter}${r}`;
+      if (seatIndex < totalSeats) {
+        rightSeats.push({ id: seatId, label: seatId });
+        seatIndex++;
+      }
+    }
+    
+    // On the very last row, check if there's any seat, otherwise don't add empty row
+    if (leftSeats.length > 0 || rightSeats.length > 0) {
+      rows.push({
+        rowNum: r,
+        left: leftSeats,
+        right: rightSeats
+      });
+    }
   }
-];
+  
+  return rows;
+});
+
+const getFacilityIcon = (facility) => {
+  const fac = facility.toLowerCase();
+  if (fac.includes('ac')) return Wind;
+  if (fac.includes('wifi')) return Wifi;
+  if (fac.includes('usb') || fac.includes('charger')) return Zap;
+  if (fac.includes('reclining') || fac.includes('seat')) return Sofa;
+  if (fac.includes('toilet') || fac.includes('asuransi')) return ShieldCheck;
+  return ShieldCheck;
+};
 
 watch(() => route.hash, (newHash) => {
   if (newHash === '#seatmap') {
@@ -1102,7 +1149,7 @@ const confirmBooking = () => {
                                     <span v-else class="seat-lbl">{{ seat.label }}</span>
                                     <span class="seat-tooltip">Seat {{ seat.label }}</span>
                                   </button>
-                                  <div v-if="row.rowNum === 9" class="door-placeholder-col">
+                                  <div v-if="row.rowNum === (busRows.length > 8 ? 9 : (busRows.length > 5 ? 6 : busRows.length))" class="door-placeholder-col">
                                     <span>🚪 Pintu</span>
                                   </div>
                                 </div>
@@ -1190,21 +1237,13 @@ const confirmBooking = () => {
                         <div v-if="expandedTicketId === t.id" class="ticket-features-accordion-content" @click.stop>
                           <div class="features-title">Fasilitas Shuttle:</div>
                           <div class="features-grid">
-                            <div class="feature-item">
-                              <Wind :size="14" class="feature-icon" />
-                              <span>Air Conditioning (AC)</span>
-                            </div>
-                            <div class="feature-item">
-                              <Zap :size="14" class="feature-icon" />
-                              <span>USB Charger Port</span>
-                            </div>
-                            <div class="feature-item">
-                              <Music :size="14" class="feature-icon" />
-                              <span>Entertainment & Audio</span>
-                            </div>
-                            <div class="feature-item">
-                              <ShieldCheck :size="14" class="feature-icon" />
-                              <span>Asuransi Perjalanan</span>
+                            <div 
+                              v-for="fac in event?.facilities" 
+                              :key="fac" 
+                              class="feature-item"
+                            >
+                              <component :is="getFacilityIcon(fac)" :size="14" class="feature-icon" />
+                              <span>{{ fac }}</span>
                             </div>
                           </div>
                         </div>

@@ -1,17 +1,177 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Calendar, MapPin, Tag, Clock, Search, SlidersHorizontal, X } from 'lucide-vue-next';
+import { Calendar, MapPin, Tag, Clock, Search, SlidersHorizontal, X, Wind, Wifi, Zap, Sofa, ShieldCheck } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
 
 const router = useRouter();
 
-const events = [
-  { id: 1, name: 'The Sounds Project', date: '2026-10-15', dateLabel: '15 Okt 2026', time: '18:00 WIB', departureTime: '12:00 WIB', returnTime: '01:00 WIB', location: 'Ancol Ecovention & Ecopark', city: 'Jakarta', price: 'Rp 150.000', priceNum: 150000, image: '/TSP.jpeg', desc: 'Festival musik terbesar di Indonesia. Nikmati malam yang penuh musik yang menggetarkan jiwa.', seats: 42, tag: 'Shuttle Bersama' }
+const shuttleBuses = ref([]);
+const isLoading = ref(true);
+const fetchError = ref(null);
+
+const fallbackBuses = [
+  {
+    "id": 3,
+    "slug": "hiace-premium-jakarta-6a3d03e22e0fb",
+    "plate_number": "B 1234 XYZ",
+    "operator_id": 1,
+    "bus_name": "Hiace Premium Jakarta",
+    "bus_code": "HC001",
+    "bus_type": "MINIBUS",
+    "seat_layout": "2_1",
+    "total_seat": 12,
+    "facilities": [
+      "AC",
+      "WiFi",
+      "USB Charger",
+      "Reclining Seat"
+    ],
+    "status": 1,
+    "created_at": "2026-06-25T10:33:06.000000Z",
+    "updated_at": "2026-06-25T10:33:06.000000Z"
+  },
+  {
+    "id": 1,
+    "slug": "bigbus-59",
+    "plate_number": "B 1234 KTX",
+    "operator_id": 1,
+    "bus_name": "Kolektix Big Bus 59",
+    "bus_code": "BB59-01",
+    "bus_type": "BIG_BUS",
+    "seat_layout": "2_3",
+    "total_seat": 59,
+    "facilities": [
+      "AC",
+      "WIFI",
+      "USB CHARGER",
+      "TOILET"
+    ],
+    "status": 1,
+    "created_at": null,
+    "updated_at": null
+  },
+  {
+    "id": 2,
+    "slug": "mediumbus-29",
+    "plate_number": "D 5678 KTX",
+    "operator_id": 1,
+    "bus_name": "Kolektix Medium Bus 29",
+    "bus_code": "MB29-01",
+    "bus_type": "MEDIUM_BUS",
+    "seat_layout": "2_2",
+    "total_seat": 29,
+    "facilities": [
+      "AC",
+      "USB CHARGER"
+    ],
+    "status": 1,
+    "created_at": null,
+    "updated_at": null
+  }
 ];
 
+const mapBusToEvent = (bus) => {
+  let image = '/hiace.jpg';
+  let tag = 'Shuttle Eksklusif';
+  let price = 'Rp 150.000';
+  let priceNum = 150000;
+  let city = 'Jakarta';
+  let location = 'Ancol Ecovention & Ecopark';
+  let date = '2026-10-15';
+  let dateLabel = '15 Okt 2026';
+  let time = '18:00 WIB';
+  let desc = `Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.`;
+  
+  if (bus.bus_type === 'BIG_BUS') {
+    image = '/busbiru.png';
+    tag = 'Shuttle Bersama';
+    price = 'Rp 100.000';
+    priceNum = 100000;
+    location = 'Ancol Ecovention & Ecopark (Bekasi West pick-up)';
+  } else if (bus.bus_type === 'MEDIUM_BUS') {
+    image = '/busputih.png';
+    tag = 'Shuttle Bersama';
+    price = 'Rp 120.000';
+    priceNum = 120000;
+    location = 'Ancol Ecovention & Ecopark (Depok Margonda pick-up)';
+  } else if (bus.bus_type === 'MINIBUS') {
+    image = '/hiace.jpg';
+    tag = 'Shuttle Eksklusif';
+    price = 'Rp 250.000';
+    priceNum = 250000;
+    location = 'Ancol Ecovention & Ecopark (FX Sudirman pick-up)';
+  }
+
+  return {
+    id: bus.id,
+    name: bus.bus_name,
+    slug: bus.slug,
+    bus_code: bus.bus_code,
+    bus_type: bus.bus_type,
+    plate_number: bus.plate_number,
+    seat_layout: bus.seat_layout,
+    total_seat: bus.total_seat,
+    facilities: bus.facilities,
+    date,
+    dateLabel,
+    time,
+    departureTime: '12:00 WIB',
+    returnTime: '01:00 WIB',
+    location,
+    city,
+    price,
+    priceNum,
+    image,
+    desc,
+    seats: bus.total_seat,
+    tag
+  };
+};
+
+const fetchShuttleBuses = async () => {
+  isLoading.value = true;
+  fetchError.value = null;
+  try {
+    const response = await fetch('https://api.kolektix.my.id/api/shuttlebuses');
+    if (!response.ok) throw new Error('Gagal mengambil data dari API server.');
+    const result = await response.json();
+    if (result.success && result.data && result.data.data) {
+      shuttleBuses.value = result.data.data.map(mapBusToEvent);
+    } else {
+      throw new Error('Format data API tidak sesuai.');
+    }
+  } catch (error) {
+    console.error('Error fetching shuttle buses, using fallback:', error);
+    shuttleBuses.value = fallbackBuses.map(mapBusToEvent);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  fetchShuttleBuses();
+});
+
+const getFacilityIcon = (facility) => {
+  const fac = facility.toLowerCase();
+  if (fac.includes('ac')) return Wind;
+  if (fac.includes('wifi')) return Wifi;
+  if (fac.includes('usb') || fac.includes('charger')) return Zap;
+  if (fac.includes('reclining') || fac.includes('seat')) return Sofa;
+  if (fac.includes('toilet')) return ShieldCheck;
+  return Tag;
+};
+
+const formatBusType = (type) => {
+  if (type === 'BIG_BUS') return 'Big Bus';
+  if (type === 'MEDIUM_BUS') return 'Medium Bus';
+  if (type === 'MINIBUS') return 'Minibus / Hiace';
+  return type;
+};
+
 const cities = ['Semua', 'Jakarta'];
-const genres = ['Semua', 'Shuttle Bersama'];
+const genres = ['Semua', 'Shuttle Bersama', 'Shuttle Eksklusif'];
 
 const searchQuery = ref('');
 const selectedCity = ref('Semua');
@@ -20,13 +180,15 @@ const showFilters = ref(false);
 const sortBy = ref('date');
 
 const filteredEvents = computed(() => {
-  let result = [...events];
+  let result = [...shuttleBuses.value];
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase();
     result = result.filter(e =>
       e.name.toLowerCase().includes(q) ||
       e.city.toLowerCase().includes(q) ||
-      e.tag.toLowerCase().includes(q)
+      e.tag.toLowerCase().includes(q) ||
+      e.bus_code.toLowerCase().includes(q) ||
+      e.plate_number.toLowerCase().includes(q)
     );
   }
   if (selectedCity.value !== 'Semua') result = result.filter(e => e.city === selectedCity.value);
@@ -67,9 +229,9 @@ const tagColors = {
     <section class="events-hero">
       <div class="events-hero-bg"></div>
       <div class="container events-hero-content">
-        <span class="subtitle-tag">Kurasi</span>
-        <h1 class="events-hero-title">Event <span class="text-red">Mendatang</span></h1>
-        <p class="events-hero-sub">Temukan konser & festival favoritmu, lalu pesan ride-mu sekarang.</p>
+        <span class="subtitle-tag">Armada AJAK!</span>
+        <h1 class="events-hero-title">Katalog <span class="text-red">Shuttle Bus</span></h1>
+        <p class="events-hero-sub">Pilih jenis armada ternyaman untuk mengantarkanmu langsung ke lokasi konser favoritmu.</p>
       </div>
     </section>
 
@@ -82,7 +244,7 @@ const tagColors = {
             <input
               type="text"
               v-model="searchQuery"
-              placeholder="Cari event, kota, atau genre..."
+              placeholder="Cari armada, plat nomor, rute..."
               class="search-input"
             />
             <button v-if="searchQuery" class="clear-search" @click="searchQuery = ''">
@@ -107,7 +269,7 @@ const tagColors = {
         <transition name="filter-expand">
           <div v-if="showFilters" class="filter-panel">
             <div class="filter-group">
-              <label class="filter-label">Kota</label>
+              <label class="filter-label">Kota Asal</label>
               <div class="filter-chips">
                 <button
                   v-for="city in cities"
@@ -119,7 +281,7 @@ const tagColors = {
               </div>
             </div>
             <div class="filter-group">
-              <label class="filter-label">Genre</label>
+              <label class="filter-label">Tipe Layanan</label>
               <div class="filter-chips">
                 <button
                   v-for="genre in genres"
@@ -140,16 +302,31 @@ const tagColors = {
 
     <!-- Events Grid -->
     <div class="container events-content">
-      <p class="results-count">{{ filteredEvents.length }} event ditemukan</p>
+      <p v-if="!isLoading" class="results-count">{{ filteredEvents.length }} armada ditemukan</p>
 
-      <div v-if="filteredEvents.length === 0" class="empty-state">
-        <div class="empty-icon">🎵</div>
-        <h3>Tidak ada event yang cocok</h3>
-        <p>Coba ubah filter atau kata pencarian kamu.</p>
+      <!-- Skeleton Loader -->
+      <div v-if="isLoading" class="events-grid">
+        <div v-for="n in 3" :key="'shimmer-' + n" class="event-card skeleton-card">
+          <div class="skeleton-img"></div>
+          <div class="event-card-body">
+            <div class="skeleton-title"></div>
+            <div class="skeleton-meta"></div>
+            <div class="skeleton-meta"></div>
+            <div class="skeleton-footer"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div v-else-if="filteredEvents.length === 0" class="empty-state">
+        <div class="empty-icon">🚌</div>
+        <h3>Armada tidak ditemukan</h3>
+        <p>Coba sesuaikan filter atau kata pencarian kamu.</p>
         <button class="btn btn-primary" @click="clearFilters">Reset Filter</button>
       </div>
 
-      <div class="events-grid">
+      <!-- Actual Cards Grid -->
+      <div v-else class="events-grid">
         <div
           v-for="event in filteredEvents"
           :key="event.id"
@@ -167,8 +344,11 @@ const tagColors = {
             </div>
           </div>
           <div class="event-card-body">
+            <div class="event-bus-header-row">
+              <span class="bus-badge-type">{{ formatBusType(event.bus_type) }}</span>
+              <span class="bus-badge-plate">{{ event.plate_number }}</span>
+            </div>
             <h3 class="event-name">{{ event.name }}</h3>
-            <!-- <p class="event-desc">{{ event.desc }}</p> -->
             <div class="event-meta">
               <div class="meta-row">
                 <Calendar :size="13" />
@@ -179,13 +359,36 @@ const tagColors = {
                 <span>{{ event.location }}</span>
               </div>
             </div>
+
+            <!-- Facilities and Seat layout -->
+            <div class="bus-amenities-section">
+              <div class="bus-layout-info">
+                <span class="layout-label">Layout Kursi: </span>
+                <span class="layout-value">{{ event.seat_layout.replace('_', '+') }} Seating</span>
+              </div>
+              <div class="card-facilities-row">
+                <div 
+                  v-for="fac in event.facilities" 
+                  :key="fac" 
+                  class="mini-facility-tag"
+                  v-title="fac"
+                >
+                  <component :is="getFacilityIcon(fac)" :size="12" />
+                  <span>{{ fac }}</span>
+                </div>
+              </div>
+            </div>
+
             <div class="event-card-footer">
               <div class="event-price-block">
                 <span class="price-label">Mulai dari</span>
-                <span class="event-price">{{ event.price }}</span>
+                <div style="display: flex; flex-direction: column;">
+                  <span class="event-price">{{ event.price }}</span>
+                  <span style="font-size: 0.72rem; color: #888;">pulang - pergi</span>
+                </div>
               </div>
               <button class="book-now-btn">
-                Pesan Sekarang →
+                Pesan →
               </button>
             </div>
           </div>
@@ -599,6 +802,129 @@ const tagColors = {
   background: #b34242;
   transform: scale(1.03);
   box-shadow: 0 6px 18px rgba(201,76,76,0.3);
+}
+
+/* ===== SHUTTLE SPECIFIC DETAILS ===== */
+.event-bus-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.bus-badge-type {
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(201, 76, 76, 0.1);
+  color: var(--primary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 76, 76, 0.2);
+}
+.bus-badge-plate {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  background: var(--input-bg);
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  letter-spacing: 0.5px;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+}
+.bus-amenities-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border-color);
+  margin-bottom: 16px;
+}
+.bus-layout-info {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.bus-layout-info .layout-value {
+  color: var(--text-dark);
+  font-weight: 800;
+}
+.card-facilities-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.mini-facility-tag {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-light);
+  background: var(--input-bg);
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.mini-facility-tag:hover {
+  background: var(--border-color);
+  color: var(--text-dark);
+}
+.mini-facility-tag svg {
+  color: var(--primary);
+}
+
+/* ===== SKELETON LOADING SHIMMER ===== */
+.skeleton-card {
+  pointer-events: none;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+}
+.skeleton-img {
+  width: 100%;
+  height: 200px;
+  background: linear-gradient(90deg, var(--input-bg) 25%, var(--border-color) 50%, var(--input-bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.skeleton-title {
+  width: 60%;
+  height: 20px;
+  margin-bottom: 12px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--input-bg) 25%, var(--border-color) 50%, var(--input-bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.skeleton-meta {
+  width: 90%;
+  height: 14px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--input-bg) 25%, var(--border-color) 50%, var(--input-bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+.skeleton-footer {
+  width: 100%;
+  height: 40px;
+  margin-top: 16px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--input-bg) 25%, var(--border-color) 50%, var(--input-bg) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* ===== RESPONSIVE ===== */
