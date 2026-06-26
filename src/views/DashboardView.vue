@@ -9,7 +9,7 @@ const isLoading = ref(true);
 
 onMounted(async () => {
   try {
-    const response = await fetch('/api/shuttle-order');
+    const response = await fetch(import.meta.env.VITE_API_URL + '/api/shuttle-order');
     if (!response.ok) throw new Error('Network response was not ok');
     const result = await response.json();
     if (result.success && result.data && result.data.data) {
@@ -54,11 +54,21 @@ const filteredBookings = computed(() => {
 
 // Summary metrics
 const totalTickets = computed(() => {
-  return filteredBookings.value.reduce((sum, b) => sum + (Number(b.total_qty) || 0), 0);
+  return filteredBookings.value.reduce((sum, b) => {
+    if (b.payment_status === 'PAID' || b.payment_status === 'SUCCESS') {
+      return sum + (Number(b.total_qty) || 0);
+    }
+    return sum;
+  }, 0);
 });
 
 const totalRevenue = computed(() => {
-  return filteredBookings.value.reduce((sum, b) => sum + (Number(b.total_price) || 0), 0);
+  return filteredBookings.value.reduce((sum, b) => {
+    if (b.payment_status === 'PAID' || b.payment_status === 'SUCCESS') {
+      return sum + (Number(b.total_price) || 0);
+    }
+    return sum;
+  }, 0);
 });
 
 const getPemesanName = (booking) => {
@@ -117,7 +127,7 @@ const viewInvoice = async (invoiceNo) => {
   invoiceLoading.value = true;
   selectedInvoice.value = null;
   try {
-    const response = await fetch(`/api/shuttle-order/${invoiceNo}`);
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle-order/${invoiceNo}`);
     const result = await response.json();
     if (result.success && result.data) {
       selectedInvoice.value = result.data;
@@ -160,7 +170,7 @@ const closeModal = () => {
         <div class="metric-card">
           <div class="metric-icon blue"><Users :size="24" /></div>
           <div class="metric-info">
-            <div class="metric-label">Total Tiket Terjual (Dewasa)</div>
+            <div class="metric-label">Total Tiket Terjual</div>
             <div class="metric-value">{{ totalTickets }}</div>
           </div>
         </div>

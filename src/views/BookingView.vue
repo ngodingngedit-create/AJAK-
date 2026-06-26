@@ -367,7 +367,7 @@ onMounted(async () => {
   const slug = route.params.slug;
   
   try {
-    const response = await fetch(`/api/shuttle/${slug}`);
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle/${slug}`);
     if (!response.ok) throw new Error('API fetch failed');
     
     const result = await response.json();

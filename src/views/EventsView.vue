@@ -61,7 +61,7 @@ const fetchShuttleBuses = async () => {
   isLoading.value = true;
   fetchError.value = null;
   try {
-    const response = await fetch('/api/shuttle');
+    const response = await fetch(import.meta.env.VITE_API_URL + '/api/shuttle');
     if (!response.ok) throw new Error('Gagal mengambil data dari API server.');
     const result = await response.json();
     if (result.success && result.data && result.data.data) {

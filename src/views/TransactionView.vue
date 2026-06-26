@@ -37,7 +37,7 @@ onMounted(async () => {
   
   if (event.value.slug) {
     try {
-      const res = await fetch(`/api/shuttle/${event.value.slug}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle/${event.value.slug}`);
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data) {
@@ -109,7 +109,7 @@ const pickupLocations = ref([]);
 
 const fetchPickupLocations = async () => {
   try {
-    const res = await fetch('/api/shuttleroutes');
+    const res = await fetch(import.meta.env.VITE_API_URL + '/api/shuttleroutes');
     const result = await res.json();
     if (result.success && result.data?.data) {
       const uniqueRoutes = new Set();
@@ -439,7 +439,7 @@ const executeCheckout = async () => {
   };
 
   try {
-    const res = await fetch('/api/shuttle-order', {
+    const res = await fetch(import.meta.env.VITE_API_URL + '/api/shuttle-order', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

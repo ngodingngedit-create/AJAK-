@@ -74,7 +74,7 @@ const shuttleBuses = ref([]);
 
 const fetchShuttleBuses = async () => {
   try {
-    const response = await fetch('/api/shuttlebuses');
+    const response = await fetch(import.meta.env.VITE_API_URL + '/api/shuttlebuses');
     if (!response.ok) throw new Error('Network response was not ok');
     const result = await response.json();
     if (result.success && result.data && result.data.data) {
@@ -87,7 +87,7 @@ const fetchShuttleBuses = async () => {
 
 const fetchUpcomingEvents = async () => {
   try {
-    const response = await fetch('/api/shuttle');
+    const response = await fetch(import.meta.env.VITE_API_URL + '/api/shuttle');
     if (!response.ok) throw new Error('Network response was not ok');
     const result = await response.json();
     if (result.success && result.data && result.data.data) {
@@ -175,7 +175,7 @@ const pickupLocations = ref([]);
 
 const fetchPickupLocations = async () => {
   try {
-    const res = await fetch('/api/shuttleroutes');
+    const res = await fetch(import.meta.env.VITE_API_URL + '/api/shuttleroutes');
     const result = await res.json();
     if (result.success && result.data?.data) {
       const uniqueOrigins = new Set();

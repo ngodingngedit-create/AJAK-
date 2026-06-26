@@ -12,7 +12,7 @@ const isLoading = ref(true);
 onMounted(async () => {
   const slug = route.params.slug;
   try {
-    const res = await fetch(`/api/shuttlebuses/${slug}`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttlebuses/${slug}`);
     if (!res.ok) throw new Error('Failed to fetch');
     const result = await res.json();
     if (result.success && result.data) {

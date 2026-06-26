@@ -13,7 +13,7 @@ const errorMsg = ref('');
 
 onMounted(async () => {
   try {
-    const res = await fetch(`/api/shuttle-order/${invoiceNo}`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle-order/${invoiceNo}`);
     if (!res.ok) throw new Error('Invoice tidak ditemukan.');
     const result = await res.json();
     if (result.success && result.data) {
