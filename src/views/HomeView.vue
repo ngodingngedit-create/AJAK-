@@ -60,6 +60,7 @@ onMounted(() => {
 
   fetchUpcomingEvents();
   fetchShuttleBuses();
+  fetchPickupLocations();
 });
 
 onUnmounted(() => {
@@ -73,7 +74,7 @@ const shuttleBuses = ref([]);
 
 const fetchShuttleBuses = async () => {
   try {
-    const response = await fetch('https://api.kolektix.my.id/api/shuttlebuses');
+    const response = await fetch('/api/shuttlebuses');
     if (!response.ok) throw new Error('Network response was not ok');
     const result = await response.json();
     if (result.success && result.data && result.data.data) {
@@ -86,7 +87,7 @@ const fetchShuttleBuses = async () => {
 
 const fetchUpcomingEvents = async () => {
   try {
-    const response = await fetch('https://api.kolektix.my.id/api/shuttle');
+    const response = await fetch('/api/shuttle');
     if (!response.ok) throw new Error('Network response was not ok');
     const result = await response.json();
     if (result.success && result.data && result.data.data) {
@@ -170,19 +171,38 @@ const facilities = [
 ];
 
 const searchQuery = ref('');
-const pickupLocations = [
-  { region: 'Pondok Indah', name: 'PIM Decathlon', address: 'Pondok Indah', lat: -6.2625, lng: 106.7824 },
-  { region: 'Depok', name: 'Showroom Royal Enfield, Margonda', address: 'Depok', lat: -6.3731, lng: 106.8346 },
-  { region: 'Sudirman', name: 'Jalan New Delhi, Disebelah Mall FX Sudirman', address: 'Sudirman', lat: -6.2241, lng: 106.8021 },
-  { region: 'Bogor', name: 'Terminal Damri Botani Square', address: 'Bogor', lat: -6.6016, lng: 106.8062 },
-  { region: 'BSD', name: 'Pasar Modern Intermoda BSD City', address: 'BSD', lat: -6.3213, lng: 106.6397 },
-  { region: 'Bekasi', name: 'Gerbang Tol Bekasi Barat', address: 'Bekasi', lat: -6.2458, lng: 106.9856 },
-  { region: 'Jakarta Timur', name: 'Taman Mini Indonesia Indah', address: 'Jakarta Timur', lat: -6.3024, lng: 106.8951 }
-];
+const pickupLocations = ref([]);
+
+const fetchPickupLocations = async () => {
+  try {
+    const res = await fetch('/api/shuttleroutes');
+    const result = await res.json();
+    if (result.success && result.data?.data) {
+      const uniqueOrigins = new Set();
+      const mapped = [];
+      result.data.data.forEach(r => {
+        if (r.origin_name && !uniqueOrigins.has(r.origin_name)) {
+          uniqueOrigins.add(r.origin_name);
+          const name = r.origin_name.charAt(0).toUpperCase() + r.origin_name.slice(1);
+          mapped.push({
+            region: name,
+            name: name,
+            address: 'Titik Jemput ' + name,
+            lat: null,
+            lng: null
+          });
+        }
+      });
+      pickupLocations.value = mapped;
+    }
+  } catch (error) {
+    console.error('Failed to fetch pickup locations:', error);
+  }
+};
 
 const groupedLocations = computed(() => {
   const query = searchQuery.value.toLowerCase();
-  const filtered = pickupLocations.filter(loc =>
+  const filtered = pickupLocations.value.filter(loc =>
     loc.region.toLowerCase().includes(query) ||
     loc.name.toLowerCase().includes(query) ||
     loc.address.toLowerCase().includes(query)

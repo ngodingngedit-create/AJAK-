@@ -37,7 +37,7 @@ onMounted(async () => {
   
   if (event.value.slug) {
     try {
-      const res = await fetch(`https://api.kolektix.my.id/api/shuttle/${event.value.slug}`);
+      const res = await fetch(`/api/shuttle/${event.value.slug}`);
       if (res.ok) {
         const result = await res.json();
         if (result.success && result.data) {
@@ -49,6 +49,7 @@ onMounted(async () => {
     }
   }
 
+  fetchPickupLocations();
   startTimer();
 });
 
@@ -104,19 +105,50 @@ const isEksklusif = computed(() => {
   return event.value.tag === 'Shuttle Eksklusif' || event.value.tag === 'VIP Pribadi';
 });
 
-const pickupLocations = [
-  { region: 'Pondok Indah', name: 'PIM Decathlon', address: 'Pondok Indah', lat: -6.2625, lng: 106.7824, price: 'Rp 150.000 / Pax / Roundtrip' },
-  { region: 'Depok', name: 'Showroom Royal Enfield, Margonda', address: 'Depok', lat: -6.3731, lng: 106.8346, price: 'Rp 150.000 / Pax / Roundtrip' },
-  { region: 'Sudirman', name: 'Jalan New Delhi, Disebelah Mall FX Sudirman', address: 'Sudirman', lat: -6.2241, lng: 106.8021, price: 'Rp 120.000 / Pax / Roundtrip' },
-  { region: 'Bogor', name: 'Terminal Damri Botani Square', address: 'Bogor', lat: -6.6016, lng: 106.8062, price: 'Rp 175.000 / Pax / Roundtrip' },
-  { region: 'BSD', name: 'Pasar Modern Intermoda BSD City', address: 'BSD', lat: -6.3213, lng: 106.6397, price: 'Rp 150.000 / Pax / Roundtrip' },
-  { region: 'Bekasi', name: 'Gerbang Tol Bekasi Barat', address: 'Bekasi', lat: -6.2458, lng: 106.9856, price: 'Rp 150.000 / Pax / Roundtrip' },
-  { region: 'Jakarta Timur', name: 'Taman Mini Indonesia Indah', address: 'Jakarta Timur', lat: -6.3024, lng: 106.8951, price: 'Rp 150.000 / Pax / Roundtrip' }
-];
+const pickupLocations = ref([]);
+
+const fetchPickupLocations = async () => {
+  try {
+    const res = await fetch('/api/shuttleroutes');
+    const result = await res.json();
+    if (result.success && result.data?.data) {
+      const uniqueRoutes = new Set();
+      const mapped = [];
+      result.data.data.forEach(r => {
+        if (r.route_name && !uniqueRoutes.has(r.id)) {
+          uniqueRoutes.add(r.id);
+          const regionName = r.origin_name ? (r.origin_name.charAt(0).toUpperCase() + r.origin_name.slice(1)) : 'Rute';
+          mapped.push({
+            id: r.id,
+            region: regionName,
+            name: r.route_name,
+            address: `${r.origin_name || ''} - ${r.destination_name || ''}`,
+            lat: null,
+            lng: null,
+            price: ''
+          });
+        }
+      });
+      
+      // Auto-select and filter route if ticket has route_id
+      if (ticket.value?.route_id) {
+        pickupLocations.value = mapped.filter(m => m.id === ticket.value.route_id);
+        const found = pickupLocations.value[0];
+        if (found) {
+          bookingStore.selectedPickup = found;
+        }
+      } else {
+        pickupLocations.value = mapped;
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch pickup locations:', error);
+  }
+};
 
 const groupedLocations = computed(() => {
   const groups = {};
-  pickupLocations.forEach(loc => {
+  pickupLocations.value.forEach(loc => {
     if (!groups[loc.region]) groups[loc.region] = [];
     groups[loc.region].push(loc);
   });
@@ -363,8 +395,9 @@ const executeCheckout = async () => {
   const invoice_no = "INV-SHT-" + Date.now();
 
   const payload = {
-    shuttle_id: event.value.id || 1,
-    trip_id: 5,
+    shuttle_id: event.value?.id || "",
+    trip_id: event.value?.trip_id || 1,
+    route_id: bookingStore.selectedPickup?.id || ticket.value?.route_id || "",
     invoice_no: invoice_no,
     total_qty: quantity.value,
     total_price: baseTicketPrice.value,
@@ -373,34 +406,44 @@ const executeCheckout = async () => {
     admin_fee: adminFee.value,
     ppn: 0,
     payment_status: "PENDING",
-    transaction_status_id: 1,
     tickets: selectedSeats.value.map(seat => ({
-      shuttle_ticket_id: ticket.value.id || 1,
+      shuttle_ticket_id: ticket.value?.id || "",
       order_seat_number: seat,
       qty_ticket: 1,
       price: ticket.value.price || 0,
-      ticket_fee: 5000,
+      ticket_fee: adminFee.value / quantity.value,
       is_promo: totalDiscount.value > 0 ? 1 : 0,
       promo_price: totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0,
-      subtotal_price: (ticket.value.price || 0) + 5000 - (totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0)
+      subtotal_price: (ticket.value.price || 0) + (adminFee.value / quantity.value) - (totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0)
     })),
-    passengers: ticketOwners.value.map((owner, index) => ({
-      is_pemesan: index === 0 ? 1 : 0,
-      trip_seat_id: index + 11,
-      passenger_name: owner.fullName,
-      phone: owner.phoneNumber,
-      email: owner.email,
-      identity_type: "KTP",
-      identity_number: owner.ktpNumber || "0000000000000000",
-      emergency_contact: owner.phoneNumber
-    }))
+    passengers: [
+      {
+        is_pemesan: 1,
+        passenger_name: registrant.value.fullName,
+        phone: registrant.value.phoneNumber,
+        email: registrant.value.email,
+        identity_type: "KTP",
+        identity_number: "",
+        emergency_contact: registrant.value.phoneNumber
+      },
+      ...ticketOwners.value.map((owner, index) => ({
+        is_pemesan: 0,
+        passenger_name: owner.fullName,
+        phone: owner.phoneNumber,
+        email: owner.email,
+        identity_type: "KTP",
+        identity_number: owner.ktpNumber || "",
+        emergency_contact: owner.phoneNumber
+      }))
+    ]
   };
 
   try {
-    const res = await fetch('https://api.kolektix.my.id/api/shuttle-order', {
+    const res = await fetch('/api/shuttle-order', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify(payload)
     });
@@ -412,8 +455,13 @@ const executeCheckout = async () => {
     const result = await res.json();
     bookingStore.lastOrderResponse = result;
 
-    // Direct to confirmation page
-    router.push('/confirmation');
+    const paymentUrl = result.payment?.payment_url || result.data?.xendit_url;
+    if (paymentUrl) {
+      window.location.href = paymentUrl;
+    } else {
+      // Direct to confirmation page if no URL is provided
+      router.push('/confirmation');
+    }
   } catch (error) {
     console.error('Checkout error:', error);
     alert('Terjadi kesalahan saat memproses pesanan. Silakan coba lagi.');

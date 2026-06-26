@@ -10,66 +10,7 @@ const shuttleBuses = ref([]);
 const isLoading = ref(true);
 const fetchError = ref(null);
 
-const fallbackBuses = [
-  {
-    "id": 3,
-    "slug": "hiace-premium-jakarta-6a3d03e22e0fb",
-    "plate_number": "B 1234 XYZ",
-    "operator_id": 1,
-    "bus_name": "Hiace Premium Jakarta",
-    "bus_code": "HC001",
-    "bus_type": "MINIBUS",
-    "seat_layout": "2_1",
-    "total_seat": 12,
-    "facilities": [
-      "AC",
-      "WiFi",
-      "USB Charger",
-      "Reclining Seat"
-    ],
-    "status": 1,
-    "created_at": "2026-06-25T10:33:06.000000Z",
-    "updated_at": "2026-06-25T10:33:06.000000Z"
-  },
-  {
-    "id": 1,
-    "slug": "bigbus-59",
-    "plate_number": "B 1234 KTX",
-    "operator_id": 1,
-    "bus_name": "Kolektix Big Bus 59",
-    "bus_code": "BB59-01",
-    "bus_type": "BIG_BUS",
-    "seat_layout": "2_3",
-    "total_seat": 59,
-    "facilities": [
-      "AC",
-      "WIFI",
-      "USB CHARGER",
-      "TOILET"
-    ],
-    "status": 1,
-    "created_at": null,
-    "updated_at": null
-  },
-  {
-    "id": 2,
-    "slug": "mediumbus-29",
-    "plate_number": "D 5678 KTX",
-    "operator_id": 1,
-    "bus_name": "Kolektix Medium Bus 29",
-    "bus_code": "MB29-01",
-    "bus_type": "MEDIUM_BUS",
-    "seat_layout": "2_2",
-    "total_seat": 29,
-    "facilities": [
-      "AC",
-      "USB CHARGER"
-    ],
-    "status": 1,
-    "created_at": null,
-    "updated_at": null
-  }
-];
+
 
 const mapBusToEvent = (item) => {
   const dateObj = new Date(item.start_date || new Date());
@@ -99,20 +40,20 @@ const mapBusToEvent = (item) => {
     plate_number: item.plate_number || '-',
     seat_layout: item.seat_layout || '-',
     total_seat: seats,
-    facilities: item.facilities || ['AC', 'USB CHARGER'],
-    date: item.start_date ? item.start_date.split('T')[0] : '2026-10-15',
+    facilities: item.facilities || [],
+    date: item.start_date ? item.start_date.split('T')[0] : '',
     dateLabel: `${day} ${month} ${year}`,
-    time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '18:00 WIB',
-    departureTime: '12:00 WIB',
-    returnTime: '01:00 WIB',
-    location: item.description || 'TBA',
-    city: 'Jakarta',
+    time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
+    departureTime: '',
+    returnTime: '',
+    location: item.description || '',
+    city: item.location_city || '',
     price: 'Lihat Detail',
     priceNum: 0,
-    image: item.image_url || '/hiace.jpg',
+    image: item.image_url || '',
     desc: item.description || '',
     seats: seats,
-    tag: 'Shuttle Bersama'
+    tag: item.tag || ''
   };
 };
 
@@ -120,7 +61,7 @@ const fetchShuttleBuses = async () => {
   isLoading.value = true;
   fetchError.value = null;
   try {
-    const response = await fetch('https://api.kolektix.my.id/api/shuttle');
+    const response = await fetch('/api/shuttle');
     if (!response.ok) throw new Error('Gagal mengambil data dari API server.');
     const result = await response.json();
     if (result.success && result.data && result.data.data) {
@@ -129,8 +70,8 @@ const fetchShuttleBuses = async () => {
       throw new Error('Format data API tidak sesuai.');
     }
   } catch (error) {
-    console.error('Error fetching shuttle buses, using fallback:', error);
-    shuttleBuses.value = fallbackBuses.map(mapBusToEvent);
+    console.error('Error fetching shuttle buses:', error);
+    fetchError.value = error.message;
   } finally {
     isLoading.value = false;
   }

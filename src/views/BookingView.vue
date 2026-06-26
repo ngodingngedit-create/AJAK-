@@ -7,155 +7,7 @@ import { bookingStore } from '../store/booking';
 const route = useRoute();
 const router = useRouter();
 
-// Events data with Seatmap BTS (id: 107) matching the user's API payload
-const allEvents = [
-  {
-    id: 3,
-    name: 'Hiace Premium Jakarta',
-    slug: 'hiace-premium-jakarta-6a3d03e22e0fb',
-    bus_code: 'HC001',
-    bus_type: 'MINIBUS',
-    plate_number: 'B 1234 XYZ',
-    seat_layout: '2_1',
-    total_seat: 12,
-    facilities: ['AC', 'WiFi', 'USB Charger', 'Reclining Seat'],
-    date: '2026-10-15',
-    dateLabel: '15 Okt 2026',
-    time: '18:00 WIB',
-    departureTime: '12:00 WIB',
-    returnTime: '01:00 WIB',
-    location: 'Ancol Ecovention & Ecopark (FX Sudirman pick-up)',
-    city: 'Jakarta',
-    price: 'Rp 250.000',
-    priceNum: 250000,
-    image: '/hiace.jpg',
-    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
-    seats: 12,
-    tag: 'Shuttle Eksklusif',
-    has_event_ticket: [
-      {
-        id: 301,
-        name: 'VIP Minibus Seat',
-        ticket_category: 'VIP Shuttle',
-        description: 'Kursi premium Hiace dengan reclining seat dan WiFi.',
-        price: 250000,
-        available_seat_number: 'A1,B1,C1,A2,B2,C2,A3,B3,C3,A4,B4,C4',
-        ticket_end: '2026-10-14',
-        ending_time: '23:59:00'
-      }
-    ]
-  },
-  {
-    id: 1,
-    name: 'Kolektix Big Bus 59',
-    slug: 'bigbus-59',
-    bus_code: 'BB59-01',
-    bus_type: 'BIG_BUS',
-    plate_number: 'B 1234 KTX',
-    seat_layout: '2_3',
-    total_seat: 59,
-    facilities: ['AC', 'WIFI', 'USB CHARGER', 'TOILET'],
-    date: '2026-10-15',
-    dateLabel: '15 Okt 2026',
-    time: '18:00 WIB',
-    departureTime: '12:00 WIB',
-    returnTime: '01:00 WIB',
-    location: 'Ancol Ecovention & Ecopark (Bekasi West pick-up)',
-    city: 'Jakarta',
-    price: 'Rp 100.000',
-    priceNum: 100000,
-    image: '/busbiru.png',
-    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
-    seats: 59,
-    tag: 'Shuttle Bersama',
-    has_event_ticket: [
-      {
-        id: 101,
-        name: 'Regular Big Bus Seat',
-        ticket_category: 'Regular Shuttle',
-        description: 'Kursi nyaman Big Bus dengan Toilet dan WiFi.',
-        price: 100000,
-        available_seat_number: 'A1,B1,C1,D1,E1,A2,B2,C2,D2,E2,A3,B3,C3,D3,E3,A4,B4,C4,D4,E4,A5,B5,C5,D5,E5,A6,B6,C6,D6,E6,A7,B7,C7,D7,E7,A8,B8,C8,D8,E8,A9,B9,C9,D9,E9,A10,B10,C10,D10,E10,A11,B11,C11,D11,E11,A12,B12,C12,D12',
-        ticket_end: '2026-10-14',
-        ending_time: '23:59:00'
-      }
-    ]
-  },
-  {
-    id: 2,
-    name: 'Kolektix Medium Bus 29',
-    slug: 'mediumbus-29',
-    bus_code: 'MB29-01',
-    bus_type: 'MEDIUM_BUS',
-    plate_number: 'D 5678 KTX',
-    seat_layout: '2_2',
-    total_seat: 29,
-    facilities: ['AC', 'USB CHARGER'],
-    date: '2026-10-15',
-    dateLabel: '15 Okt 2026',
-    time: '18:00 WIB',
-    departureTime: '12:00 WIB',
-    returnTime: '01:00 WIB',
-    location: 'Ancol Ecovention & Ecopark (Depok Margonda pick-up)',
-    city: 'Jakarta',
-    price: 'Rp 120.000',
-    priceNum: 120000,
-    image: '/busputih.png',
-    desc: 'Layanan Shuttle Bus khusus untuk event The Sounds Project. Terpercaya, aman, dan tepat waktu.',
-    seats: 29,
-    tag: 'Shuttle Bersama',
-    has_event_ticket: [
-      {
-        id: 201,
-        name: 'Standard Medium Bus Seat',
-        ticket_category: 'Standard Shuttle',
-        description: 'Kursi AC Medium Bus dengan port USB Charger.',
-        price: 120000,
-        available_seat_number: 'A1,B1,C1,D1,A2,B2,C2,D2,A3,B3,C3,D3,A4,B4,C4,D4,A5,B5,C5,D5,A6,B6,C6,D6,A7,B7,C7,D7,A8',
-        ticket_end: '2026-10-14',
-        ending_time: '23:59:00'
-      }
-    ]
-  },
-  {
-    id: 107,
-    name: "Seatmap BTS",
-    slug: "seatmap-bts",
-    image: "https://api.kolektix.my.id/storage/uploads/event/AeF56LoVpWz0z9iDFAjn.jpg",
-    start_date: "2026-05-05",
-    end_date: "2027-05-06",
-    start_time: "00:00",
-    end_time: "01:00",
-    zone_time: "WIB",
-    location_name: "Tes",
-    location_city: "Tes",
-    location_address: "Tes",
-    location_map: "https://maps.google.com",
-    description: "<p>tes</p>",
-    term_condition: "<p>tes</p>",
-    price: "Rp 10.000",
-    priceNum: 10000,
-    tag: "Musik",
-    has_creator: {
-      name: "moofeet",
-      image_url: "https://api.kolektix.my.id/storage/uploads/creator/logo-k.png"
-    },
-    has_event_ticket: [
-      {
-        id: 227,
-        event_id: "107",
-        name: "Seat A",
-        ticket_category: "Seated",
-        description: "tes",
-        price: 10000,
-        available_seat_number: "A3,A4,A6,A7,A1",
-        taken_seat_number: "A2,A8,A9,A5,A10",
-        ticket_end: "2029-12-31",
-        ending_time: "00:00:00"
-      }
-    ]
-  }
-];
+
 
 const event = ref(null);
 const activeTab = ref('tiket'); // 'deskripsi', 'tiket', 'terms'
@@ -515,7 +367,7 @@ onMounted(async () => {
   const slug = route.params.slug;
   
   try {
-    const response = await fetch(`https://api.kolektix.my.id/api/shuttle/${slug}`);
+    const response = await fetch(`/api/shuttle/${slug}`);
     if (!response.ok) throw new Error('API fetch failed');
     
     const result = await response.json();
@@ -552,7 +404,9 @@ onMounted(async () => {
             pending_seat_number: t.pending_seat_number || '',
             reserved_seat_number: t.reserved_seat_number || '',
             ticket_end: t.ticket_end_date ? t.ticket_end_date.split('T')[0] : '',
-            ending_time: t.ticket_end_time || ''
+            ending_time: t.ticket_end_time || '',
+            route_id: t.route_id || null,
+            total_seat: t.total_seat || 0
           };
         });
       }
@@ -562,26 +416,27 @@ onMounted(async () => {
         name: item.name || 'Unknown',
         slug: item.slug,
         bus_code: '-',
-        bus_type: 'MINIBUS',
+        bus_type: '',
         plate_number: '-',
-        seat_layout: '2_2',
+        seat_layout: '',
         total_seat: seats,
-        facilities: ['AC', 'USB CHARGER'],
-        date: item.start_date ? item.start_date.split('T')[0] : '2026-10-15',
+        facilities: item.facilities || [],
+        trip_id: item.trip_id || (item.trips && item.trips.length > 0 ? item.trips[0].id : ''),
+        date: item.start_date ? item.start_date.split('T')[0] : '',
         start_date: item.start_date,
         end_date: item.end_date,
         start_time: item.start_time ? item.start_time.slice(0, 5) : '00:00',
         end_time: item.end_time ? item.end_time.slice(0, 5) : '00:00',
         zone_time: 'WIB',
         dateLabel: `${day} ${month} ${year}`,
-        time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '18:00 WIB',
-        departureTime: '12:00 WIB',
-        returnTime: '01:00 WIB',
-        location: item.description || 'TBA',
+        time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
+        departureTime: '',
+        returnTime: '',
+        location: item.description || '',
         city: 'Jakarta',
         price: mappedTickets.length > 0 ? `Rp ${mappedTickets[0].price.toLocaleString('id-ID')}` : 'Lihat Detail',
         priceNum: mappedTickets.length > 0 ? mappedTickets[0].price : 0,
-        image: item.image_url || '/hiace.jpg',
+        image: item.image_url || '',
         description: item.description || '',
         term_condition: item.terms || '',
         seats: seats,
@@ -604,17 +459,7 @@ onMounted(async () => {
     }
   } catch (err) {
     console.error('Error fetching event data:', err);
-    // fallback
-    const found = allEvents.find(e => e.slug === slug);
-    if (found) {
-      event.value = found;
-      bookingStore.selectedEvent = found;
-      if (found.has_event_ticket && found.has_event_ticket.length > 0) {
-        expandedTicketId.value = found.has_event_ticket[0].id;
-      }
-    } else {
-      router.push('/events');
-    }
+    router.push('/events');
   }
 
   window.addEventListener('scroll', handleScrollTabs, { passive: true });
@@ -1400,6 +1245,7 @@ const confirmBooking = () => {
                             <div class="ticket-price-value-wrapper">
                               <span class="ticket-price-value">{{ formatRp(t.price) }}</span>
                               <ChevronDown 
+                                v-if="event?.facilities && event.facilities.length > 0"
                                 :size="18" 
                                 class="accordion-chevron-toggle"
                                 :class="{ rotated: expandedTicketId === t.id }"
@@ -1419,7 +1265,7 @@ const confirmBooking = () => {
                       <!-- Bottom Section -->
                       <div class="ticket-bottom-section">
                         <!-- Accordion Features Content (Vehicle Features) -->
-                        <div v-if="expandedTicketId === t.id" class="ticket-features-accordion-content" @click.stop>
+                        <div v-if="expandedTicketId === t.id && event?.facilities && event.facilities.length > 0" class="ticket-features-accordion-content" @click.stop>
                           <div class="features-title">Fasilitas Shuttle:</div>
                           <div class="features-grid">
                             <div 
@@ -1444,38 +1290,42 @@ const confirmBooking = () => {
                           
                           <div class="ticket-footer-vertical-divider"></div>
                           
-                          <div class="ticket-action-subtotal-group">
-                            <!-- Ticket selection quantity selector (visible if available) -->
-                            <div class="ticket-quantity-row" v-if="hasAvailableSeats(t)">
-                             
-                              <div class="quantity-counter-wrapper">
-                                <button 
-                                  type="button" 
-                                  class="qty-btn" 
-                                  :disabled="quantity <= 1" 
-                                  @click="decreaseQuantity"
-                                >-</button>
-                                <span class="qty-val">{{ quantity }}</span>
-                                <button 
-                                  type="button" 
-                                  class="qty-btn" 
-                                  :disabled="quantity >= maxTickets" 
-                                  @click="increaseQuantity"
-                                >+</button>
+                            <div class="ticket-action-subtotal-group">
+                              <!-- Ticket selection quantity selector (visible if available) -->
+                              <div class="ticket-quantity-row" v-if="hasAvailableSeats(t)">
+                               
+                                <div class="quantity-counter-wrapper">
+                                  <button 
+                                    type="button" 
+                                    class="qty-btn" 
+                                    :disabled="quantity <= 1" 
+                                    @click="decreaseQuantity"
+                                  >-</button>
+                                  <span class="qty-val">{{ quantity }}</span>
+                                  <button 
+                                    type="button" 
+                                    class="qty-btn" 
+                                    :disabled="quantity >= maxTickets" 
+                                    @click="increaseQuantity"
+                                  >+</button>
+                                </div>
                               </div>
-                            </div>
 
-                            <button 
-                              class="select-ticket-btn"
-                              :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen, 'sold-out': !hasAvailableSeats(t) }"
-                              :disabled="!hasAvailableSeats(t)"
-                              @click.stop="selectTicketCategory(t)"
-                            >
-                              {{ !hasAvailableSeats(t) ? 'Habis' : (t.ticket_type_id === 0 ? 'Beli Tiket' : (selectedSeats.length > 0 && selectedTicket?.id === t.id ? `Pilih Seat (${selectedSeats.length})` : 'Pilih Seat')) }}
-                            </button>
-                            
-                            
-                          </div>
+                              <div style="display: flex; align-items: center; gap: 12px;">
+                                <span class="total-seat-info" style="font-size: 0.82rem; font-weight: 600; color: #64748b;">
+                                  Total {{ t.total_seat || event?.total_seat || 0 }} Seat
+                                </span>
+                                <button 
+                                  class="select-ticket-btn"
+                                  :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen, 'sold-out': !hasAvailableSeats(t) }"
+                                  :disabled="!hasAvailableSeats(t)"
+                                  @click.stop="selectTicketCategory(t)"
+                                >
+                                  {{ !hasAvailableSeats(t) ? 'Habis' : (t.ticket_type_id === 0 ? 'Beli Tiket' : (selectedSeats.length > 0 && selectedTicket?.id === t.id ? `Pilih Seat (${selectedSeats.length})` : 'Pilih Seat')) }}
+                                </button>
+                              </div>
+                              
+                            </div>
                         </div>
                       </div>
                     </div>
@@ -1675,7 +1525,7 @@ const confirmBooking = () => {
           </span>
           
           <span class="bottom-bar-total-price">
-            {{ selectedSeats.length > 0 && selectedTicket ? formatRp(selectedTicket.price * selectedSeats.length) : formatRp(event.priceNum || 10000) }}
+            {{ selectedSeats.length > 0 && selectedTicket ? formatRp(selectedTicket.price * selectedSeats.length) : formatRp(event.priceNum || 0) }}
           </span>
         </div>
         
@@ -1719,8 +1569,8 @@ const confirmBooking = () => {
           <div class="m-bottom-bar-price-block">
             <span class="m-price-label">TOTAL HARGA</span>
             <span class="m-price-value">
-              {{ selectedSeats.length > 0 && selectedTicket ? formatRp(selectedTicket.price * selectedSeats.length) : formatRp(event.priceNum || 10000) }}
-            </span>
+              {{ selectedSeats.length > 0 && selectedTicket ? formatRp(selectedTicket.price * selectedSeats.length) : formatRp(event.priceNum || 0) }}
+si            </span>
           </div>
           <div class="m-bottom-bar-detail-link" @click="showMobileDetailSheet = !showMobileDetailSheet">
             <span>({{ selectedSeats.length || 0 }}) Detail</span>

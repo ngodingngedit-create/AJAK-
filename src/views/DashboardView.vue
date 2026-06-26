@@ -1,128 +1,75 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Users, Ticket, DollarSign, Filter, Search, Download } from 'lucide-vue-next';
+import { Users, Ticket, DollarSign, Filter, Search, Download, Eye, X } from 'lucide-vue-next';
 
 const router = useRouter();
 const bookings = ref([]);
+const isLoading = ref(true);
 
-onMounted(() => {
-  // Read bookings from cache
-  const cached = localStorage.getItem('ajak_bookings');
-  if (cached) {
-    try {
-      bookings.value = JSON.parse(cached);
-    } catch (e) {
-      console.error('Failed to parse bookings cache', e);
+onMounted(async () => {
+  try {
+    const response = await fetch('/api/shuttle-order');
+    if (!response.ok) throw new Error('Network response was not ok');
+    const result = await response.json();
+    if (result.success && result.data && result.data.data) {
+      bookings.value = result.data.data;
     }
-  }
-
-  // Force reset cache if we see other events, so user gets exactly The Sounds Project
-  const hasOtherEvents = bookings.value.some(b => b.event?.name && b.event.name !== 'The Sounds Project');
-  if (hasOtherEvents) {
-    bookings.value = [];
-  }
-  
-  // Inject 40 dummy data items unconditionally if we don't have enough
-  if (bookings.value.length < 30) {
-    const firstNames = ['Budi', 'Siti', 'Ayu', 'Rizky', 'Dimas', 'Nadia', 'Hendra', 'Kartika', 'Andi', 'Putri', 'Dewi', 'Agus', 'Tari', 'Eko', 'Rini', 'Dodi', 'Maya', 'Reza', 'Sarah', 'Farhan'];
-    const lastNames = ['Santoso', 'Aminah', 'Lestari', 'Pratama', 'Anggara', 'Salsabila', 'Wijaya', 'Putri', 'Setiawan', 'Rahayu', 'Kusuma', 'Saputra', 'Wahyuni', 'Nugroho', 'Sari', 'Hidayat', 'Indah', 'Mahendra', 'Aulia', 'Syahputra'];
-    const events = [
-      { name: 'The Sounds Project', tag: 'SHUTTLE BERSAMA', returnLoc: 'Ancol Ecovention & Ecopark' }
-    ];
-    const pickups = [
-      { name: 'Pondok Indah', address: 'PIM 2' },
-      { name: 'Bekasi Barat', address: 'Mega Bekasi Hypermall' },
-      { name: 'Depok', address: 'Margocity Mall' },
-      { name: 'Sudirman', address: 'FX Sudirman' },
-      { name: 'Bogor', address: 'Botani Square' },
-      { name: 'TMII', address: 'Taman Mini Indonesia Indah' }
-    ];
-    const payments = ['BCA Virtual Account', 'Mandiri Virtual Account', 'GoPay', 'OVO', 'ShopeePay', 'QRIS', 'BNI Virtual Account'];
-    const notes = ['Tolong kabari kalau sudah dekat', 'Tunggu di lobby utama ya', 'Bawa barang agak banyak', 'Berangkat bareng teman 1 rombongan', '', '', '', '', '', ''];
-
-    const d = new Date();
-    for (let i = 0; i < 40; i++) {
-      const fn = firstNames[Math.floor(Math.random() * firstNames.length)];
-      const ln = lastNames[Math.floor(Math.random() * lastNames.length)];
-      const evt = events[Math.floor(Math.random() * events.length)];
-      const pck = pickups[Math.floor(Math.random() * pickups.length)];
-      const pmt = payments[Math.floor(Math.random() * payments.length)];
-      const nt = notes[Math.floor(Math.random() * notes.length)];
-      
-      const adults = Math.floor(Math.random() * 4) + 1;
-      const toddlers = Math.floor(Math.random() * 2);
-      
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      let code = 'AJK-';
-      for (let c = 0; c < 6; c++) code += chars[Math.floor(Math.random() * chars.length)];
-      
-      const hrsAgo = Math.floor(Math.random() * 300) + 1;
-      const dateStr = new Date(d.getTime() - hrsAgo * 60 * 60 * 1000).toISOString();
-      
-      let basePrice = 150000;
-      if (pck.name === 'Sudirman') basePrice = 120000;
-      if (pck.name === 'Bogor') basePrice = 175000;
-      
-      const total = (basePrice * adults) + (adults * 5000);
-      const phone = '08' + Math.floor(1000000000 + Math.random() * 9000000000).toString();
-      const email = `${fn.toLowerCase()}.${ln.toLowerCase()}${Math.floor(Math.random() * 99) + 1}@gmail.com`;
-
-      bookings.value.push({
-        code, date: dateStr,
-        event: { name: evt.name, tag: evt.tag },
-        pickup: { name: pck.name, address: pck.address },
-        returnLoc: { name: evt.returnLoc },
-        customer: { name: `${fn} ${ln}`, phone, email, note: nt },
-        adults, toddlers, totalPrice: total, paymentMethod: pmt
-      });
-    }
-    localStorage.setItem('ajak_bookings', JSON.stringify(bookings.value));
+  } catch (err) {
+    console.error('Failed to fetch shuttle orders:', err);
+  } finally {
+    isLoading.value = false;
   }
 });
 
-const filterLocation = ref('Semua');
+const filterStatus = ref('Semua');
 const searchQuery = ref('');
 
-// Extract unique pickup locations for the filter
-const pickupLocations = computed(() => {
-  const locs = new Set();
+// Extract unique payment statuses for the filter
+const paymentStatuses = computed(() => {
+  const statuses = new Set();
   bookings.value.forEach(b => {
-    if (b.pickup && b.pickup.name) {
-      locs.add(b.pickup.name);
+    if (b.payment_status) {
+      statuses.add(b.payment_status);
     }
   });
-  return ['Semua', ...Array.from(locs)];
+  return ['Semua', ...Array.from(statuses)];
 });
 
 // Filtered bookings
 const filteredBookings = computed(() => {
   let res = [...bookings.value];
-  if (filterLocation.value !== 'Semua') {
-    res = res.filter(b => b.pickup?.name === filterLocation.value);
+  if (filterStatus.value !== 'Semua') {
+    res = res.filter(b => b.payment_status === filterStatus.value);
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase();
     res = res.filter(b => 
-      b.code?.toLowerCase().includes(q) ||
-      b.customer?.name?.toLowerCase().includes(q) ||
-      b.customer?.email?.toLowerCase().includes(q) ||
-      b.customer?.phone?.toLowerCase().includes(q)
+      b.invoice_no?.toLowerCase().includes(q) ||
+      b.shuttle?.name?.toLowerCase().includes(q)
     );
   }
-  return res.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return res.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 });
 
 // Summary metrics
 const totalTickets = computed(() => {
-  return filteredBookings.value.reduce((sum, b) => sum + (b.adults || 0), 0);
+  return filteredBookings.value.reduce((sum, b) => sum + (Number(b.total_qty) || 0), 0);
 });
 
 const totalRevenue = computed(() => {
-  return filteredBookings.value.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+  return filteredBookings.value.reduce((sum, b) => sum + (Number(b.total_price) || 0), 0);
 });
 
-const formatRp = (num) => 'Rp ' + (num || 0).toLocaleString('id-ID');
+const getPemesanName = (booking) => {
+  if (booking.passengers && booking.passengers.length > 0) {
+    const pemesan = booking.passengers.find(p => p.is_pemesan);
+    return pemesan ? pemesan.passenger_name : booking.passengers[0].passenger_name;
+  }
+  return booking.customer?.name || '-';
+};
+
+const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
 const formatDate = (isoString) => {
   if (!isoString) return '-';
   const d = new Date(isoString);
@@ -131,29 +78,20 @@ const formatDate = (isoString) => {
 
 const exportExcel = () => {
   const headers = [
-    'Tanggal', 'Event', 'Booking ID', 'Item', 'Payment', 'Qty', 
-    'Subtotal', 'Admin', 'Grand Total', 'Customer', 'Phone', 'Email', 'Note'
+    'Tanggal Transaksi', 'Invoice No', 'Pemesan', 'Shuttle', 'Deskripsi', 
+    'Qty', 'Total Price', 'Status'
   ];
 
   const rows = filteredBookings.value.map(b => {
-    const qty = `${b.adults || 0} Dewasa${b.toddlers ? ', ' + b.toddlers + ' Balita' : ''}`;
-    const subtotal = b.totalPrice - ((b.adults || 0) * 5000);
-    const admin = (b.adults || 0) * 5000;
-    
     return [
-      `"${formatDate(b.date)}"`,
-      `"${b.event?.name || '-'}"`,
-      `"${b.code}"`,
-      `"${b.pickup?.name || 'Lokasi Custom'} - Round Trip - 12:00"`,
-      `"${b.paymentMethod?.name || b.paymentMethod || '-'}"`,
-      `"${qty}"`,
-      subtotal,
-      admin,
-      b.totalPrice,
-      `"${b.customer?.name || '-'}"`,
-      `"${b.customer?.phone || '-'}"`,
-      `"${b.customer?.email || '-'}"`,
-      `"${b.note || b.customer?.note || '-'}"`
+      `"${formatDate(b.created_at)}"`,
+      `"${b.invoice_no || '-'}"`,
+      `"${getPemesanName(b)}"`,
+      `"${b.shuttle?.name || '-'}"`,
+      `"${b.shuttle?.description || '-'}"`,
+      b.total_qty || 0,
+      b.total_price || 0,
+      `"${b.payment_status || '-'}"`
     ];
   });
 
@@ -164,10 +102,36 @@ const exportExcel = () => {
   const encodedUri = encodeURI(csvContent);
   const link = document.createElement("a");
   link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `Data_Transaksi_AJAK_${new Date().getTime()}.csv`);
+  link.setAttribute("download", `Data_Penjualan_Tiket_AJAK_${new Date().getTime()}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+};
+
+const isModalOpen = ref(false);
+const invoiceLoading = ref(false);
+const selectedInvoice = ref(null);
+
+const viewInvoice = async (invoiceNo) => {
+  isModalOpen.value = true;
+  invoiceLoading.value = true;
+  selectedInvoice.value = null;
+  try {
+    const response = await fetch(`/api/shuttle-order/${invoiceNo}`);
+    const result = await response.json();
+    if (result.success && result.data) {
+      selectedInvoice.value = result.data;
+    }
+  } catch (err) {
+    console.error('Failed to fetch invoice detail', err);
+  } finally {
+    invoiceLoading.value = false;
+  }
+};
+
+const closeModal = () => {
+  isModalOpen.value = false;
+  selectedInvoice.value = null;
 };
 </script>
 
@@ -220,9 +184,9 @@ const exportExcel = () => {
             </div>
             <div class="filter-box">
               <Filter :size="16" class="text-light" />
-              <select v-model="filterLocation" class="filter-select">
-                <option v-for="loc in pickupLocations" :key="loc" :value="loc">
-                  {{ loc === 'Semua' ? 'Semua Titik Jemput' : loc }}
+              <select v-model="filterStatus" class="filter-select">
+                <option v-for="status in paymentStatuses" :key="status" :value="status">
+                  {{ status === 'Semua' ? 'Semua Status' : status }}
                 </option>
               </select>
             </div>
@@ -238,46 +202,129 @@ const exportExcel = () => {
             <thead>
               <tr>
                 <th>Tanggal</th>
-                <th>Event</th>
-                <th>Booking ID</th>
-                <th>Item</th>
-                <th>Payment</th>
+                <th>Invoice No</th>
+                <th>Pemesan</th>
+                <th>Shuttle</th>
+                <th>Deskripsi</th>
                 <th>Qty</th>
-                <th>Subtotal</th>
-                <th>Admin</th>
-                <th>Grand Total</th>
-                <th>Customer</th>
-                <th>Phone</th>
-                <th>Email</th>
-                <th>Note</th>
+                <th>Total Price</th>
+                <th>Status</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-if="filteredBookings.length === 0">
-                <td colspan="13" class="empty-state">
+              <tr v-if="isLoading">
+                <td colspan="9" class="empty-state">Loading data...</td>
+              </tr>
+              <tr v-else-if="filteredBookings.length === 0">
+                <td colspan="9" class="empty-state">
                   Belum ada data pemesanan untuk filter ini.
                 </td>
               </tr>
-              <tr v-for="b in filteredBookings" :key="b.code">
-                <td style="white-space: nowrap;">{{ formatDate(b.date) }}</td>
-                <td class="event-name">{{ b.event?.name || '-' }}</td>
-                <td><strong>{{ b.code }}</strong></td>
-                <td style="white-space: nowrap;">{{ b.pickup?.name || 'Lokasi Custom' }} - Round Trip - 12:00</td>
-                <td>{{ b.paymentMethod?.name || b.paymentMethod || '-' }}</td>
-                <td style="white-space: nowrap;">{{ b.adults || 0 }} Dewasa<span v-if="b.toddlers">, {{ b.toddlers }} Balita</span></td>
-                <td>{{ formatRp(b.totalPrice - ((b.adults || 0) * 5000)) }}</td>
-                <td>{{ formatRp((b.adults || 0) * 5000) }}</td>
-                <td><strong>{{ formatRp(b.totalPrice) }}</strong></td>
-                <td style="white-space: nowrap;">{{ b.customer?.name || '-' }}</td>
-                <td style="white-space: nowrap;">{{ b.customer?.phone || '-' }}</td>
-                <td>{{ b.customer?.email || '-' }}</td>
-                <td>{{ b.note || b.customer?.note || '-' }}</td>
+              <tr v-for="b in filteredBookings" :key="b.id">
+                <td style="white-space: nowrap;">{{ formatDate(b.created_at) }}</td>
+                <td><strong>{{ b.invoice_no }}</strong></td>
+                <td>{{ getPemesanName(b) }}</td>
+                <td class="event-name">{{ b.shuttle?.name || '-' }}</td>
+                <td>{{ b.shuttle?.description || '-' }}</td>
+                <td>{{ b.total_qty }}</td>
+                <td><strong>{{ formatRp(b.total_price) }}</strong></td>
+                <td>
+                  <span class="tag-badge">{{ b.payment_status }}</span>
+                </td>
+                <td>
+                  <button class="btn-icon" @click="viewInvoice(b.invoice_no)" title="Lihat Detail">
+                    <Eye :size="16" />
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
     </div>
+
+    <!-- Invoice Modal -->
+    <transition name="modal-fade">
+      <div v-if="isModalOpen" class="modal-overlay" @click.self="closeModal">
+        <div class="modal-card">
+          <div class="modal-header">
+            <h3 class="modal-title">Detail Invoice</h3>
+            <button class="btn-close" @click="closeModal"><X :size="20" /></button>
+          </div>
+          
+          <div class="modal-body" v-if="invoiceLoading">
+            <div class="loading-state">Memuat data invoice...</div>
+          </div>
+          
+          <div class="modal-body" v-else-if="selectedInvoice">
+            <div class="invoice-meta">
+              <div class="meta-group">
+                <label>No. Invoice</label>
+                <strong>{{ selectedInvoice.invoice_no }}</strong>
+              </div>
+              <div class="meta-group">
+                <label>Tanggal Transaksi</label>
+                <span>{{ formatDate(selectedInvoice.created_at) }}</span>
+              </div>
+              <div class="meta-group">
+                <label>Status Pembayaran</label>
+                <span class="tag-badge">{{ selectedInvoice.payment_status }}</span>
+              </div>
+            </div>
+
+            <div class="invoice-section">
+              <h4>Detail Penumpang</h4>
+              <div class="passenger-list">
+                <div v-for="(p, idx) in selectedInvoice.passengers" :key="p.id" class="passenger-item">
+                  <div class="p-index">{{ idx + 1 }}</div>
+                  <div class="p-info">
+                    <strong>{{ p.passenger_name }} <span v-if="p.is_pemesan" class="badge-pemesan">Pemesan</span></strong>
+                    <span>{{ p.phone }} | {{ p.email }}</span>
+                    <span>{{ p.identity_type }} - {{ p.identity_number }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="invoice-section">
+              <h4>Detail Tiket</h4>
+              <div class="ticket-list">
+                <div v-for="t in selectedInvoice.tickets" :key="t.id" class="ticket-item">
+                  <div class="t-main">
+                    <strong>{{ t.ticket?.name || 'Tiket Shuttle' }}</strong>
+                    <span class="t-seat">Kursi: {{ t.order_seat_number }}</span>
+                  </div>
+                  <div class="t-price">
+                    {{ formatRp(t.subtotal_price) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="invoice-summary">
+              <div class="summary-row">
+                <span>Total Tiket ({{ selectedInvoice.total_qty }}x)</span>
+                <span>{{ formatRp(selectedInvoice.total_price) }}</span>
+              </div>
+              <div class="summary-row">
+                <span>Biaya Admin</span>
+                <span>{{ formatRp(selectedInvoice.admin_fee) }}</span>
+              </div>
+              <div class="summary-row grand-total">
+                <span>Grand Total</span>
+                <span>{{ formatRp(selectedInvoice.grandtotal) }}</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="modal-body" v-else>
+            <div class="error-state">Data tidak ditemukan.</div>
+          </div>
+        </div>
+      </div>
+    </transition>
+
   </div>
 </template>
 
@@ -605,5 +652,203 @@ const exportExcel = () => {
   .report-table td {
     font-size: 0.85rem;
   }
+}
+
+/* Button Icon */
+.btn-icon {
+  background: rgba(201, 76, 76, 0.1);
+  color: var(--primary);
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-icon:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+  padding: 16px;
+}
+.modal-card {
+  background: var(--card-bg);
+  width: 100%;
+  max-width: 600px;
+  border-radius: 16px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color);
+}
+.modal-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-dark);
+}
+.btn-close {
+  background: none;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 4px;
+}
+.btn-close:hover {
+  color: var(--primary);
+}
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+}
+.loading-state, .error-state {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-light);
+}
+.invoice-meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+  background: var(--input-bg);
+  padding: 16px;
+  border-radius: 12px;
+}
+.meta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.meta-group label {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  font-weight: 700;
+}
+.invoice-section {
+  margin-bottom: 24px;
+}
+.invoice-section h4 {
+  font-size: 1rem;
+  font-weight: 800;
+  margin-bottom: 12px;
+  color: var(--text-dark);
+}
+.passenger-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+.p-index {
+  background: var(--primary);
+  color: white;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 0.8rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.p-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  color: var(--text-light);
+}
+.p-info strong {
+  color: var(--text-dark);
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge-pemesan {
+  background: rgba(46, 125, 50, 0.1);
+  color: #2E7D32;
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+.ticket-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--border-color);
+}
+.t-main {
+  display: flex;
+  flex-direction: column;
+}
+.t-main strong {
+  color: var(--text-dark);
+}
+.t-seat {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+.t-price {
+  font-weight: 700;
+  color: var(--text-dark);
+}
+.invoice-summary {
+  background: var(--input-bg);
+  padding: 16px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: var(--text-light);
+}
+.summary-row.grand-total {
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+  margin-top: 4px;
+  font-size: 1.1rem;
+  font-weight: 900;
+  color: var(--text-dark);
+}
+.modal-fade-enter-active, .modal-fade-leave-active {
+  transition: opacity 0.3s;
+}
+.modal-fade-enter-from, .modal-fade-leave-to {
+  opacity: 0;
 }
 </style>
