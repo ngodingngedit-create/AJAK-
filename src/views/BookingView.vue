@@ -16,6 +16,16 @@ const expandedTicketId = ref(null);
 const currentStep = ref(1); // 1 = Select seat, 2 = Buyer details form
 const isEditMode = ref(false);
 
+// Mock Filter Data
+const selectedDate = ref('Jumat 5 Jun');
+const mockDates = ['Jumat 5 Jun', 'Jumat 12 Jun', 'Jumat 19 Jun'];
+
+const selectedSesi = ref('SESI 1');
+const mockSesis = [
+  { id: 'SESI 1', time: '15:00 - 17:30 WIB' },
+  { id: 'SESI 2', time: '19:30 - 21:30 WIB' }
+];
+
 // Booking states (Quantity, selected seats, and buyer information)
 const quantity = ref(1);
 const selectedSeats = ref([]);
@@ -109,57 +119,46 @@ const handleScrollTabs = () => {
   isTabsSticky.value = rect.top <= threshold + 2;
 };
 
-let startX = 0;
-let startY = 0;
-let touchStartX = 0;
-let touchStartY = 0;
+let lastDist = 0;
 
-const startPan = (e) => {
-  if (e.button !== 0) return;
-  isPanning.value = true;
-  startX = e.clientX - panX.value;
-  startY = e.clientY - panY.value;
+const getDistance = (t1, t2) => {
+  return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
 };
 
-const onPan = (e) => {
-  if (!isPanning.value) return;
-  panX.value = e.clientX - startX;
-  panY.value = e.clientY - startY;
-};
-
-const endPan = () => {
-  isPanning.value = false;
-};
-
-const startPanTouch = (e) => {
-  if (e.touches.length !== 1) return;
-  e.stopPropagation();
-  isPanning.value = true;
-  touchStartX = e.touches[0].clientX;
-  touchStartY = e.touches[0].clientY;
-  startX = e.touches[0].clientX - panX.value;
-  startY = e.touches[0].clientY - panY.value;
-};
-
-const onPanTouch = (e) => {
-  if (!isPanning.value || e.touches.length !== 1) return;
-  if (e.cancelable) {
-    e.preventDefault();
+const handleTouchStart = (e) => {
+  if (e.evt && e.evt.touches && e.evt.touches.length === 2) {
+    e.evt.preventDefault();
+    lastDist = getDistance(e.evt.touches[0], e.evt.touches[1]);
   }
-  e.stopPropagation();
-  const currentX = e.touches[0].clientX;
-  const currentY = e.touches[0].clientY;
-  const dist = Math.hypot(currentX - touchStartX, currentY - touchStartY);
-  if (dist > 6) {
-    panX.value = currentX - startX;
-    panY.value = currentY - startY;
+};
+
+const handleTouchMove = (e) => {
+  if (e.evt && e.evt.touches && e.evt.touches.length === 2) {
+    e.evt.preventDefault();
+    const dist = getDistance(e.evt.touches[0], e.evt.touches[1]);
+    
+    if (!lastDist) {
+      lastDist = dist;
+      return;
+    }
+    
+    const scale = dist / lastDist;
+    let newZoom = zoom.value * scale;
+    zoom.value = Math.min(Math.max(newZoom, 0.5), 3.0);
+    lastDist = dist;
   }
+};
+
+const handleTouchEnd = () => {
+  lastDist = 0;
 };
 
 const onWheel = (e) => {
+  if (e.evt) e.evt.preventDefault();
+  const delta = e.evt ? e.evt.deltaY : e.deltaY;
   const zoomFactor = 0.05;
-  let newZoom = zoom.value + (e.deltaY < 0 ? zoomFactor : -zoomFactor);
-  zoom.value = Math.min(Math.max(newZoom, 0.5), 2.5);
+  let newZoom = zoom.value + (delta < 0 ? zoomFactor : -zoomFactor);
+  zoom.value = Math.min(Math.max(newZoom, 0.5), 3.0);
 };
 
 const zoomIn = () => {
@@ -686,11 +685,16 @@ const toggleSeatSelection = (seatId) => {
   if (index !== -1) {
     selectedSeats.value.splice(index, 1);
   } else {
-    if (selectedSeats.value.length >= quantity.value) {
+    if (selectedSeats.value.length >= maxTickets.value) {
       selectedSeats.value.shift();
     }
     selectedSeats.value.push(seatId);
   }
+  
+  if (selectedTicket.value?.ticket_type_id !== 0) {
+    quantity.value = Math.max(1, selectedSeats.value.length);
+  }
+  
   validateSeats();
 };
 
@@ -1025,7 +1029,32 @@ const confirmBooking = () => {
               <!-- Left column: Tickets and Seatmap List -->
               <div class="step1-left-col">
                 <div class="ticket-list-header">
-                
+                  <div class="ticket-filters-wrapper">
+                    <div class="date-filters-row">
+                      <button 
+                        v-for="d in mockDates" 
+                        :key="d"
+                        class="date-filter-btn"
+                        :class="{ active: selectedDate === d }"
+                        @click="selectedDate = d"
+                      >
+                        <span>{{ d.split(' ')[0] }}</span>
+                        <span>{{ d.split(' ').slice(1).join(' ') }}</span>
+                      </button>
+                    </div>
+                    <div class="sesi-filters-row">
+                      <button 
+                        v-for="s in mockSesis" 
+                        :key="s.id"
+                        class="sesi-filter-btn"
+                        :class="{ active: selectedSesi === s.id }"
+                        @click="selectedSesi = s.id"
+                      >
+                        <span class="sesi-title">{{ s.id }}</span>
+                        <span class="sesi-time">{{ s.time }}</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
                 
                 <div class="tickets-scroll-view">
@@ -1174,6 +1203,9 @@ const confirmBooking = () => {
                                   scaleY: zoom 
                                 }"
                                 @wheel="onWheel"
+                                @touchstart="handleTouchStart"
+                                @touchmove="handleTouchMove"
+                                @touchend="handleTouchEnd"
                               >
                                 <v-layer>
                                   <!-- Translate layer to center the layout initially -->
@@ -1292,7 +1324,7 @@ const confirmBooking = () => {
                           
                             <div class="ticket-action-subtotal-group">
                               <!-- Ticket selection quantity selector (visible if available) -->
-                              <div class="ticket-quantity-row" v-if="hasAvailableSeats(t)">
+                              <div class="ticket-quantity-row" v-if="hasAvailableSeats(t) && t.ticket_type_id === 0">
                                
                                 <div class="quantity-counter-wrapper">
                                   <button 
@@ -4964,5 +4996,85 @@ html.lock-scroll, body.lock-scroll {
 .btn-edit-seats.is-editing:hover {
   background: var(--primary, #C94C4C);
   color: #ffffff !important;
+}
+/* Mock Filters Styles */
+.ticket-filters-wrapper {
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.date-filters-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.date-filters-row::-webkit-scrollbar {
+  display: none;
+}
+.date-filter-btn {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  color: var(--text-dark);
+  font-weight: 600;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  line-height: 1.3;
+}
+.date-filter-btn.active {
+  background: var(--primary, #C94C4C);
+  color: white;
+  border-color: var(--primary, #C94C4C);
+}
+
+.sesi-filters-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+.sesi-filters-row::-webkit-scrollbar {
+  display: none;
+}
+.sesi-filter-btn {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 20px;
+  border-radius: 40px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.sesi-filter-btn .sesi-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+.sesi-filter-btn .sesi-time {
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
+.sesi-filter-btn.active {
+  background: var(--primary, #C94C4C);
+  color: white;
+}
+.sesi-filter-btn.active .sesi-title,
+.sesi-filter-btn.active .sesi-time {
+  color: white;
 }
 </style>

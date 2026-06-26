@@ -23,9 +23,40 @@ onMounted(async () => {
 });
 
 const filterStatus = ref('Semua');
+const filterSesi = ref('Semua');
+const filterJenisTiket = ref('Semua');
 const searchQuery = ref('');
 
-// Extract unique payment statuses for the filter
+const getSesi = (b) => {
+  if (b.trip && b.trip.name) return b.trip.name;
+  if (b.trip && b.trip.departure_time) return b.trip.departure_time;
+  return '-';
+};
+
+const getJenisTiket = (b) => {
+  if (b.tickets && b.tickets.length > 0) {
+    const types = new Set(b.tickets.map(t => t.ticket?.name).filter(Boolean));
+    if (types.size > 0) return Array.from(types).join(', ');
+  }
+  if (b.passengers && b.passengers.length > 0) {
+    const types = new Set(b.passengers.map(p => p.ticket_type?.name || p.ticket_name).filter(Boolean));
+    if (types.size > 0) return Array.from(types).join(', ');
+  }
+  return '-';
+};
+
+const getSeats = (b) => {
+  if (b.tickets && b.tickets.length > 0) {
+    const seats = b.tickets.map(t => t.order_seat_number).filter(Boolean);
+    if (seats.length > 0) return seats.join(', ');
+  }
+  if (b.passengers && b.passengers.length > 0) {
+    const seats = b.passengers.map(p => p.seat_name || p.trip_seat?.seat_number || p.seat_number).filter(Boolean);
+    if (seats.length > 0) return seats.join(', ');
+  }
+  return '-';
+};
+
 const paymentStatuses = computed(() => {
   const statuses = new Set();
   bookings.value.forEach(b => {
@@ -36,11 +67,37 @@ const paymentStatuses = computed(() => {
   return ['Semua', ...Array.from(statuses)];
 });
 
+const sesiList = computed(() => {
+  const sesis = new Set();
+  bookings.value.forEach(b => {
+    const s = getSesi(b);
+    if (s && s !== '-') sesis.add(s);
+  });
+  return ['Semua', ...Array.from(sesis)];
+});
+
+const jenisTiketList = computed(() => {
+  const jenis = new Set();
+  bookings.value.forEach(b => {
+    const jt = getJenisTiket(b);
+    if (jt && jt !== '-') {
+      jt.split(', ').forEach(j => jenis.add(j));
+    }
+  });
+  return ['Semua', ...Array.from(jenis)];
+});
+
 // Filtered bookings
 const filteredBookings = computed(() => {
   let res = [...bookings.value];
   if (filterStatus.value !== 'Semua') {
     res = res.filter(b => b.payment_status === filterStatus.value);
+  }
+  if (filterSesi.value !== 'Semua') {
+    res = res.filter(b => getSesi(b) === filterSesi.value);
+  }
+  if (filterJenisTiket.value !== 'Semua') {
+    res = res.filter(b => getJenisTiket(b).includes(filterJenisTiket.value));
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase();
@@ -87,18 +144,22 @@ const formatDate = (isoString) => {
 };
 
 const exportExcel = () => {
-  const headers = [
-    'Tanggal Transaksi', 'Invoice No', 'Pemesan', 'Shuttle', 'Deskripsi', 
-    'Qty', 'Total Price', 'Status'
-  ];
-
-  const rows = filteredBookings.value.map(b => {
-    return [
-      `"${formatDate(b.created_at)}"`,
-      `"${b.invoice_no || '-'}"`,
-      `"${getPemesanName(b)}"`,
-      `"${b.shuttle?.name || '-'}"`,
-      `"${b.shuttle?.description || '-'}"`,
+    const headers = [
+      'Tanggal Transaksi', 'Invoice No', 'Pemesan', 'Shuttle', 'Deskripsi', 
+      'Sesi', 'Jenis Tiket', 'Seat',
+      'Qty', 'Total Price', 'Status'
+    ];
+  
+    const rows = filteredBookings.value.map(b => {
+      return [
+        `"${formatDate(b.created_at)}"`,
+        `"${b.invoice_no || '-'}"`,
+        `"${getPemesanName(b)}"`,
+        `"${b.shuttle?.name || '-'}"`,
+        `"${b.shuttle?.description || '-'}"`,
+        `"${getSesi(b)}"`,
+        `"${getJenisTiket(b)}"`,
+        `"${getSeats(b)}"`,
       b.total_qty || 0,
       b.total_price || 0,
       `"${b.payment_status || '-'}"`
@@ -200,6 +261,20 @@ const closeModal = () => {
                 </option>
               </select>
             </div>
+            <div class="filter-box">
+              <select v-model="filterSesi" class="filter-select">
+                <option v-for="sesi in sesiList" :key="sesi" :value="sesi">
+                  {{ sesi === 'Semua' ? 'Semua Sesi' : sesi }}
+                </option>
+              </select>
+            </div>
+            <div class="filter-box">
+              <select v-model="filterJenisTiket" class="filter-select">
+                <option v-for="jt in jenisTiketList" :key="jt" :value="jt">
+                  {{ jt === 'Semua' ? 'Semua Jenis Tiket' : jt }}
+                </option>
+              </select>
+            </div>
             <button class="export-btn" @click="exportExcel">
               <Download :size="16" />
               Export Excel
@@ -207,7 +282,7 @@ const closeModal = () => {
           </div>
         </div>
 
-        <div class="table-responsive">
+        <div class="table-responsive" style="max-height: 600px; overflow-y: auto; overflow-x: auto;">
           <table class="report-table">
             <thead>
               <tr>
@@ -216,6 +291,9 @@ const closeModal = () => {
                 <th>Pemesan</th>
                 <th>Shuttle</th>
                 <th>Deskripsi</th>
+                <th>Sesi</th>
+                <th>Jenis Tiket</th>
+                <th>Seat</th>
                 <th>Qty</th>
                 <th>Total Price</th>
                 <th>Status</th>
@@ -233,12 +311,15 @@ const closeModal = () => {
               </tr>
               <tr v-for="b in filteredBookings" :key="b.id">
                 <td style="white-space: nowrap;">{{ formatDate(b.created_at) }}</td>
-                <td><strong>{{ b.invoice_no }}</strong></td>
-                <td>{{ getPemesanName(b) }}</td>
-                <td class="event-name">{{ b.shuttle?.name || '-' }}</td>
-                <td>{{ b.shuttle?.description || '-' }}</td>
+                <td style="white-space: nowrap;"><strong>{{ b.invoice_no }}</strong></td>
+                <td style="white-space: nowrap;">{{ getPemesanName(b) }}</td>
+                <td class="event-name" style="white-space: nowrap;">{{ b.shuttle?.name || '-' }}</td>
+                <td style="white-space: nowrap;">{{ b.shuttle?.description || '-' }}</td>
+                <td style="white-space: nowrap;">{{ getSesi(b) }}</td>
+                <td style="white-space: nowrap;">{{ getJenisTiket(b) }}</td>
+                <td style="white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" :title="getSeats(b)">{{ getSeats(b) }}</td>
                 <td>{{ b.total_qty }}</td>
-                <td><strong>{{ formatRp(b.total_price) }}</strong></td>
+                <td style="white-space: nowrap;"><strong>{{ formatRp(b.total_price) }}</strong></td>
                 <td>
                   <span class="tag-badge">{{ b.payment_status }}</span>
                 </td>

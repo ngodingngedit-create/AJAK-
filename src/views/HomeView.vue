@@ -901,7 +901,7 @@ const tagColors = {
 
 /* Title */
 .hero-title {
-  font-size: clamp(3rem, 7vw, 6.5rem);
+  font-size: clamp(2.5rem, 5.5vw, 4.8rem);
   font-weight: 900;
   line-height: 1.0;
   margin-bottom: 24px;
@@ -941,9 +941,9 @@ const tagColors = {
   background: var(--primary);
   color: white;
   border: none;
-  padding: 16px 32px;
+  padding: 14px 24px;
   border-radius: 18px;
-  font-family: inherit; font-size: 1rem; font-weight: 800;
+  font-family: inherit; font-size: 0.9rem; font-weight: 800;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   box-shadow: 0 8px 32px rgba(201,76,76,0.4), 0 0 0 0 rgba(201,76,76,0.3);
@@ -970,9 +970,9 @@ const tagColors = {
   background: rgba(255,255,255,0.08);
   color: white;
   border: 1.5px solid rgba(255,255,255,0.25);
-  padding: 16px 32px;
+  padding: 14px 24px;
   border-radius: 18px;
-  font-family: inherit; font-size: 1rem; font-weight: 700;
+  font-family: inherit; font-size: 0.9rem; font-weight: 700;
   cursor: pointer;
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
@@ -992,27 +992,27 @@ const tagColors = {
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.12);
   backdrop-filter: blur(16px);
-  border-radius: 20px;
-  padding: 18px 36px;
+  border-radius: 16px;
+  padding: 12px 24px;
   animation: fade-up 0.6s ease 0.5s both;
 }
 .stat-pill {
   display: flex; flex-direction: column;
   align-items: center; gap: 2px;
-  padding: 0 28px;
+  padding: 0 20px;
 }
 .stat-num {
-  font-size: 1.6rem; font-weight: 900;
+  font-size: 1.25rem; font-weight: 900;
   color: white; line-height: 1;
   letter-spacing: -1px;
 }
 .stat-lab {
-  font-size: 0.7rem; font-weight: 700;
+  font-size: 0.65rem; font-weight: 700;
   color: rgba(255,255,255,0.5);
   text-transform: uppercase; letter-spacing: 1.5px;
 }
 .stat-sep {
-  width: 1px; height: 40px;
+  width: 1px; height: 30px;
   background: rgba(255,255,255,0.15);
 }
 
@@ -1052,7 +1052,7 @@ const tagColors = {
   .stat-pill { padding: 0 14px; }
   .stat-num { font-size: 1.3rem; }
   .hero-ctas { gap: 10px; }
-  .cta-primary, .cta-secondary { padding: 14px 22px; font-size: 0.92rem; }
+  .cta-primary, .cta-secondary { padding: 12px 18px; font-size: 0.85rem; }
   .scroll-cue { display: none; }
 }
 
@@ -1429,7 +1429,7 @@ const tagColors = {
 @media (max-width: 768px) {
   .hero-section { margin-top: 60px; min-height: auto; padding-bottom: 0; }
   .hero-body { padding: 40px 16px 40px; }
-  .hero-title { font-size: 2.4rem; letter-spacing: -1px; }
+  .hero-title { font-size: 2.6rem; letter-spacing: -1px; }
   .hero-subtitle { font-size: 0.9rem; margin-bottom: 32px; }
 
   .booking-card { border-radius: 20px; }
@@ -1631,7 +1631,7 @@ const tagColors = {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1024px) {
-  .hero-title { font-size: 3.5rem; }
+  .hero-title { font-size: 3.2rem; }
   .booking-row-inputs { flex-direction: column; gap: 20px; }
   .route-arrow { transform: rotate(90deg); }
   .booking-row-bottom { flex-direction: column; align-items: stretch; }
@@ -1698,7 +1698,7 @@ const tagColors = {
 
 @media (max-width: 480px) {
   .events-cards { grid-template-columns: 1fr; gap: 16px; }
-  .hero-title { font-size: 2.2rem; }
+  .hero-title { font-size: 2.1rem; }
 }
 
 .text-marquee { background: var(--primary); padding: 15px 0; color: white; display: flex; align-items: center; overflow: hidden; }
