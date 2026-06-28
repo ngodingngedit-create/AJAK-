@@ -1,15 +1,15 @@
 :root {
   --primary: #C94C4C;
   --secondary: #F5B5B5;
-  --bg-color: #FFF8F8;
+  --bg-color: #ffffff;
   --card-bg: #FAF9F9;
   --text-dark: #2A2A2A;
   --text-light: #6b6b6b;
-  --white: #FAF9F9;
+  --white: #ffffff;
   --border-color: rgba(201, 76, 76, 0.08);
   --input-bg: #f6f6f8;
-  --navbar-bg: rgba(250, 249, 249, 0.75);
-  --navbar-scrolled-bg: rgba(250, 249, 249, 0.98);
+  --navbar-bg: #ffffff;
+  --navbar-scrolled-bg: #ffffff;
 
   --shadow-sm: 0 4px 12px rgba(201, 76, 76, 0.05);
   --shadow-md: 0 8px 24px rgba(201, 76, 76, 0.1);

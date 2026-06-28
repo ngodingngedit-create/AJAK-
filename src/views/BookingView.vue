@@ -15,20 +15,85 @@ const selectedTicket = ref(null);
 const expandedTicketId = ref(null);
 const currentStep = ref(1); // 1 = Select seat, 2 = Buyer details form
 const isEditMode = ref(false);
+const isFilterWrapperExpanded = ref(true);
+const isTicketsWrapperExpanded = ref(true);
+const isHariExpanded = ref(true);
+const isSesiExpanded = ref(true);
 
 // Mock Filter Data
-const selectedDate = ref('Jumat 5 Jun');
-const mockDates = ['Jumat 5 Jun', 'Jumat 12 Jun', 'Jumat 19 Jun'];
+const selectedDate = ref('Day 1');
+const mockDates = [
+  { id: 'Day 1', label: 'Day 1', date: 'Jumat, 5 Jun 2025' },
+  { id: 'Day 2', label: 'Day 2', date: 'Sabtu, 6 Jun 2025' },
+  { id: 'Day 3', label: 'Day 3', date: 'Minggu, 7 Jun 2025' }
+];
 
 const selectedSesi = ref('SESI 1');
 const mockSesis = [
-  { id: 'SESI 1', time: '15:00 - 17:30 WIB' },
-  { id: 'SESI 2', time: '19:30 - 21:30 WIB' }
+  { id: 'SESI 1', name: 'Sesi 1', time: '15:00 - 17:30 WIB', available: true },
+  { id: 'SESI 2', name: 'Sesi 2', time: '17:30 - 20:00 WIB', available: true },
+  { id: 'SESI 3', name: 'Sesi 3', time: '19:30 - 22:00 WIB', available: false }
 ];
 
 // Booking states (Quantity, selected seats, and buyer information)
 const quantity = ref(1);
-const selectedSeats = ref([]);
+const selectedSeatsMap = ref({});
+
+const currentSelectionKey = computed(() => {
+  if (!selectedTicket.value) return '';
+  return `${selectedTicket.value.id}_${selectedDate.value}_${selectedSesi.value}`;
+});
+
+const selectedSeats = computed({
+  get: () => {
+    const key = currentSelectionKey.value;
+    if (!key) return [];
+    return selectedSeatsMap.value[key] || [];
+  },
+  set: (val) => {
+    const key = currentSelectionKey.value;
+    if (key) {
+      selectedSeatsMap.value[key] = val;
+    }
+  }
+});
+
+const allSelectedTickets = computed(() => {
+  const list = [];
+  if (!event.value) return [];
+  
+  for (const [key, seats] of Object.entries(selectedSeatsMap.value)) {
+    if (seats && seats.length > 0) {
+      const [ticketId, dayId, sesiId] = key.split('_');
+      const allTickets = filteredTickets.value;
+      const ticket = allTickets.find(t => String(t.id) === String(ticketId));
+      if (ticket) {
+        list.push({
+          key,
+          ticket,
+          dayId,
+          sesiId,
+          seats,
+          price: ticket.price,
+          name: ticket.name
+        });
+      }
+    }
+  }
+  return list;
+});
+
+const totalSelectedTicketsCount = computed(() => {
+  return allSelectedTickets.value.reduce((sum, item) => sum + item.seats.length, 0);
+});
+
+const totalSelectedTicketsPrice = computed(() => {
+  return allSelectedTickets.value.reduce((sum, item) => sum + (item.price * item.seats.length), 0);
+});
+
+const mergedSelectedSeats = computed(() => {
+  return Object.values(selectedSeatsMap.value).flat();
+});
 const buyer = ref({
   name: '',
   email: '',
@@ -336,6 +401,91 @@ watch(() => route.hash, (newHash) => {
   }
 }, { immediate: true });
 
+const getSessionAvailability = (dayId, sesiId) => {
+  if (dayId === 'Day 1') {
+    return sesiId !== 'SESI 3';
+  } else if (dayId === 'Day 2') {
+    return sesiId === 'SESI 1';
+  } else if (dayId === 'Day 3') {
+    return sesiId === 'SESI 2';
+  }
+  return false;
+};
+
+watch(selectedDate, (newDay) => {
+  mockSesis.forEach(s => {
+    s.available = getSessionAvailability(newDay, s.id);
+  });
+  
+  const currentSesiObj = mockSesis.find(s => s.id === selectedSesi.value);
+  if (!currentSesiObj || !currentSesiObj.available) {
+    const firstAvailable = mockSesis.find(s => s.available);
+    if (firstAvailable) {
+      selectedSesi.value = firstAvailable.id;
+    }
+  }
+}, { immediate: true });
+
+const filteredTickets = computed(() => {
+  if (!event.value || !event.value.has_event_ticket) return [];
+  const originalTickets = event.value.has_event_ticket;
+  
+  const baseTicket = originalTickets[0] || { price: 75000, id: 999 };
+  const mockPPExists = originalTickets.some(t => t.id === 'mock-roundtrip');
+  const mockReturnExists = originalTickets.some(t => t.id === 'mock-return' || t.name.toLowerCase().includes('ancol - sudirman'));
+  
+  let ticketsToMap = originalTickets;
+  
+  // Inject mock return ticket if not in database
+  if (!mockReturnExists) {
+    const mockReturn = {
+      id: 'mock-return',
+      name: 'Ancol - Sudirman (Pulang Saja)',
+      ticket_category: 'Regular Shuttle (One Way)',
+      description: 'Shuttle One Way Return (Perjalanan Pulang saja).',
+      price: 75000,
+      available_seat_number: baseTicket.available_seat_number || 'A1,A2,A3,A4,A5,B1,B2,B3',
+      taken_seat_number: baseTicket.taken_seat_number || '',
+      ticket_end: baseTicket.ticket_end || '2026-07-31',
+      ending_time: baseTicket.ending_time || '23:59:59',
+      total_seat: baseTicket.total_seat || 40,
+      ticket_type_id: baseTicket.ticket_type_id || 1
+    };
+    ticketsToMap = [...ticketsToMap, mockReturn];
+  }
+  
+  if (!mockPPExists) {
+    const mockPP = {
+      id: 'mock-roundtrip',
+      name: 'Sudirman - Ancol (Pulang Pergi)',
+      ticket_category: 'Regular Shuttle (PP)',
+      description: 'Shuttle Round Trip (Perjalanan Pulang & Pergi) lebih hemat!',
+      price: 140000,
+      available_seat_number: baseTicket.available_seat_number || 'A1,A2,A3,A4,A5,B1,B2,B3',
+      taken_seat_number: baseTicket.taken_seat_number || '',
+      ticket_end: baseTicket.ticket_end || '2026-07-31',
+      ending_time: baseTicket.ending_time || '23:59:59',
+      total_seat: baseTicket.total_seat || 40,
+      ticket_type_id: baseTicket.ticket_type_id || 1
+    };
+    ticketsToMap = [...ticketsToMap, mockPP];
+  }
+  
+  return ticketsToMap.map(t => {
+    let displayName = t.name;
+    const nameLower = t.name.toLowerCase();
+    if (nameLower.includes('sudirman - ancol') && !nameLower.includes('pulang pergi') && !nameLower.includes('pp')) {
+      displayName = 'Sudirman - Ancol (Pergi Saja)';
+    } else if (nameLower.includes('ancol - sudirman') && !nameLower.includes('pulang pergi') && !nameLower.includes('pp') && !nameLower.includes('pulang saja')) {
+      displayName = 'Ancol - Sudirman (Pulang Saja)';
+    }
+    return {
+      ...t,
+      name: displayName
+    };
+  });
+});
+
 watch([isCanvasOpen, isSheetClosing], ([isOpen, isClosing]) => {
   const active = isOpen || isClosing;
   // On mobile: lock scroll on both html and body to prevent ANY page scroll
@@ -464,6 +614,10 @@ onMounted(async () => {
   window.addEventListener('scroll', handleScrollTabs, { passive: true });
   window.addEventListener('resize', updateMobileStatus);
   handleScrollTabs();
+  
+  countdownInterval = setInterval(() => {
+    currentTime.value = new Date();
+  }, 1000);
 });
 
 onUnmounted(() => {
@@ -474,7 +628,75 @@ onUnmounted(() => {
   document.body.style.touchAction = '';
   document.body.classList.remove('lock-scroll');
   document.documentElement.classList.remove('lock-scroll');
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+  }
 });
+
+const currentTime = ref(new Date());
+let countdownInterval = null;
+
+const parseEndingDateTime = (dateStr, timeStr) => {
+  if (!dateStr) return null;
+  const time = timeStr || '23:59:59';
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const [hour, minute, second] = time.split(':').map(Number);
+  return new Date(year, month - 1, day, hour, minute || 0, second || 0);
+};
+
+const getCountdownTime = (ticket) => {
+  if (!ticket || !ticket.ticket_end) return '00:00:00';
+  const end = parseEndingDateTime(ticket.ticket_end, ticket.ending_time);
+  if (!end) return '00:00:00';
+  
+  const diffMs = end.getTime() - currentTime.value.getTime();
+  if (diffMs <= 0) {
+    return '00:00:00';
+  }
+  
+  const diffSecs = Math.floor(diffMs / 1000);
+  const hours = Math.floor(diffSecs / 3600);
+  const minutes = Math.floor((diffSecs % 3600) / 60);
+  const seconds = diffSecs % 60;
+  
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const getCalendarDateParts = (dateStr) => {
+  if (!dateStr) return { dayName: 'Wed', dayNum: '30', monthName: 'Dec' };
+  const parts = dateStr.split(' ');
+  let dayName = parts[0] || '';
+  const dayLower = dayName.toLowerCase();
+  if (dayLower.startsWith('jum')) dayName = 'Jum';
+  else if (dayLower.startsWith('sab')) dayName = 'Sab';
+  else if (dayLower.startsWith('min')) dayName = 'Min';
+  else if (dayLower.startsWith('sen')) dayName = 'Sen';
+  else if (dayLower.startsWith('sel')) dayName = 'Sel';
+  else if (dayLower.startsWith('rab')) dayName = 'Rab';
+  else if (dayLower.startsWith('kam')) dayName = 'Kam';
+  
+  return {
+    dayName: dayName,
+    dayNum: parts[1] || '',
+    monthName: parts[2] || ''
+  };
+};
+
+const formatDateLabelLong = (dateStr) => {
+  if (!dateStr) return '';
+  const pureDate = dateStr.split('T')[0];
+  const parts = pureDate.split('-');
+  if (parts.length !== 3) return dateStr;
+  
+  const year = parts[0];
+  const monthNum = parseInt(parts[1], 10);
+  const day = parseInt(parts[2], 10);
+  
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+  const monthStr = months[monthNum - 1];
+  
+  return `${day} ${monthStr} ${year}`;
+};
 
 const formatRp = (num) => {
   if (!num) return 'Rp 0';
@@ -531,6 +753,24 @@ const isSeatAvailable = (seatId) => {
 
 const hasAvailableSeats = (t) => {
   if (t.is_soldout || t.is_fullbook || t.is_finish) return false;
+  
+  // Sesi 3 is always unavailable
+  if (selectedSesi.value === 'SESI 3') return false;
+  
+  // Day 2 + Sesi 1: make the first ticket category sold out (typically Sudirman)
+  if (selectedDate.value === 'Day 2' && selectedSesi.value === 'SESI 1') {
+    if (t.name.toLowerCase().includes('sudirman') || t.id === event.value?.has_event_ticket[0]?.id) {
+      return false;
+    }
+  }
+  
+  // Day 3 + Sesi 2: make non-Ancol tickets sold out
+  if (selectedDate.value === 'Day 3' && selectedSesi.value === 'SESI 2') {
+    if (!t.name.toLowerCase().includes('ancol')) {
+      return false;
+    }
+  }
+  
   if (t.ticket_type_id === 0) return true;
   if (!t.available_seat_number) return false;
   return t.available_seat_number.split(',').map(s => s.trim()).filter(Boolean).length > 0;
@@ -540,7 +780,7 @@ const getTicketStatus = (t) => {
   if (t.is_soldout) return 'TIKET HABIS';
   if (t.is_fullbook) return 'FULL BOOKED';
   if (t.is_finish) return 'PENJUALAN SELESAI';
-  return hasAvailableSeats(t) ? 'Tersedia' : 'TIKET HABIS';
+  return hasAvailableSeats(t) ? 'PENJUALAN BERLANGSUNG' : 'TIKET HABIS';
 };
 
 const getTicketStatusClass = (t) => {
@@ -549,15 +789,15 @@ const getTicketStatusClass = (t) => {
 };
 
 const selectTicketCategory = (t) => {
-  if (selectedTicket.value?.id !== t.id) {
-    selectedTicket.value = t;
-    selectedSeats.value = [];
-    errors.value.seats = '';
-    isEditMode.value = false;
-  }
+  selectedTicket.value = t;
+  errors.value.seats = '';
+  isEditMode.value = false;
+  
   if (t.ticket_type_id === 0) {
     goToBuyerDetails();
   } else {
+    // Save scroll so back button can restore it
+    sessionStorage.setItem('booking_scroll_y', String(window.scrollY));
     router.push({ hash: '#seatmap' });
   }
 };
@@ -571,6 +811,7 @@ const toggleTicketAccordion = (ticketId) => {
 };
 
 const clearSelectedTicket = () => {
+  const savedY = sessionStorage.getItem('booking_scroll_y');
   if (route.hash === '#seatmap') {
     // On mobile: animate out first, then navigate back after animation
     if (window.innerWidth <= 768) {
@@ -578,9 +819,19 @@ const clearSelectedTicket = () => {
       setTimeout(() => {
         isSheetClosing.value = false;
         router.back();
+        if (savedY !== null) {
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: Number(savedY), behavior: 'instant' });
+          });
+        }
       }, SHEET_CLOSE_DURATION);
     } else {
       router.back();
+      if (savedY !== null) {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: Number(savedY), behavior: 'instant' });
+        });
+      }
     }
   } else {
     if (window.innerWidth <= 768) {
@@ -588,13 +839,26 @@ const clearSelectedTicket = () => {
     } else {
       isCanvasOpen.value = false;
     }
+    if (savedY !== null) {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: Number(savedY), behavior: 'instant' });
+      });
+    }
   }
   errors.value.seats = '';
 };
 
 const clearSelectedSeats = () => {
-  selectedSeats.value = [];
+  const key = currentSelectionKey.value;
+  if (key) {
+    selectedSeatsMap.value[key] = [];
+  }
   errors.value.seats = '';
+};
+
+const deleteTicketSelectionByKey = (key) => {
+  selectedSeatsMap.value[key] = [];
+  validateSeats();
 };
 
 const handleEditSeats = () => {
@@ -651,7 +915,13 @@ const goToBuyerDetails = () => {
 };
 
 const goBackToStep1 = () => {
+  // Preserve current scroll position so page doesn't jump to top
+  const scrollY = window.scrollY;
   currentStep.value = 1;
+  // Restore scroll position after Vue re-renders the step
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: scrollY, behavior: 'instant' });
+  });
 };
 
 const isFormValid = computed(() => {
@@ -672,8 +942,9 @@ const increaseQuantity = () => {
 const decreaseQuantity = () => {
   if (quantity.value > 1) {
     quantity.value--;
-    if (selectedSeats.value.length > quantity.value) {
-      selectedSeats.value = selectedSeats.value.slice(0, quantity.value);
+    const key = currentSelectionKey.value;
+    if (key && selectedSeatsMap.value[key] && selectedSeatsMap.value[key].length > quantity.value) {
+      selectedSeatsMap.value[key] = selectedSeatsMap.value[key].slice(0, quantity.value);
     }
     validateSeats();
   }
@@ -681,18 +952,31 @@ const decreaseQuantity = () => {
 
 const toggleSeatSelection = (seatId) => {
   if (!isSeatAvailable(seatId)) return;
-  const index = selectedSeats.value.indexOf(seatId);
+  const key = currentSelectionKey.value;
+  if (!key) return;
+  
+  // Ensure the key exists in the map as a reactive array
+  if (!selectedSeatsMap.value[key]) {
+    selectedSeatsMap.value[key] = [];
+  }
+  
+  const seats = selectedSeatsMap.value[key];
+  const index = seats.indexOf(seatId);
+  
   if (index !== -1) {
-    selectedSeats.value.splice(index, 1);
+    // Deselect — create a new array to trigger reactivity
+    selectedSeatsMap.value[key] = seats.filter(s => s !== seatId);
   } else {
-    if (selectedSeats.value.length >= maxTickets.value) {
-      selectedSeats.value.shift();
+    if (seats.length >= maxTickets.value) {
+      // Drop the oldest selection and add the new one
+      selectedSeatsMap.value[key] = [...seats.slice(1), seatId];
+    } else {
+      selectedSeatsMap.value[key] = [...seats, seatId];
     }
-    selectedSeats.value.push(seatId);
   }
   
   if (selectedTicket.value?.ticket_type_id !== 0) {
-    quantity.value = Math.max(1, selectedSeats.value.length);
+    quantity.value = Math.max(1, selectedSeatsMap.value[key].length);
   }
   
   validateSeats();
@@ -750,31 +1034,20 @@ const validateIdentity = () => {
 };
 
 const validateSeats = () => {
-  if (selectedTicket.value && selectedTicket.value.ticket_type_id === 0) {
-    errors.value.seats = '';
-    return;
-  }
-  if (selectedSeats.value.length !== quantity.value) {
-    errors.value.seats = `Silakan pilih tepat ${quantity.value} kursi.`;
-  } else {
-    errors.value.seats = '';
-  }
+  errors.value.seats = '';
 };
 
 const isSelectionComplete = computed(() => {
-  const seatsValid = (selectedTicket.value && selectedTicket.value.ticket_type_id === 0) || 
-                     (selectedSeats.value.length === quantity.value);
   const isNameValid = !event.value?.is_name || (buyer.value.name.trim().length >= 3);
   const isEmailValid = !event.value?.is_email || (buyer.value.email.trim().length > 0);
   const isPhoneValid = !event.value?.is_phone || (buyer.value.phone.trim().length >= 8);
   const isIdentityValid = !event.value?.is_noidentity || (buyer.value.identity.trim().length >= 3);
   
-  return selectedTicket.value &&
+  return totalSelectedTicketsCount.value > 0 &&
          isNameValid &&
          isEmailValid &&
          isPhoneValid &&
-         isIdentityValid &&
-         seatsValid;
+         isIdentityValid;
 });
 
 const goBack = () => {
@@ -800,10 +1073,10 @@ const handleProceedToCheckout = () => {
       phone: buyer.value.phone,
       identity: buyer.value.identity
     };
-    bookingStore.adults = quantity.value;
+    bookingStore.adults = totalSelectedTicketsCount.value;
     bookingStore.toddlers = 0;
-    bookingStore.selectedSeats = [...selectedSeats.value];
-    bookingStore.selectedTicket = selectedTicket.value;
+    bookingStore.selectedSeats = [...mergedSelectedSeats.value];
+    bookingStore.selectedTicket = allSelectedTickets.value[0]?.ticket || selectedTicket.value;
     bookingStore.selectedPickup = {
       name: 'Venue Acara (' + event.value.location_name + ')',
       address: event.value.location_address || event.value.location_name
@@ -818,7 +1091,7 @@ const handleProceedToCheckout = () => {
       customer: { ...bookingStore.customer },
       adults: bookingStore.adults,
       selectedSeats: [...bookingStore.selectedSeats],
-      totalPrice: selectedTicket.value.price * quantity.value,
+      totalPrice: totalSelectedTicketsPrice.value,
       paymentMethod: 'QRIS'
     };
 
@@ -846,9 +1119,9 @@ const confirmBooking = () => {
     email: buyer.value.email,
     phone: buyer.value.phone
   };
-  bookingStore.adults = quantity.value;
+  bookingStore.adults = totalSelectedTicketsCount.value;
   bookingStore.toddlers = 0;
-  bookingStore.selectedSeats = [...selectedSeats.value];
+  bookingStore.selectedSeats = [...mergedSelectedSeats.value];
   bookingStore.selectedPickup = { 
     name: 'Venue Acara (' + event.value.location_name + ')', 
     address: event.value.location_address || event.value.location_name
@@ -863,7 +1136,7 @@ const confirmBooking = () => {
     customer: { ...bookingStore.customer },
     adults: bookingStore.adults,
     selectedSeats: [...bookingStore.selectedSeats],
-    totalPrice: selectedTicket.value.price * quantity.value,
+    totalPrice: totalSelectedTicketsPrice.value,
     paymentMethod: selectedPayment.value
   };
 
@@ -1028,342 +1301,388 @@ const confirmBooking = () => {
             <div v-if="currentStep === 1" class="step1-grid">
               <!-- Left column: Tickets and Seatmap List -->
               <div class="step1-left-col">
-                <div class="ticket-list-header">
+                <!-- Wrapper for Date & Session Filters -->
+                <div class="outer-section-group">
+                  <h3 class="outer-section-title">Hari &amp; Sesi</h3>
+                  <!-- Card 1: Pilih Hari Konser -->
                   <div class="ticket-filters-wrapper">
-                    <div class="date-filters-row">
-                      <button 
-                        v-for="d in mockDates" 
-                        :key="d"
-                        class="date-filter-btn"
-                        :class="{ active: selectedDate === d }"
-                        @click="selectedDate = d"
-                      >
-                        <span>{{ d.split(' ')[0] }}</span>
-                        <span>{{ d.split(' ').slice(1).join(' ') }}</span>
-                      </button>
-                    </div>
-                    <div class="sesi-filters-row">
-                      <button 
-                        v-for="s in mockSesis" 
-                        :key="s.id"
-                        class="sesi-filter-btn"
-                        :class="{ active: selectedSesi === s.id }"
-                        @click="selectedSesi = s.id"
-                      >
-                        <span class="sesi-title">{{ s.id }}</span>
-                        <span class="sesi-time">{{ s.time }}</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="tickets-scroll-view">
-                  <div 
-                    v-for="t in event.has_event_ticket" 
-                    :key="t.id" 
-                    class="ticket-card-voucher"
-                    :id="selectedTicket?.id === t.id ? 'seatmap' : null"
-                    :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen }"
-                  >
-                    <!-- Voucher Side notches -->
-                    <div class="ticket-notch notch-left"></div>
-                    <div class="ticket-notch notch-right"></div>
-                    
-                    <!-- Mobile backdrop overlay and seatmap canvas (teleported to body on mobile) -->
-                    <Teleport :disabled="!isMobile" v-if="(selectedTicket?.id === t.id && isCanvasOpen) || isSheetClosing" to="body">
-                      <!-- Backdrop (rendered only on mobile) -->
-                      <div 
-                        v-if="isMobile"
-                        class="mobile-seatmap-backdrop"
-                        :class="{ 'is-closing': isSheetClosing }"
-                        @click="clearSelectedTicket"
-                        @touchmove.prevent
-                      ></div>
-
-                      <!-- If selected, show ONLY the seatmap canvas inside the card -->
-                      <div 
-                        class="selected-seatmap-canvas-container"
-                        :class="{ 'is-closing': isSheetClosing }"
-                        :style="{ 
-                          transform: `translateY(${sheetDragDeltaY}px)`,
-                          transition: isSheetDragging ? 'none' : 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)'
-                        }"
-                        @click.stop
-                      >
-                        <!-- Drag Handle — sits OUTSIDE/ABOVE the white card -->
-                        <div 
-                          class="sheet-drag-handle-area"
-                          @touchstart.stop="onSheetDragStart"
-                          @touchmove.stop="onSheetDragMove"
-                          @touchend.stop="onSheetDragEnd"
-                          @mousedown.stop="onSheetDragStart"
-                          @mousemove.stop="onSheetDragMove"
-                          @mouseup.stop="onSheetDragEnd"
-                        >
-                          <div class="sheet-drag-handle-pill"></div>
-                        </div>
-
-                        <!-- White card — everything below the handle -->
-                        <div class="sheet-inner-card">
-                          <!-- Mobile Seatmap Header (supports dragging too) -->
-                          <div 
-                            class="mobile-seatmap-header"
-                            @touchstart.stop="onSheetDragStart"
-                            @touchmove.stop="onSheetDragMove"
-                            @touchend.stop="onSheetDragEnd"
-                            @mousedown.stop="onSheetDragStart"
-                            @mousemove.stop="onSheetDragMove"
-                            @mouseup.stop="onSheetDragEnd"
+                    <!-- Section 1: Pilih Hari Konser (Accordion) -->
+                    <div class="filter-section-group">
+                      <div class="inner-filter-header" @click="isHariExpanded = !isHariExpanded">
+                        <h4 class="filter-section-title">Pilih Hari Konser</h4>
+                        <ChevronDown :size="16" class="inner-chevron" :class="{ rotated: isHariExpanded }" />
+                      </div>
+                      <transition name="expand-accordion">
+                        <div v-show="isHariExpanded" class="date-filters-row">
+                          <button 
+                            v-for="d in mockDates" 
+                            :key="d.id"
+                            class="date-filter-btn"
+                            :class="{ active: selectedDate === d.id }"
+                            @click="selectedDate = d.id"
                           >
-                            <button type="button" class="btn-close-seatmap-mobile" @touchstart.stop @click.stop="clearSelectedTicket">✕</button>
-                            <h3 class="mobile-seatmap-header-title">Pilih Kursi</h3>
-                          </div>
-                        <div class="seatmap-canvas-header">
-                          <div class="seatmap-canvas-title-group">
-                            <span class="seatmap-canvas-badge" :style="{ backgroundColor: t.seat_color || 'var(--primary)' }">
-                              {{ t.ticket_category }}
-                            </span>
-                            <h3 class="seatmap-canvas-ticket-name">{{ t.name }}</h3>
-                          </div>
-                          <button type="button" class="btn-back-to-tickets" @click="clearSelectedTicket">
-                            Kembali
+                            <span class="date-btn-label">{{ d.label }}</span>
+                            <span class="date-btn-sub">{{ d.date }}</span>
                           </button>
                         </div>
-
-                        <div class="seatmap-canvas-body">
-                          <!-- Bus cabin layout -->
-                          <div 
-                            class="bus-cabin-canvas-viewport"
-                            :class="{ 'is-fullscreen-mode': isFullscreen }"
-                            @wheel.prevent="onWheel"
-                          >
-                            <!-- Desktop Legends Overlay (Visible on Desktop Only) -->
-                            <div class="inline-legends" @mousedown.stop @touchstart.stop>
-                              <div class="legend-item">
-                                <span class="legend-box selected"></span>
-                                <span>Dipilih</span>
-                              </div>
-                              <div class="legend-item">
-                                <span class="legend-box available"></span>
-                                <span>Tersedia</span>
-                              </div>
-                              <div class="legend-item">
-                                <span class="legend-box occupied"></span>
-                                <span>Tidak Tersedia</span>
-                              </div>
-                            </div>
-
-                            <!-- Desktop Zoom Controls Overlay (Visible on Desktop Only) -->
-                            <div class="canvas-zoom-controls" @mousedown.stop @touchstart.stop>
-                              <button type="button" class="zoom-control-btn" @click="isFullscreen = !isFullscreen" :title="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'">
-                                <svg v-if="!isFullscreen" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
-                                <svg v-else viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"></path></svg>
-                              </button>
-                              <button type="button" class="zoom-control-btn" @click="zoomIn" title="Zoom In">➕</button>
-                              <button type="button" class="zoom-control-btn" @click="zoomOut" title="Zoom Out">➖</button>
-                              <button type="button" class="zoom-control-btn text-btn" @click="resetZoomPan">Reset Layout</button>
-                            </div>
-
-                            <!-- Mobile Legends (Visible on Mobile Only) -->
-                            <div class="mobile-legends-overlay" @touchstart.stop>
-                              <div class="legend-item">
-                                <span class="legend-box selected"></span>
-                                <span>Dipilih</span>
-                              </div>
-                              <div class="legend-item">
-                                <span class="legend-box available"></span>
-                                <span>Tersedia</span>
-                              </div>
-                              <div class="legend-item">
-                                <span class="legend-box occupied"></span>
-                                <span>Tidak Tersedia</span>
-                              </div>
-                            </div>
-
-                            <!-- Mobile Zoom Controls (Visible on Mobile Only) -->
-                            <div class="mobile-zoom-controls-overlay" @touchstart.stop>
-                              <button type="button" class="m-zoom-btn" @click="isFullscreen = !isFullscreen">
-                                <svg v-if="!isFullscreen" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
-                                <svg v-else viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"></path></svg>
-                              </button>
-                              <button type="button" class="m-zoom-btn" @click="zoomIn">➕</button>
-                              <button type="button" class="m-zoom-btn" @click="zoomOut">➖</button>
-                            </div>
-
-                            <div 
-                              class="bus-cabin-container konva-container"
-                              style="width: 100%; height: 100%; overflow: hidden; background: #f8fafc; border-radius: 12px; position: relative; z-index: 1;"
-                            >
-                              <v-stage 
-                                :config="{ 
-                                  width: 800, 
-                                  height: 600, 
-                                  draggable: true, 
-                                  scaleX: zoom, 
-                                  scaleY: zoom 
-                                }"
-                                @wheel="onWheel"
-                                @touchstart="handleTouchStart"
-                                @touchmove="handleTouchMove"
-                                @touchend="handleTouchEnd"
-                              >
-                                <v-layer>
-                                  <!-- Translate layer to center the layout initially -->
-                                  <v-group :config="{ x: 400, y: 100 }">
-                                    <template v-for="shape in parsedSeatmap" :key="shape.id">
-                                              <!-- Box type (e.g. KEMUDI) -->
-                                      <v-group v-if="shape.type === 'box'" :config="shape.groupConfig">
-                                        <v-rect :config="shape.rectConfig" />
-                                        <v-text :config="shape.textConfig" />
-                                      </v-group>
-
-                                      <!-- Seat type -->
-                                      <v-group 
-                                        v-else-if="shape.type === 'seat'" 
-                                        :config="shape.groupConfig"
-                                        @click="shape.available ? toggleSeatSelection(shape.id) : null"
-                                        @tap="shape.available ? toggleSeatSelection(shape.id) : null"
-                                      >
-                                        <v-rect :config="shape.rectConfig" />
-                                        <v-text :config="shape.textConfig" />
-                                      </v-group>
-
-                                    </template>
-                                  </v-group>
-                                </v-layer>
-                              </v-stage>
-                            </div>
-                          </div>
-
-                          <!-- Mobile Confirm Bar inside the seatmap selection screen -->
-                          <!-- <div class="mobile-canvas-confirm-bar">
-                            <div class="m-confirm-bar-left">
-                              <span class="m-confirm-label">Total Harga</span>
-                              <span class="m-confirm-value">{{ selectedSeats.length > 0 ? formatRp(t.price * selectedSeats.length) : 'Rp 0' }}</span>
-                            </div>
-                            <button type="button" class="btn-confirm-seats-mobile" :disabled="selectedSeats.length === 0" @click="clearSelectedTicket">
-                              Lanjut
-                            </button>
-                          </div> -->
-                        </div>
-                      </div><!-- end sheet-inner-card -->
+                      </transition>
                     </div>
-                  </Teleport>
+                  </div>
 
-
-                    <!-- If not selected, show the normal ticket details and features accordion -->
-                    <!-- If not selected, show the normal ticket details -->
-                    <div v-else class="ticket-card-inner">
-                      <!-- Top Section (Click to toggle accordion) -->
-                      <div class="ticket-top-section" @click="toggleTicketAccordion(t.id)" style="cursor: pointer;">
-                        <div class="ticket-top-left">
-                          <h3 class="ticket-category-title">{{ t.name }}</h3>
-                          <div v-if="t.route" class="ticket-route-info" style="font-size: 0.8rem; color: #64748b; margin-top: 4px; font-weight: 700; text-transform: capitalize;">
-                            Rute: {{ t.route.origin_name }} ➔ {{ t.route.destination_name }}
-                          </div>
-                          <div v-if="t.description" class="ticket-description" style="font-size: 0.75rem; color: #94a3b8; margin-top: 2px; margin-bottom: 8px;">
-                            {{ t.description }}
-                          </div>
-                          <div class="ticket-status-badge" :class="getTicketStatusClass(t)">
-                            <span class="status-dot"></span>
-                            <span>{{ getTicketStatus(t) }}</span>
-                          </div>
-                        </div>
-                        
-                        <div class="ticket-top-right">
-                          <div class="ticket-vertical-divider"></div>
-                          <div class="ticket-price-box">
-                            <span class="ticket-price-label">Harga</span>
-                            <div class="ticket-price-value-wrapper">
-                              <span class="ticket-price-value">{{ formatRp(t.price) }}</span>
-                              <ChevronDown 
-                                v-if="event?.facilities && event.facilities.length > 0"
-                                :size="18" 
-                                class="accordion-chevron-toggle"
-                                :class="{ rotated: expandedTicketId === t.id }"
-                              />
-                            </div>
-                          </div>
-                        </div>
+                  <!-- Card 2: Pilih Sesi Keberangkatan -->
+                  <div class="ticket-filters-wrapper" style="margin-top: 16px;">
+                    <!-- Section 2: Pilih Sesi Keberangkatan (Accordion) -->
+                    <div class="filter-section-group">
+                      <div class="inner-filter-header" @click="isSesiExpanded = !isSesiExpanded">
+                        <h4 class="filter-section-title">Pilih Sesi Keberangkatan</h4>
+                        <ChevronDown :size="16" class="inner-chevron" :class="{ rotated: isSesiExpanded }" />
                       </div>
-                      
-                      <!-- Divider Row with Notches and Dashed Line -->
-                      <div class="ticket-divider-row">
-                        <div class="ticket-notch notch-left"></div>
-                        <div class="ticket-card-divider-dashed-line"></div>
-                        <div class="ticket-notch notch-right"></div>
-                      </div>
-                      
-                      <!-- Bottom Section -->
-                      <div class="ticket-bottom-section">
-                        <!-- Accordion Features Content (Vehicle Features) -->
-                        <div v-if="expandedTicketId === t.id && event?.facilities && event.facilities.length > 0" class="ticket-features-accordion-content" @click.stop>
-                          <div class="features-title">Fasilitas Shuttle:</div>
-                          <div class="features-grid">
+                      <transition name="expand-accordion">
+                        <div v-show="isSesiExpanded" class="sesi-filters-row">
+                          <button 
+                            v-for="s in mockSesis" 
+                            :key="s.id"
+                            class="sesi-filter-btn"
+                            :class="{ 
+                              active: selectedSesi === s.id && s.available, 
+                              'unavailable-session': !s.available 
+                            }"
+                            :disabled="!s.available"
+                            @click="s.available ? selectedSesi = s.id : null"
+                          >
+                            <!-- Availability Badge -->
                             <div 
-                              v-for="fac in event?.facilities" 
-                              :key="fac" 
-                              class="feature-item"
+                              class="session-status-badge"
+                              :class="s.available ? 'available' : 'unavailable'"
                             >
-                              <component :is="getFacilityIcon(fac)" :size="14" class="feature-icon" />
-                              <span>{{ fac }}</span>
+                              {{ s.available ? 'TERSEDIA' : 'TIDAK TERSEDIA' }}
                             </div>
-                          </div>
+                            <span class="sesi-title">{{ s.name }}</span>
+                            <span class="sesi-time">{{ s.time }}</span>
+                          </button>
                         </div>
-                        
-                        <!-- Bottom Footer Info -->
-                        <div class="ticket-bottom-footer-row">
-                          <div class="ticket-ending-details">
-                            <span class="ending-label">BERAKHIR PADA</span>
-                            <span class="ending-value">
-                              {{ formatDateLabel(t.ticket_end) }}, {{ formatTimeLabel(t.ending_time) }} WIB
-                            </span>
-                          </div>
+                      </transition>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Wrapper for Shuttle Tickets -->
+                <div class="outer-section-group">
+                  <h3 class="outer-section-title">Seated</h3>
+                  <div class="tickets-list-wrapper" style="display: flex; flex-direction: column; gap: 16px;">
+                    <div 
+                      v-for="t in filteredTickets" 
+                      :key="t.id" 
+                      class="ticket-card-voucher"
+                      :id="selectedTicket?.id === t.id ? 'seatmap' : null"
+                      :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen }"
+                    >
+                          <!-- Voucher Side notches -->
+                          <div class="ticket-side-notch-left"></div>
+                          <div class="ticket-side-notch-right"></div>
                           
-                          <div class="ticket-footer-vertical-divider"></div>
-                          
-                            <div class="ticket-action-subtotal-group">
-                              <!-- Ticket selection quantity selector (visible if available) -->
-                              <div class="ticket-quantity-row" v-if="hasAvailableSeats(t) && t.ticket_type_id === 0">
-                               
-                                <div class="quantity-counter-wrapper">
-                                  <button 
-                                    type="button" 
-                                    class="qty-btn" 
-                                    :disabled="quantity <= 1" 
-                                    @click="decreaseQuantity"
-                                  >-</button>
-                                  <span class="qty-val">{{ quantity }}</span>
-                                  <button 
-                                    type="button" 
-                                    class="qty-btn" 
-                                    :disabled="quantity >= maxTickets" 
-                                    @click="increaseQuantity"
-                                  >+</button>
-                                </div>
+                          <!-- Mobile backdrop overlay and seatmap canvas (teleported to body on mobile) -->
+                          <Teleport :disabled="!isMobile" v-if="(selectedTicket?.id === t.id && isCanvasOpen) || isSheetClosing" to="body">
+                            <!-- Backdrop (rendered only on mobile) -->
+                            <div 
+                              v-if="isMobile"
+                              class="mobile-seatmap-backdrop"
+                              :class="{ 'is-closing': isSheetClosing }"
+                              @click="clearSelectedTicket"
+                              @touchmove.prevent
+                            ></div>
+
+                            <!-- If selected, show ONLY the seatmap canvas inside the card -->
+                            <div 
+                              class="selected-seatmap-canvas-container"
+                              :class="{ 'is-closing': isSheetClosing }"
+                              :style="{ 
+                                transform: `translateY(${sheetDragDeltaY}px)`,
+                                transition: isSheetDragging ? 'none' : 'transform 0.35s cubic-bezier(0.32, 0.72, 0, 1)'
+                              }"
+                              @click.stop
+                            >
+                              <!-- Drag Handle — sits OUTSIDE/ABOVE the white card -->
+                              <div 
+                                class="sheet-drag-handle-area"
+                                @touchstart.stop="onSheetDragStart"
+                                @touchmove.stop="onSheetDragMove"
+                                @touchend.stop="onSheetDragEnd"
+                                @mousedown.stop="onSheetDragStart"
+                                @mousemove.stop="onSheetDragMove"
+                                @mouseup.stop="onSheetDragEnd"
+                              >
+                                <div class="sheet-drag-handle-pill"></div>
                               </div>
 
-                              <div style="display: flex; align-items: center; gap: 12px;">
-                                <span class="total-seat-info" style="font-size: 0.82rem; font-weight: 600; color: #64748b;">
-                                  Total {{ t.total_seat || event?.total_seat || 0 }} Seat
-                                </span>
-                                <button 
-                                  class="select-ticket-btn"
-                                  :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen, 'sold-out': !hasAvailableSeats(t) }"
-                                  :disabled="!hasAvailableSeats(t)"
-                                  @click.stop="selectTicketCategory(t)"
+                              <!-- White card — everything below the handle -->
+                              <div class="sheet-inner-card">
+                                <!-- Mobile Seatmap Header (supports dragging too) -->
+                                <div 
+                                  class="mobile-seatmap-header"
+                                  @touchstart.stop="onSheetDragStart"
+                                  @touchmove.stop="onSheetDragMove"
+                                  @touchend.stop="onSheetDragEnd"
+                                  @mousedown.stop="onSheetDragStart"
+                                  @mousemove.stop="onSheetDragMove"
+                                  @mouseup.stop="onSheetDragEnd"
                                 >
-                                  {{ !hasAvailableSeats(t) ? 'Habis' : (t.ticket_type_id === 0 ? 'Beli Tiket' : (selectedSeats.length > 0 && selectedTicket?.id === t.id ? `Pilih Seat (${selectedSeats.length})` : 'Pilih Seat')) }}
+                                  <button type="button" class="btn-close-seatmap-mobile" @touchstart.stop @click.stop="clearSelectedTicket">✕</button>
+                                  <h3 class="mobile-seatmap-header-title">Pilih Kursi</h3>
+                                </div>
+                              <div class="seatmap-canvas-header">
+                                <div class="seatmap-canvas-title-group">
+                                  <span class="seatmap-canvas-badge" :style="{ backgroundColor: t.seat_color || 'var(--primary)' }">
+                                    {{ t.ticket_category }}
+                                  </span>
+                                  <h3 class="seatmap-canvas-ticket-name">{{ t.name }}</h3>
+                                </div>
+                                <button type="button" class="btn-back-to-tickets" @click="clearSelectedTicket">
+                                  Kembali
                                 </button>
                               </div>
+
+                              <div class="seatmap-canvas-body">
+                                <!-- Bus cabin layout -->
+                                <div 
+                                  class="bus-cabin-canvas-viewport"
+                                  :class="{ 'is-fullscreen-mode': isFullscreen }"
+                                  @wheel.prevent="onWheel"
+                                >
+                                  <!-- Desktop Legends Overlay (Visible on Desktop Only) -->
+                                  <div class="inline-legends" @mousedown.stop @touchstart.stop>
+                                    <div class="legend-item">
+                                      <span class="legend-box selected"></span>
+                                      <span>Dipilih</span>
+                                    </div>
+                                    <div class="legend-item">
+                                      <span class="legend-box available"></span>
+                                      <span>Tersedia</span>
+                                    </div>
+                                    <div class="legend-item">
+                                      <span class="legend-box occupied"></span>
+                                      <span>Tidak Tersedia</span>
+                                    </div>
+                                  </div>
+
+                                  <!-- Desktop Zoom Controls Overlay (Visible on Desktop Only) -->
+                                  <div class="canvas-zoom-controls" @mousedown.stop @touchstart.stop>
+                                    <button type="button" class="zoom-control-btn" @click="isFullscreen = !isFullscreen" :title="isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'">
+                                      <svg v-if="!isFullscreen" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
+                                      <svg v-else viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"></path></svg>
+                                    </button>
+                                    <button type="button" class="zoom-control-btn" @click="zoomIn" title="Zoom In">➕</button>
+                                    <button type="button" class="zoom-control-btn" @click="zoomOut" title="Zoom Out">➖</button>
+                                    <button type="button" class="zoom-control-btn text-btn" @click="resetZoomPan">Reset Layout</button>
+                                  </div>
+
+                                  <!-- Mobile Legends (Visible on Mobile Only) -->
+                                  <div class="mobile-legends-overlay" @touchstart.stop>
+                                    <div class="legend-item">
+                                      <span class="legend-box selected"></span>
+                                      <span>Dipilih</span>
+                                    </div>
+                                    <div class="legend-item">
+                                      <span class="legend-box available"></span>
+                                      <span>Tersedia</span>
+                                    </div>
+                                    <div class="legend-item">
+                                      <span class="legend-box occupied"></span>
+                                      <span>Tidak Tersedia</span>
+                                    </div>
+                                  </div>
+
+                                  <!-- Mobile Zoom Controls (Visible on Mobile Only) -->
+                                  <div class="mobile-zoom-controls-overlay" @touchstart.stop>
+                                    <button type="button" class="m-zoom-btn" @click="isFullscreen = !isFullscreen">
+                                      <svg v-if="!isFullscreen" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"></path></svg>
+                                      <svg v-else viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"></path></svg>
+                                    </button>
+                                    <button type="button" class="m-zoom-btn" @click="zoomIn">➕</button>
+                                    <button type="button" class="m-zoom-btn" @click="zoomOut">➖</button>
+                                  </div>
+
+                                  <div 
+                                    class="bus-cabin-container konva-container"
+                                    style="width: 100%; height: 100%; overflow: hidden; background: #f8fafc; border-radius: 12px; position: relative; z-index: 1;"
+                                  >
+                                    <v-stage 
+                                      :config="{ 
+                                        width: 800, 
+                                        height: 600, 
+                                        draggable: true, 
+                                        scaleX: zoom, 
+                                        scaleY: zoom 
+                                      }"
+                                      @wheel="onWheel"
+                                      @touchstart="handleTouchStart"
+                                      @touchmove="handleTouchMove"
+                                      @touchend="handleTouchEnd"
+                                    >
+                                      <v-layer>
+                                        <!-- Translate layer to center the layout initially -->
+                                        <v-group :config="{ x: 400, y: 100 }">
+                                          <template v-for="shape in parsedSeatmap" :key="shape.id">
+                                                    <!-- Box type (e.g. KEMUDI) -->
+                                            <v-group v-if="shape.type === 'box'" :config="shape.groupConfig">
+                                              <v-rect :config="shape.rectConfig" />
+                                              <v-text :config="shape.textConfig" />
+                                            </v-group>
+
+                                            <!-- Seat type -->
+                                            <v-group 
+                                              v-else-if="shape.type === 'seat'" 
+                                              :config="shape.groupConfig"
+                                              @click="shape.available ? toggleSeatSelection(shape.id) : null"
+                                              @tap="shape.available ? toggleSeatSelection(shape.id) : null"
+                                            >
+                                              <v-rect :config="shape.rectConfig" />
+                                              <v-text :config="shape.textConfig" />
+                                            </v-group>
+
+                                          </template>
+                                        </v-group>
+                                      </v-layer>
+                                    </v-stage>
+                                  </div>
+                                </div>
+
+                                <!-- Mobile Confirm Bar inside the seatmap selection screen -->
+                                <!-- <div class="mobile-canvas-confirm-bar">
+                                  <div class="m-confirm-bar-left">
+                                    <span class="m-confirm-label">Total Harga</span>
+                                    <span class="m-confirm-value">{{ selectedSeats.length > 0 ? formatRp(t.price * selectedSeats.length) : 'Rp 0' }}</span>
+                                  </div>
+                                  <button type="button" class="btn-confirm-seats-mobile" :disabled="selectedSeats.length === 0" @click="clearSelectedTicket">
+                                    Lanjut
+                                  </button>
+                                </div> -->
+                              </div>
+                            </div><!-- end sheet-inner-card -->
+                          </div>
+                        </Teleport>
+
+
+                          <!-- If not selected, show the normal ticket details and features accordion -->
+                          <!-- If not selected, show the normal ticket details -->
+                          <div v-else class="ticket-card-inner">
+                            <!-- Top Section (Click to toggle accordion) -->
+                            <div class="ticket-top-section" @click="toggleTicketAccordion(t.id)" style="pointer: cursor;">
+                              <div class="ticket-top-left">
+                                <h3 class="ticket-category-title">{{ t.name }}</h3>
+                                <div class="ticket-status-badge" :class="getTicketStatusClass(t)">
+                                  <span class="status-dot"></span>
+                                  <span>{{ getTicketStatus(t) }}</span>
+                                </div>
+                              </div>
                               
+                              <div class="ticket-top-right">
+                                <div class="ticket-vertical-divider"></div>
+                                <div class="ticket-price-box">
+                                  <span class="ticket-price-label">Harga</span>
+                                  <div class="ticket-price-value-wrapper">
+                                    <span class="ticket-price-value">{{ formatRp(t.price) }}</span>
+                                    <ChevronDown 
+                                      :size="18" 
+                                      class="accordion-chevron-toggle"
+                                      :class="{ rotated: expandedTicketId === t.id }"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <!-- Accordion Body: Hari Konser, Sesi Keberangkatan, and Fasilitas Shuttle -->
+                            <transition name="expand-accordion">
+                              <div v-show="expandedTicketId === t.id" class="ticket-accordion-body">
+                              <!-- Horizontal line separator -->
+                              <div class="accordion-section-divider"></div>
+                              
+                              <!-- Details Row: Hari Konser & Sesi Keberangkatan -->
+                              <div class="ticket-details-row">
+                                <!-- Hari Konser Column -->
+                                <div class="detail-col">
+                                  <span class="detail-col-label">Hari Konser</span>
+                                  <div class="calendar-detail-wrapper-simple">
+                                    <Calendar :size="18" class="detail-icon-red" />
+                                    <span class="info-bold-text">Masa berlaku: {{ mockDates.find(d => d.id === selectedDate)?.date || '' }}</span>
+                                  </div>
+                                </div>
+                                
+                                <!-- Sesi Keberangkatan Column -->
+                                <div class="detail-col">
+                                  <span class="detail-col-label">Sesi Keberangkatan</span>
+                                  <div class="session-detail-wrapper-simple">
+                                    <Clock :size="18" class="detail-icon-red" />
+                                    <span class="info-bold-text">{{ mockSesis.find(s => s.id === selectedSesi)?.time || '' }}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <!-- Horizontal line separator -->
+                              <div class="accordion-section-divider"></div>
+                              
+                              <!-- Fasilitas Shuttle Section -->
+                              <div class="ticket-facilities-section">
+                                <span class="detail-col-label">Fasilitas Shuttle</span>
+                                <div class="facilities-badges-wrap">
+                                  <div 
+                                    v-for="fac in event?.facilities || []" 
+                                    :key="fac" 
+                                    class="facility-badge-item"
+                                  >
+                                    <component :is="getFacilityIcon(fac)" :size="14" class="facility-icon" />
+                                    <span>{{ fac }}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </transition>
+
+                            <!-- Divider Row with Dashed Line -->
+                            <div class="ticket-divider-row">
+                              <div class="ticket-card-divider-dashed-line"></div>
+                            </div>
+                            
+                            <!-- Bottom Section (Always visible) -->
+                            <div class="ticket-bottom-section">
+                              <!-- Bottom Footer Info -->
+                              <div class="ticket-bottom-footer-row">
+                                <div class="ticket-ending-details">
+                                  <span class="ending-label">BERAKHIR PADA</span>
+                                  <span class="ending-value">
+                                    {{ formatDateLabelLong(t.ticket_end) }}, <span class="countdown-text">{{ getCountdownTime(t) }}</span>
+                                  </span>
+                                </div>
+                                
+                                <div class="ticket-footer-vertical-divider"></div>
+                                
+                                <!-- Direct Book / Select Seat Button -->
+                                <div class="ticket-action-select-btn-only">
+                                   <button 
+                                    class="select-ticket-btn"
+                                    :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen, 'sold-out': !hasAvailableSeats(t) }"
+                                    :disabled="!hasAvailableSeats(t)"
+                                    @click.stop="selectTicketCategory(t)"
+                                  >
+                                    <template v-if="!hasAvailableSeats(t)">Habis</template>
+                                    <template v-else-if="t.ticket_type_id === 0">Beli Tiket</template>
+                                    <template v-else>
+                                      {{ (() => {
+                                        const key = `${t.id}_${selectedDate}_${selectedSesi}`;
+                                        const seats = selectedSeatsMap[key];
+                                        return seats && seats.length > 0 ? `Pilih Seat (${seats.length})` : 'Pilih Seat';
+                                      })() }}
+                                    </template>
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                         </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
               <!-- Right column: Tiket Terpilih summary card -->
               <div class="step1-right-col">
@@ -1371,65 +1690,82 @@ const confirmBooking = () => {
                   <div class="summary-card-header">
                     <h3 class="summary-card-title">Tiket Dipilih</h3>
                     <button 
-                      v-if="selectedTicket && selectedSeats.length > 0" 
+                      v-if="totalSelectedTicketsCount > 0" 
                       type="button" 
                       class="btn-edit-seats" 
                       :class="{ 'is-editing': isEditMode }"
                       @click="toggleEditMode"
                     >
-                      <span>{{ isEditMode ? 'Selesai Edit' : 'Edit' }}</span>
+                      <span>{{ isEditMode ? 'Selesai' : 'Edit' }}</span>
                       <svg v-if="!isEditMode" class="edit-icon-svg" viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
                     </button>
                   </div>
                   
-                  <!-- Empty state when no seat is chosen -->
-                  <div v-if="!selectedTicket || selectedSeats.length === 0" class="empty-summary-state">
-                    <div class="info-circle-icon">
-                      <Info :size="20" />
+                    <!-- Empty state when no seat is chosen -->
+                    <div v-if="allSelectedTickets.length === 0" class="empty-summary-state">
+                      <div class="info-circle-icon">
+                        <Info :size="20" />
+                      </div>
+                      <p class="info-text">Belum ada kursi yang dipilih</p>
                     </div>
-                    <p class="info-text">Belum ada kursi yang dipilih</p>
-                  </div>
 
-                  <!-- Selected seats info -->
-                  <div v-else class="summary-card-body">
-                    <div class="summary-ticket-item">
-                      <div class="summary-ticket-title-row">
-                        <!-- Blue Ticket Icon -->
-                        <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
-                        
-                        <span class="summary-ticket-name">Tiket {{ selectedTicket.name }}</span>
-                        <span class="summary-ticket-badge-count">{{ selectedSeats.length }}X</span>
-                        
-                        <button 
-                          v-if="isEditMode" 
-                          type="button" 
-                          class="btn-delete-ticket-summary" 
-                          @click="deleteTicketSelection"
-                          title="Hapus Tiket"
+                    <!-- Selected seats info -->
+                    <div v-else class="summary-card-body">
+                      <!-- Scrollable items list: scrolls when >2 categories -->
+                      <div 
+                        class="summary-items-scroll-container"
+                        :class="{ 'is-scrollable': allSelectedTickets.length > 2 }"
+                      >
+                        <div 
+                          v-for="(item, idx) in allSelectedTickets" 
+                          :key="item.key"
+                          class="summary-ticket-item"
+                          :style="idx > 0 ? 'border-top: 1.5px solid #f1f5f9; padding-top: 14px; margin-top: 2px;' : ''"
                         >
-                          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                        </button>
+                          <div class="summary-ticket-title-row">
+                            <!-- Ticket Icon -->
+                            <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
+                            
+                            <span class="summary-ticket-name">{{ item.name }}</span>
+                            <span class="summary-ticket-badge-count">{{ item.seats.length }}X</span>
+                          </div>
+                          
+                          <!-- Day and Session Info -->
+                          <div class="summary-ticket-meta-row">
+                            <div class="summary-meta-info">
+                              <span>{{ item.dayId }}</span> &bull; <span>{{ mockSesis.find(s => s.id === item.sesiId)?.name || item.sesiId }} ({{ mockSesis.find(s => s.id === item.sesiId)?.time || '' }})</span>
+                            </div>
+                            <button 
+                              v-if="isEditMode" 
+                              type="button" 
+                              class="btn-delete-ticket-summary" 
+                              @click="deleteTicketSelectionByKey(item.key)"
+                              title="Hapus"
+                            >
+                              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                            </button>
+                          </div>
+                          
+                          <div class="summary-ticket-seats-row">
+                            Seat: {{ item.seats.join(', ') }}
+                          </div>
+                          
+                          <div class="summary-ticket-price-row">
+                            {{ formatRp(item.price * item.seats.length) }}
+                          </div>
+                        </div>
                       </div>
                       
-                      <div class="summary-ticket-seats-row">
-                        Seat No: {{ selectedSeats.join(', ') }}
-                      </div>
+                      <div class="summary-card-divider-dashes"></div>
                       
-                      <div class="summary-ticket-price-row">
-                        {{ formatRp(selectedTicket.price * selectedSeats.length) }}
+                      <div class="summary-total-row">
+                        <span class="summary-total-label">Total ({{ totalSelectedTicketsCount }} Tiket)</span>
+                        <span class="summary-total-price">{{ formatRp(totalSelectedTicketsPrice) }}</span>
                       </div>
-                    </div>
-                    
-                    <div class="summary-card-divider-dashes"></div>
-                    
-                    <div class="summary-total-row">
-                      <span class="summary-total-label">Total ({{ selectedSeats.length }} Tiket)</span>
-                      <span class="summary-total-price">{{ formatRp(selectedTicket.price * selectedSeats.length) }}</span>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
 
             <!-- STEP 2: Buyer Details form card -->
             <div v-else-if="currentStep === 2 && selectedTicket" class="booking-onpage-form-section">
@@ -1446,28 +1782,39 @@ const confirmBooking = () => {
                   <div class="onpage-form-left-col">
                     <h4 class="form-subheader mt-0 pt-0" style="border-top: none;">Detail Tiket</h4>
                     
-                    <div class="summary-details-box">
-                      <div class="summary-detail-row">
-                        <span class="sd-label">Kategori</span>
-                        <span class="sd-value">{{ selectedTicket.name }}</span>
+                    <div 
+                        v-for="(item, idx) in allSelectedTickets" 
+                        :key="item.key" 
+                        class="summary-details-box"
+                        :style="idx > 0 ? 'margin-top: 12px;' : ''"
+                      >
+                        <div class="summary-detail-row">
+                          <span class="sd-label">Kategori</span>
+                          <span class="sd-value">{{ item.name }} ({{ item.dayId }} &bull; {{ mockSesis.find(s => s.id === item.sesiId)?.name || item.sesiId }})</span>
+                        </div>
+                        <div class="summary-detail-row">
+                          <span class="sd-label">Kursi</span>
+                          <span class="sd-value seats-highlight">{{ item.seats.join(', ') }}</span>
+                        </div>
+                        <div class="summary-detail-row">
+                          <span class="sd-label">Jumlah</span>
+                          <span class="sd-value">{{ item.seats.length }} Tiket</span>
+                        </div>
+                        <div class="summary-detail-row">
+                          <span class="sd-label">Harga per Kursi</span>
+                          <span class="sd-value">{{ formatRp(item.price) }}</span>
+                        </div>
+                        <div class="summary-detail-row sd-total-row">
+                          <span class="sd-label font-bold">Subtotal</span>
+                          <span class="sd-value font-black text-primary">{{ formatRp(item.price * item.seats.length) }}</span>
+                        </div>
                       </div>
-                      <div class="summary-detail-row">
-                        <span class="sd-label">Kursi</span>
-                        <span class="sd-value seats-highlight">{{ selectedSeats.join(', ') }}</span>
+                      
+                      <!-- Grand Total display if multiple categories -->
+                      <div class="grand-total-step2-box" style="margin-top: 16px; padding: 16px; border: 1.5px solid var(--border-color); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; background: #fafafb;">
+                        <span style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">Total Terpilih ({{ totalSelectedTicketsCount }} Kursi)</span>
+                        <span style="font-weight: 950; font-size: 1.25rem; color: var(--primary);">{{ formatRp(totalSelectedTicketsPrice) }}</span>
                       </div>
-                      <div class="summary-detail-row">
-                        <span class="sd-label">Jumlah</span>
-                        <span class="sd-value">{{ quantity }} Tiket</span>
-                      </div>
-                      <div class="summary-detail-row">
-                        <span class="sd-label">Harga per Kursi</span>
-                        <span class="sd-value">{{ formatRp(selectedTicket.price) }}</span>
-                      </div>
-                      <div class="summary-detail-row sd-total-row">
-                        <span class="sd-label font-bold">Total Harga</span>
-                        <span class="sd-value font-black text-primary">{{ formatRp(selectedTicket.price * selectedSeats.length) }}</span>
-                      </div>
-                    </div>
                   </div>
 
                   <!-- Right column: Input fields -->
@@ -1549,16 +1896,16 @@ const confirmBooking = () => {
     <div class="booking-bottom-bar desktop-bottom-bar-view">
       <div class="container bottom-bar-container">
         <div class="bottom-bar-left">
-          <span class="bottom-bar-ticket-name font-bold" v-if="selectedSeats.length > 0">
-            Total {{ selectedSeats.length }} Seat
-          </span>
-          <span class="bottom-bar-ticket-name" v-else>
-            Harga mulai dari
-          </span>
-          
-          <span class="bottom-bar-total-price">
-            {{ selectedSeats.length > 0 && selectedTicket ? formatRp(selectedTicket.price * selectedSeats.length) : formatRp(event.priceNum || 0) }}
-          </span>
+          <span class="bottom-bar-ticket-name font-bold" v-if="totalSelectedTicketsCount > 0">
+              Total {{ totalSelectedTicketsCount }} Seat
+            </span>
+            <span class="bottom-bar-ticket-name" v-else>
+              Harga mulai dari
+            </span>
+            
+            <span class="bottom-bar-total-price">
+              {{ totalSelectedTicketsCount > 0 ? formatRp(totalSelectedTicketsPrice) : formatRp(event.priceNum || 0) }}
+            </span>
         </div>
         
         <div class="bottom-bar-right">
@@ -1601,11 +1948,11 @@ const confirmBooking = () => {
           <div class="m-bottom-bar-price-block">
             <span class="m-price-label">TOTAL HARGA</span>
             <span class="m-price-value">
-              {{ selectedSeats.length > 0 && selectedTicket ? formatRp(selectedTicket.price * selectedSeats.length) : formatRp(event.priceNum || 0) }}
-si            </span>
+              {{ totalSelectedTicketsCount > 0 ? formatRp(totalSelectedTicketsPrice) : formatRp(event.priceNum || 0) }}
+            </span>
           </div>
           <div class="m-bottom-bar-detail-link" @click="showMobileDetailSheet = !showMobileDetailSheet">
-            <span>({{ selectedSeats.length || 0 }}) Detail</span>
+            <span>({{ totalSelectedTicketsCount || 0 }}) Detail</span>
             <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" fill="none" class="m-detail-chevron" :class="{ 'rotated': showMobileDetailSheet }">
               <polyline points="18 15 12 9 6 15"></polyline>
             </svg>
@@ -1714,42 +2061,53 @@ si            </span>
               <p class="info-text">Belum ada kursi yang dipilih</p>
             </div>
 
-            <!-- Selected seats info -->
-            <div v-else class="mobile-sheet-detail-content">
-              <div class="summary-ticket-item">
-                <div class="summary-ticket-title-row">
-                  <!-- Ticket Icon -->
-                  <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
-                  <span class="summary-ticket-name">Tiket {{ selectedTicket.name }}</span>
-                  <span class="summary-ticket-badge-count">{{ selectedSeats.length }}X</span>
+              <!-- Selected seats info -->
+              <div v-else class="mobile-sheet-detail-content">
+                <div 
+                  v-for="(item, idx) in allSelectedTickets" 
+                  :key="item.key"
+                  class="summary-ticket-item"
+                  :style="idx > 0 ? 'margin-top: 16px; border-top: 1px dashed #f1f5f9; padding-top: 16px;' : ''"
+                >
+                  <div class="summary-ticket-title-row">
+                    <!-- Ticket Icon -->
+                    <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
+                    <span class="summary-ticket-name">Tiket {{ item.name }}</span>
+                    <span class="summary-ticket-badge-count">{{ item.seats.length }}X</span>
+                  </div>
                   
-                  <button 
-                    v-if="isEditMode" 
-                    type="button" 
-                    class="btn-delete-ticket-summary" 
-                    @click="deleteTicketSelection"
-                    title="Hapus Tiket"
-                  >
-                    <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                  </button>
+                  <!-- Day and Session Info -->
+                  <div class="summary-ticket-meta-row" style="font-size: 0.8rem; color: #64748b; font-weight: 700; padding-left: 24px; margin-top: 2px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div>
+                      <span>Hari: {{ item.dayId }}</span> &bull; <span>Sesi: {{ mockSesis.find(s => s.id === item.sesiId)?.name || item.sesiId }} ({{ mockSesis.find(s => s.id === item.sesiId)?.time || '' }})</span>
+                    </div>
+                    <button 
+                      v-if="isEditMode" 
+                      type="button" 
+                      class="btn-delete-ticket-summary" 
+                      @click="deleteTicketSelectionByKey(item.key)"
+                      title="Hapus Tiket"
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                    </button>
+                  </div>
+                  
+                  <div class="summary-ticket-seats-row">
+                    Seat No: {{ item.seats.join(', ') }}
+                  </div>
+                  
+                  <div class="summary-ticket-price-row">
+                    {{ formatRp(item.price * item.seats.length) }}
+                  </div>
                 </div>
                 
-                <div class="summary-ticket-seats-row">
-                  Seat No: {{ selectedSeats.join(', ') }}
-                </div>
+                <div class="summary-card-divider-dashes"></div>
                 
-                <div class="summary-ticket-price-row">
-                  {{ formatRp(selectedTicket.price * selectedSeats.length) }}
+                <div class="summary-total-row">
+                  <span class="summary-total-label">Total ({{ totalSelectedTicketsCount }} Tiket)</span>
+                  <span class="summary-total-price font-bold text-primary">{{ formatRp(totalSelectedTicketsPrice) }}</span>
                 </div>
               </div>
-              
-              <div class="summary-card-divider-dashes"></div>
-              
-              <div class="summary-total-row">
-                <span class="summary-total-label">Total ({{ selectedSeats.length }} Tiket)</span>
-                <span class="summary-total-price font-bold text-primary">{{ formatRp(selectedTicket.price * selectedSeats.length) }}</span>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -1761,7 +2119,7 @@ si            </span>
 <style scoped>
 :root {
   --primary: #c94c4c;
-  --bg-color: #f8fafc;
+  --bg-color: #f3f6fa;
   --border-color: #e2e8f0;
 }
 
@@ -1965,7 +2323,6 @@ si            </span>
   border-top-color: rgba(255, 255, 255, 0.08);
 }
 
-/* Tabs list styling in sticky nav bar */
 .sticky-tabs-nav-bar {
   position: sticky;
   top: 80px;
@@ -1981,9 +2338,9 @@ si            </span>
   .sticky-tabs-nav-bar {
     top: 60px;
     margin-top: 0 !important;
-    background: #ffffff !important;
-    border-top: 1px solid #f1f5f9;
-    border-bottom: 1px solid #f1f5f9;
+    background: #f1f5f9 !important;
+    border-top: 1px solid #e2e8f0;
+    border-bottom: 1px solid #e2e8f0;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
   }
   
@@ -2149,10 +2506,10 @@ si            </span>
     left: 0;
     right: 0;
     z-index: 1000;
-    background-color: var(--card-bg, #FAF9F9);
+    background-color: #ffffff; /* always white */
     border-top: 1px solid var(--border-color);
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.04);
-    padding: 8px 16px;
+    padding: 6px 16px 8px;
   }
   
   .mobile-bottom-bar-content {
@@ -2183,7 +2540,7 @@ si            </span>
   }
   
   .m-price-value {
-    font-size: 1.15rem;
+    font-size: 1rem;
     font-weight: 900;
     color: var(--text-dark, #2A2A2A);
   }
@@ -2219,9 +2576,9 @@ si            </span>
     flex-grow: 1;
     background-color: var(--primary, #C94C4C);
     color: #ffffff;
-    padding: 10px 16px;
+    padding: 8px 16px;
     border-radius: 10px;
-    font-size: 0.9rem;
+    font-size: 0.875rem;
     font-weight: 800;
     text-align: center;
     border: none;
@@ -2393,9 +2750,10 @@ si            </span>
 
 /* When the tabs bar sticks */
 .sticky-tabs-nav-bar.is-sticky {
-  background: var(--bg-color);
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  background: #f1f5f9; /* light grey #f1f5f9 */
+  border-bottom: 1px solid var(--border-color, #e2e8f0);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08); /* smooth shadow */
+  border-radius: 12px;
 }
 
 .tabs-navigation {
@@ -2418,7 +2776,7 @@ si            </span>
 }
 
 .tab-btn {
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.7); /* white translucent when transparent */
   font-size: 0.95rem;
   font-weight: 800;
   padding: 14px 0;
@@ -2432,8 +2790,8 @@ si            </span>
 
 @media (max-width: 768px) {
   .tab-btn {
-    font-size: 0.85rem;
-    padding: 12px 0;
+    font-size: 0.8rem;
+    padding: 10px 0;
   }
 }
 .tab-btn:hover {
@@ -2477,7 +2835,7 @@ si            </span>
 
 /* Body container area styling */
 .event-details-body {
-  background: var(--bg-color);
+  background: #f3f6fa; /* matched to transaction page background */
   padding: 40px 0 160px;
 }
 
@@ -2495,7 +2853,7 @@ si            </span>
   background: #ffffff;
   border-radius: 20px;
   padding: 28px;
-  border: 1px solid var(--border-color);
+  border: none;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
 }
 
@@ -2535,15 +2893,14 @@ si            </span>
   position: relative;
   background: #ffffff;
   border-radius: 18px;
-  border: 1.5px solid var(--border-color);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.03), 0 8px 16px -6px rgba(0, 0, 0, 0.03);
+  border: none;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02); /* extra smooth shadow */
   overflow: hidden;
-  transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 .ticket-card-voucher:hover {
   transform: translateY(-2px);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  border-color: var(--primary);
 }
 
 /* Card Ticket Layout overrides matching reference */
@@ -2648,6 +3005,344 @@ si            </span>
   background-color: #22c55e;
 }
 
+/* Ticket Accordion Body Styling */
+.ticket-accordion-body {
+  background: #fcfcfd;
+  padding: 0 28px 24px 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.accordion-section-divider {
+  height: 1px;
+  background-color: var(--border-color, #e2e8f0);
+  margin: 16px 0;
+  width: 100%;
+}
+
+.ticket-details-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  width: 100%;
+}
+
+.detail-col {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.detail-col-label {
+  font-size: 0.75rem;
+  color: #8a99ad;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.calendar-detail-wrapper,
+.session-detail-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Calendar paper sheet styling */
+.calendar-sheet-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 58px;
+  height: 64px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+
+.calendar-day-name {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.calendar-day-num {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #1e293b;
+  line-height: 1;
+}
+
+.calendar-month-name {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: var(--primary);
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+/* Session badge box styling */
+.session-badge-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 58px;
+  height: 64px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+  padding: 4px 0;
+  flex-shrink: 0;
+}
+
+.session-label-top {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #94a3b8;
+  text-transform: uppercase;
+  line-height: 1.2;
+}
+
+.session-value-mid {
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: #1d4ed8;
+  line-height: 1;
+}
+
+.calendar-text-info,
+.session-text-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-bold-text {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+/* Fasilitas Shuttle Section styling */
+.ticket-facilities-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.facilities-badges-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.facility-badge-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  transition: all 0.2s ease;
+  cursor: default;
+}
+
+.facility-badge-item:hover {
+  background: #cbd5e1;
+  color: #0f172a;
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.facility-icon {
+  color: var(--primary);
+}
+
+/* Countdown text styling */
+.countdown-text {
+  color: inherit;
+  font-family: 'Outfit', monospace;
+  font-weight: 900;
+  margin-left: 2px;
+}
+
+.ticket-action-select-btn-only {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+/* Responsive Overrides */
+@media (max-width: 768px) {
+  .event-details-body {
+    padding: 16px 0 120px;
+  }
+  
+  .container {
+    padding: 0 16px !important;
+  }
+
+  .ticket-card-voucher {
+    border-radius: 12px;
+  }
+
+  .ticket-side-notch-left,
+  .ticket-side-notch-right {
+    width: 16px !important;
+    height: 16px !important;
+  }
+  
+  .ticket-side-notch-left {
+    left: -8px !important;
+  }
+  
+  .ticket-side-notch-right {
+    right: -8px !important;
+  }
+
+  .ticket-top-section {
+    padding: 12px 14px;
+    flex-direction: row;
+    align-items: center;
+  }
+  
+  .ticket-category-title {
+    font-size: 0.95rem; /* shrunken title to fit in one line */
+  }
+
+  .ticket-accordion-body {
+    padding: 0 14px 12px 14px;
+  }
+  
+  .ticket-details-row {
+    gap: 12px;
+  }
+  
+  .detail-col {
+    min-width: 100%;
+  }
+  
+  .calendar-sheet-box,
+  .session-badge-box {
+    width: 44px;
+    height: 50px;
+    border-radius: 8px;
+  }
+  
+  .calendar-day-num,
+  .session-value-mid {
+    font-size: 1rem;
+  }
+  
+  .info-bold-text {
+    font-size: 0.78rem;
+  }
+  
+  .ticket-bottom-section {
+    padding: 12px 14px;
+  }
+  
+  .ticket-bottom-footer-row {
+    flex-direction: row !important; /* side by side layout on mobile to prevent wrapping */
+    justify-content: space-between !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+  
+  .ticket-footer-vertical-divider {
+    display: none;
+  }
+  
+  .ticket-ending-details {
+    align-items: flex-start !important;
+    gap: 2px !important;
+  }
+  
+  .ending-label {
+    font-size: 0.55rem !important;
+    letter-spacing: 0.2px;
+  }
+  
+  .ending-value {
+    font-size: 0.76rem !important;
+    white-space: nowrap !important;
+  }
+  
+  .ticket-action-select-btn-only {
+    width: auto !important;
+  }
+  
+  .ticket-action-select-btn-only .select-ticket-btn {
+    width: auto !important;
+    padding: 6px 12px !important;
+    font-size: 0.78rem !important;
+    border-radius: 8px !important;
+    white-space: nowrap !important;
+  }
+
+  .tickets-list-wrapper {
+    gap: 12px !important;
+  }
+}
+
+/* Dark theme support */
+[data-theme="dark"] .ticket-accordion-body {
+  background: #151515;
+}
+
+[data-theme="dark"] .accordion-section-divider {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .calendar-sheet-box,
+[data-theme="dark"] .session-badge-box {
+  background: #252525;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+[data-theme="dark"] .calendar-day-num {
+  color: #f3f4f6;
+}
+
+[data-theme="dark"] .session-value-mid {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .info-bold-text {
+  color: #e5e7eb;
+}
+
+[data-theme="dark"] .facility-badge-item {
+  background: #252525;
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .facility-badge-item:hover {
+  background: #3f3f46;
+  color: #ffffff;
+  border-color: #52525b;
+}
+
 /* Ticket divider line & side notches */
 .ticket-divider-row {
   position: relative;
@@ -2662,23 +3357,34 @@ si            </span>
   margin: 0;
 }
 
-.ticket-notch {
+.ticket-side-notch-left {
   position: absolute;
-  width: 20px;
-  height: 20px;
-  background: var(--bg-color); /* matches page background */
-  border-radius: 50%;
-  top: -10px;
+  left: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background-color: #f5f5f5; /* Matches the outer-card-body background color #f5f5f5 */
   z-index: 10;
-  border: 1.5px solid var(--border-color);
+  box-shadow: inset -4px 0 6px rgba(0,0,0,0.06);
 }
 
-.notch-left {
-  left: -11px;
+.ticket-side-notch-right {
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  background-color: #f5f5f5; /* Matches the outer-card-body background color #f5f5f5 */
+  z-index: 10;
+  box-shadow: inset 4px 0 6px rgba(0,0,0,0.06);
 }
 
-.notch-right {
-  right: -11px;
+.ticket-notch {
+  display: none;
 }
 
 /* Bottom section styles */
@@ -3854,10 +4560,56 @@ si            </span>
 /* Tiket Terpilih Card in Step 1 */
 .selected-summary-card {
   background: #ffffff;
-  border-radius: 20px;
-  border: 1.5px solid var(--border-color);
-  box-shadow: var(--shadow-sm);
+  border-radius: 14px;
+  border: none;
+  box-shadow: 0 4px 18px -4px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
   overflow: hidden;
+}
+
+/* Outer wrapper for Tiket Dipilih - same style as filter outer cards */
+.summary-outer-card {
+  margin-bottom: 0;
+}
+
+/* Scrollable container: activates when >2 ticket categories */
+.summary-items-scroll-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.summary-items-scroll-container.is-scrollable {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: #e2e8f0 transparent;
+}
+
+.summary-items-scroll-container.is-scrollable::-webkit-scrollbar {
+  width: 4px;
+}
+
+.summary-items-scroll-container.is-scrollable::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 4px;
+}
+
+/* Summary ticket meta row */
+.summary-ticket-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding-left: 24px;
+  margin-top: 2px;
+  margin-bottom: 2px;
+}
+
+.summary-meta-info {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 700;
 }
 
 .summary-card-header {
@@ -4093,12 +4845,12 @@ si            </span>
   left: 0;
   right: 0;
   z-index: 1000;
-  background: rgba(255, 255, 255, 0.85);
+  background: #ffffff; /* solid white */
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border-top: 1.5px solid var(--border-color);
   box-shadow: 0 -10px 30px rgba(201, 76, 76, 0.05);
-  padding: 16px 0;
+  padding: 10px 0;
 }
 
 .bottom-bar-container {
@@ -4998,83 +5750,424 @@ html.lock-scroll, body.lock-scroll {
   color: #ffffff !important;
 }
 /* Mock Filters Styles */
-.ticket-filters-wrapper {
+.ticket-list-header {
   margin-bottom: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
 }
 
-.date-filters-row {
+.ticket-filters-wrapper {
+  background: #ffffff;
+  border: none;
+  border-radius: 16px;
+  padding: 24px;
   display: flex;
-  gap: 10px;
-  overflow-x: auto;
-  padding-bottom: 8px;
+  flex-direction: column;
+  gap: 24px;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.01);
 }
-.date-filters-row::-webkit-scrollbar {
-  display: none;
+
+.filter-section-group {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
+
+.filter-section-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1e293b;
+  margin: 0;
+}
+
+.date-filters-row,
+.sesi-filters-row {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+}
+
 .date-filter-btn {
-  flex-shrink: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 60px;
-  height: 60px;
-  border-radius: 10px;
+  padding: 16px;
+  height: 90px;
+  border-radius: 12px;
   border: 1.5px solid #e2e8f0;
-  background: white;
-  color: var(--text-dark);
-  font-weight: 600;
-  font-size: 0.8rem;
+  background: #ffffff;
+  color: #1e293b;
   cursor: pointer;
-  transition: all 0.2s;
-  line-height: 1.3;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
+
+.date-filter-btn:hover:not(.active) {
+  border-color: var(--primary, #C94C4C);
+  background: #fafafb;
+  transform: translateY(-1px);
+}
+
 .date-filter-btn.active {
   background: var(--primary, #C94C4C);
-  color: white;
+  color: #ffffff;
+  border-color: var(--primary, #C94C4C);
+  box-shadow: 0 4px 14px rgba(201, 76, 76, 0.25);
+}
+
+.date-btn-label {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.date-btn-sub {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  font-weight: 600;
+}
+
+.date-filter-btn.active .date-btn-sub {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.sesi-filter-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 16px;
+  height: 110px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #1e293b;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.sesi-filter-btn:hover:not(.active):not(.unavailable-session) {
+  border-color: var(--primary, #C94C4C);
+  background: #fafafb;
+  transform: translateY(-1px);
+}
+
+.sesi-filter-btn.active {
+  background: var(--primary, #C94C4C);
+  color: #ffffff;
+  border-color: var(--primary, #C94C4C);
+  box-shadow: 0 4px 14px rgba(201, 76, 76, 0.25);
+}
+
+.sesi-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+
+.sesi-time {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  font-weight: 600;
+}
+
+.sesi-filter-btn.active .sesi-time {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Session Availability Status Badges */
+.session-status-badge {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.session-status-badge.available {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.session-status-badge.unavailable {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Unavailable session overrides */
+.unavailable-session {
+  background: #ffffff;
+  border-color: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.unavailable-session .sesi-title {
+  color: #94a3b8;
+}
+
+.unavailable-session .sesi-time {
+  color: #cbd5e1;
+}
+
+/* Responsive Filters */
+@media (max-width: 768px) {
+  .ticket-filters-wrapper {
+    padding: 12px;
+    gap: 12px;
+  }
+  
+  .date-filters-row,
+  .sesi-filters-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .date-filter-btn {
+    height: auto;
+    padding: 10px;
+    align-items: flex-start;
+  }
+  
+  .sesi-filter-btn {
+    height: auto;
+    padding: 10px;
+    min-height: 68px;
+  }
+  
+  .session-status-badge {
+    position: relative;
+    top: 0;
+    left: 0;
+    margin-bottom: 6px;
+    align-self: flex-start;
+    font-size: 0.55rem;
+    padding: 2px 6px;
+  }
+}
+
+/* Dark mode overrides for filters */
+[data-theme="dark"] .ticket-filters-wrapper {
+  background: #1e1e1e;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .filter-section-title {
+  color: #f1f5f9;
+}
+
+[data-theme="dark"] .date-filter-btn,
+[data-theme="dark"] .sesi-filter-btn {
+  background: #252525;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .date-filter-btn:hover:not(.active),
+[data-theme="dark"] .sesi-filter-btn:hover:not(.active):not(.unavailable-session) {
+  background: #2d2d2d;
   border-color: var(--primary, #C94C4C);
 }
 
-.sesi-filters-row {
+[data-theme="dark"] .date-filter-btn.active,
+[data-theme="dark"] .sesi-filter-btn.active {
+  background: var(--primary, #C94C4C);
+  color: #ffffff;
+  border-color: var(--primary, #C94C4C);
+}
+
+[data-theme="dark"] .unavailable-session {
+  background: #1c1c1c;
+  border-color: rgba(255, 255, 255, 0.04);
+}
+
+/* Outer Accordion Wrapper Styles */
+.outer-section-group {
+  margin-bottom: 28px;
+}
+
+.outer-section-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #0f172a; /* Matching screenshot dark text */
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.outer-accordion-card {
+  background: #f8fafc; /* Matching screenshot body bg */
+  border: none;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.01); /* smooth shadow */
+}
+
+.outer-card-header {
   display: flex;
-  gap: 12px;
-  overflow-x: auto;
-  padding-bottom: 8px;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  cursor: pointer;
+  background: #f5f5f5; /* Uniform wrapper bg matching body */
+  user-select: none;
+  transition: background-color 0.2s;
+  border-bottom: none;
 }
-.sesi-filters-row::-webkit-scrollbar {
-  display: none;
+
+.outer-card-header:hover {
+  background: #f1f5f9;
 }
-.sesi-filter-btn {
-  flex-shrink: 0;
+
+.outer-header-label {
+  font-size: 0.95rem;
+  font-weight: 800; /* Matching screenshot bold text */
+  color: #0f172a; /* Matching screenshot dark text */
+}
+
+.outer-chevron {
+  color: #0f172a; /* Matching screenshot chevron color */
+  transition: transform 0.2s ease;
+}
+
+.outer-chevron.rotated {
+  transform: rotate(180deg);
+}
+
+.outer-card-body {
+  padding: 24px; /* Matching screenshot padding */
+  background: #f5f5f5; /* Uniform wrapper bg matching body */
+}
+
+.filter-outer-body-grid {
   display: flex;
   flex-direction: column;
+  gap: 16px;
+}
+
+/* Inner Accordion for Filters */
+.inner-filter-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  padding: 8px 20px;
-  border-radius: 40px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: #64748b;
   cursor: pointer;
-  transition: all 0.2s;
+  user-select: none;
+  padding-bottom: 8px;
 }
-.sesi-filter-btn .sesi-title {
-  font-weight: 700;
-  font-size: 0.9rem;
+
+.inner-chevron {
+  color: #64748b;
+  transition: transform 0.2s ease;
 }
-.sesi-filter-btn .sesi-time {
-  font-size: 0.75rem;
-  margin-top: 2px;
+
+.inner-chevron.rotated {
+  transform: rotate(180deg);
 }
-.sesi-filter-btn.active {
-  background: var(--primary, #C94C4C);
-  color: white;
+
+/* Original Card Size Adjustments (Slightly Smaller & Tighter) */
+.ticket-card-voucher {
+  border-radius: 12px; /* reduced from 18px */
 }
-.sesi-filter-btn.active .sesi-title,
-.sesi-filter-btn.active .sesi-time {
-  color: white;
+
+.ticket-category-title {
+  font-size: 1.25rem; /* smaller, was default header h3 */
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 0;
+}
+
+.ticket-top-section {
+  padding: 16px 20px; /* reduced from 24px 28px */
+}
+
+.ticket-bottom-section {
+  padding: 16px 20px; /* reduced from 24px 28px */
+}
+
+.ticket-accordion-body {
+  padding: 0 20px 16px 20px; /* reduced from 0 28px 24px 28px */
+}
+
+.ticket-price-value {
+  font-size: 1.25rem; /* reduced from 1.45rem */
+}
+
+/* Simple icons wrappers */
+.calendar-detail-wrapper-simple,
+.session-detail-wrapper-simple {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.detail-icon-red {
+  color: var(--primary, #C94C4C);
+  flex-shrink: 0;
+}
+
+.info-bold-text {
+  font-size: 0.88rem; /* reduced from 0.95rem */
+  font-weight: 800;
+  color: #0f172a; /* matching bold value next to red icon */
+}
+
+.facility-badge-item {
+  padding: 5px 12px; /* reduced from 6px 14px */
+  font-size: 0.75rem; /* reduced from 0.78rem */
+}
+
+/* Dark theme support for outer accordion */
+[data-theme="dark"] .outer-accordion-card,
+[data-theme="dark"] .outer-card-header,
+[data-theme="dark"] .outer-card-body {
+  background: #1a1a1a;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .outer-card-header:hover {
+  background: #222222;
+}
+
+[data-theme="dark"] .outer-card-title {
+  color: #60a5fa;
+}
+
+[data-theme="dark"] .outer-header-label {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .outer-chevron {
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .info-bold-text {
+  color: #e4e4e7;
+}
+
+/* Smooth Accordion Height Transitions */
+.expand-accordion-enter-active,
+.expand-accordion-leave-active {
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  max-height: 1200px;
+  overflow: hidden;
+}
+
+.expand-accordion-enter-from,
+.expand-accordion-leave-to {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
 </style>

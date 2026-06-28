@@ -154,14 +154,14 @@ const tagColors = {
 <template>
   <div class="events-page">
     <!-- Header -->
-    <section class="events-hero">
+   <!-- <section class="events-hero">
       <div class="events-hero-bg"></div>
       <div class="container events-hero-content">
         <span class="subtitle-tag">Armada AJAK!</span>
         <h1 class="events-hero-title">Katalog <span class="text-red">Shuttle Bus</span></h1>
         <p class="events-hero-sub">Pilih jenis armada ternyaman untuk mengantarkanmu langsung ke lokasi konser favoritmu.</p>
       </div>
-    </section>
+    </section> -->
 
     <!-- Search + Filter Bar -->
     <div class="filter-bar-sticky">
