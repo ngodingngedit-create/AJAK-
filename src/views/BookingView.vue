@@ -22,11 +22,42 @@ const isSesiExpanded = ref(true);
 
 // Mock Filter Data
 const selectedDate = ref('Day 1');
-const mockDates = [
-  { id: 'Day 1', label: 'Day 1', date: 'Jumat, 5 Jun 2025' },
-  { id: 'Day 2', label: 'Day 2', date: 'Sabtu, 6 Jun 2025' },
-  { id: 'Day 3', label: 'Day 3', date: 'Minggu, 7 Jun 2025' }
-];
+const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+const fullDayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+const mockDates = [];
+for (let i = 1; i <= 30; i++) {
+  const dayIndex = (i - 1) % 7;
+  const shortDay = dayNames[dayIndex];
+  const fullDay = fullDayNames[dayIndex];
+  
+  let id = `disabled_${i}`;
+  let enabled = false;
+  let label = `${i} Jun`;
+  
+  if (i === 5) {
+    id = 'Day 1';
+    enabled = true;
+    label = 'Day 1';
+  } else if (i === 6) {
+    id = 'Day 2';
+    enabled = true;
+    label = 'Day 2';
+  } else if (i === 7) {
+    id = 'Day 3';
+    enabled = true;
+    label = 'Day 3';
+  }
+  
+  mockDates.push({
+    id,
+    label,
+    date: `${fullDay}, ${i} Jun 2025`,
+    shortDay,
+    shortDate: `${i} Jun`,
+    enabled
+  });
+}
+
 
 const selectedSesi = ref('SESI 1');
 const mockSesis = [
@@ -34,6 +65,62 @@ const mockSesis = [
   { id: 'SESI 2', name: 'Sesi 2', time: '17:30 - 20:00 WIB', available: true },
   { id: 'SESI 3', name: 'Sesi 3', time: '19:30 - 22:00 WIB', available: false }
 ];
+
+// Calendar Popup States & Handlers
+const showCalendarPopup = ref(false);
+const calendarBtnWrapperRef = ref(null);
+
+const toggleCalendarPopup = () => {
+  showCalendarPopup.value = !showCalendarPopup.value;
+};
+
+const closeCalendarPopup = () => {
+  showCalendarPopup.value = false;
+};
+
+const selectDateFromCalendar = (concertId) => {
+  selectedDate.value = concertId;
+  showCalendarPopup.value = false;
+};
+
+const handleWheelScroll = (e) => {
+  if (e.deltaY !== 0) {
+    e.preventDefault();
+    const container = e.currentTarget;
+    container.scrollLeft += e.deltaY;
+  }
+};
+
+const handleClickOutside = (event) => {
+  if (calendarBtnWrapperRef.value && !calendarBtnWrapperRef.value.contains(event.target)) {
+    showCalendarPopup.value = false;
+  }
+};
+
+const juneDays = computed(() => {
+  const days = [];
+  // Generating calendar grid for June 2025 (June 1 is Monday in our mock alignment)
+  for (let i = 1; i <= 30; i++) {
+    let isConcert = false;
+    let concertId = '';
+    if (i === 5) {
+      isConcert = true;
+      concertId = 'Day 1';
+    } else if (i === 6) {
+      isConcert = true;
+      concertId = 'Day 2';
+    } else if (i === 7) {
+      isConcert = true;
+      concertId = 'Day 3';
+    }
+    days.push({
+      num: i,
+      isConcert,
+      concertId
+    });
+  }
+  return days;
+});
 
 // Booking states (Quantity, selected seats, and buyer information)
 const quantity = ref(1);
@@ -569,7 +656,24 @@ onMounted(async () => {
         plate_number: '-',
         seat_layout: '',
         total_seat: seats,
-        facilities: item.facilities || [],
+        facilities: (() => {
+          if (!item.facilities) {
+            return ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
+          }
+          if (Array.isArray(item.facilities)) {
+            return item.facilities.length > 0 ? item.facilities : ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
+          }
+          if (typeof item.facilities === 'string') {
+            try {
+              const parsed = JSON.parse(item.facilities);
+              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+            } catch (e) {
+              const split = item.facilities.split(',').map(f => f.trim()).filter(Boolean);
+              if (split.length > 0) return split;
+            }
+          }
+          return ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
+        })(),
         trip_id: item.trip_id || (item.trips && item.trips.length > 0 ? item.trips[0].id : ''),
         date: item.start_date ? item.start_date.split('T')[0] : '',
         start_date: item.start_date,
@@ -613,6 +717,7 @@ onMounted(async () => {
 
   window.addEventListener('scroll', handleScrollTabs, { passive: true });
   window.addEventListener('resize', updateMobileStatus);
+  document.addEventListener('click', handleClickOutside);
   handleScrollTabs();
   
   countdownInterval = setInterval(() => {
@@ -623,6 +728,7 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScrollTabs);
   window.removeEventListener('resize', updateMobileStatus);
+  document.removeEventListener('click', handleClickOutside);
   document.body.style.overflow = '';
   document.documentElement.style.overflow = '';
   document.body.style.touchAction = '';
@@ -1302,66 +1408,91 @@ const confirmBooking = () => {
               <!-- Left column: Tickets and Seatmap List -->
               <div class="step1-left-col">
                 <!-- Wrapper for Date & Session Filters -->
-                <div class="outer-section-group">
+                <div class="outer-section-group filters-group">
                   <h3 class="outer-section-title">Hari &amp; Sesi</h3>
-                  <!-- Card 1: Pilih Hari Konser -->
-                  <div class="ticket-filters-wrapper">
-                    <!-- Section 1: Pilih Hari Konser (Accordion) -->
-                    <div class="filter-section-group">
-                      <div class="inner-filter-header" @click="isHariExpanded = !isHariExpanded">
-                        <h4 class="filter-section-title">Pilih Hari Konser</h4>
-                        <ChevronDown :size="16" class="inner-chevron" :class="{ rotated: isHariExpanded }" />
-                      </div>
-                      <transition name="expand-accordion">
-                        <div v-show="isHariExpanded" class="date-filters-row">
-                          <button 
-                            v-for="d in mockDates" 
-                            :key="d.id"
-                            class="date-filter-btn"
-                            :class="{ active: selectedDate === d.id }"
-                            @click="selectedDate = d.id"
-                          >
-                            <span class="date-btn-label">{{ d.label }}</span>
-                            <span class="date-btn-sub">{{ d.date }}</span>
-                          </button>
+                  
+                  <!-- Date Selection Section (Hari) - Style of Image 3 -->
+                  <div class="date-slider-container">
+                    <div class="date-slider-scroll" @wheel="handleWheelScroll">
+                      <button 
+                        v-for="d in mockDates" 
+                        :key="d.id"
+                        class="date-slider-item"
+                        :class="{ 
+                          active: selectedDate === d.id,
+                          disabled: d.enabled === false
+                        }"
+                        :disabled="d.enabled === false"
+                        @click="d.enabled !== false ? selectedDate = d.id : null"
+                      >
+                        <span class="date-slider-day">{{ d.shortDay }}</span>
+                        <span class="date-slider-val">{{ d.shortDate }}</span>
+                      </button>
+                    </div>
+                    <div class="date-slider-divider"></div>
+                    <div class="calendar-btn-wrapper" ref="calendarBtnWrapperRef">
+                      <button 
+                        class="date-slider-calendar-btn" 
+                        aria-label="Pilih Tanggal"
+                        @click="toggleCalendarPopup"
+                      >
+                        <Calendar :size="20" />
+                      </button>
+                      
+                      <!-- Pop-up Calendar Card -->
+                      <transition name="fade-in-scale">
+                        <div v-if="showCalendarPopup" class="mini-calendar-popup">
+                          <div class="mini-cal-header">
+                            <span class="mini-cal-month">Juni 2025</span>
+                          </div>
+                          <div class="mini-cal-weekdays">
+                            <span>S</span><span>S</span><span>R</span><span>K</span><span>J</span><span>S</span><span>M</span>
+                          </div>
+                          <div class="mini-cal-grid">
+                            <button 
+                              v-for="day in juneDays" 
+                              :key="day.num"
+                              class="mini-cal-day-btn"
+                              :class="{ 
+                                'is-concert': day.isConcert, 
+                                'active': selectedDate === day.concertId,
+                                'disabled': !day.isConcert 
+                              }"
+                              :disabled="!day.isConcert"
+                              @click="selectDateFromCalendar(day.concertId)"
+                            >
+                              {{ day.num }}
+                            </button>
+                          </div>
                         </div>
                       </transition>
                     </div>
                   </div>
 
-                  <!-- Card 2: Pilih Sesi Keberangkatan -->
-                  <div class="ticket-filters-wrapper" style="margin-top: 16px;">
-                    <!-- Section 2: Pilih Sesi Keberangkatan (Accordion) -->
-                    <div class="filter-section-group">
-                      <div class="inner-filter-header" @click="isSesiExpanded = !isSesiExpanded">
-                        <h4 class="filter-section-title">Pilih Sesi Keberangkatan</h4>
-                        <ChevronDown :size="16" class="inner-chevron" :class="{ rotated: isSesiExpanded }" />
-                      </div>
-                      <transition name="expand-accordion">
-                        <div v-show="isSesiExpanded" class="sesi-filters-row">
-                          <button 
-                            v-for="s in mockSesis" 
-                            :key="s.id"
-                            class="sesi-filter-btn"
-                            :class="{ 
-                              active: selectedSesi === s.id && s.available, 
-                              'unavailable-session': !s.available 
-                            }"
-                            :disabled="!s.available"
-                            @click="s.available ? selectedSesi = s.id : null"
-                          >
-                            <!-- Availability Badge -->
-                            <div 
-                              class="session-status-badge"
-                              :class="s.available ? 'available' : 'unavailable'"
-                            >
-                              {{ s.available ? 'TERSEDIA' : 'TIDAK TERSEDIA' }}
-                            </div>
-                            <span class="sesi-title">{{ s.name }}</span>
-                            <span class="sesi-time">{{ s.time }}</span>
-                          </button>
-                        </div>
-                      </transition>
+                  <!-- Session Selection Section (Sesi) - Style of Image 2 but Premium -->
+                  <div class="session-section-wrapper">
+                    <!-- <div class="session-section-header">
+                      <h4 class="session-section-title">Pilih Sesi Keberangkatan</h4>
+                    </div> -->
+                    <div class="session-pills-row" @wheel="handleWheelScroll">
+                      <button 
+                        v-for="s in mockSesis" 
+                        :key="s.id"
+                        class="session-pill-btn"
+                        :class="{ 
+                          active: selectedSesi === s.id && s.available, 
+                          'unavailable-session': !s.available 
+                        }"
+                        :disabled="!s.available"
+                        @click="s.available ? selectedSesi = s.id : null"
+                      >
+                        <span class="session-pill-name">
+                          <span class="session-status-dot" :class="s.available ? 'available' : 'unavailable'"></span>
+                          {{ s.name }}
+                        </span>
+                        <span class="session-pill-time">{{ s.time }}</span>
+                        <span v-if="!s.available" class="session-pill-status">TIDAK TERSEDIA</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1625,14 +1756,14 @@ const confirmBooking = () => {
                               <!-- Fasilitas Shuttle Section -->
                               <div class="ticket-facilities-section">
                                 <span class="detail-col-label">Fasilitas Shuttle</span>
-                                <div class="facilities-badges-wrap">
+                                <div class="facilities-simple-list">
                                   <div 
                                     v-for="fac in event?.facilities || []" 
                                     :key="fac" 
-                                    class="facility-badge-item"
+                                    class="facility-simple-item"
                                   >
-                                    <component :is="getFacilityIcon(fac)" :size="14" class="facility-icon" />
-                                    <span>{{ fac }}</span>
+                                    <component :is="getFacilityIcon(fac)" :size="16" class="facility-icon-red" />
+                                    <span class="facility-text">{{ fac }}</span>
                                   </div>
                                 </div>
                               </div>
@@ -3143,36 +3274,28 @@ const confirmBooking = () => {
   width: 100%;
 }
 
-.facilities-badges-wrap {
+.facilities-simple-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 16px;
+  margin-top: 6px;
 }
 
-.facility-badge-item {
-  display: inline-flex;
+.facility-simple-item {
+  display: flex;
   align-items: center;
   gap: 8px;
-  background: #f8fafc;
-  color: #475569;
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: 1.5px solid #e2e8f0;
-  transition: all 0.2s ease;
-  cursor: default;
 }
 
-.facility-badge-item:hover {
-  background: #cbd5e1;
+.facility-icon-red {
+  color: var(--primary, #C94C4C);
+  flex-shrink: 0;
+}
+
+.facility-text {
+  font-size: 0.88rem;
+  font-weight: 800;
   color: #0f172a;
-  border-color: #94a3b8;
-  transform: translateY(-1px);
-}
-
-.facility-icon {
-  color: var(--primary);
 }
 
 /* Countdown text styling */
@@ -3302,6 +3425,14 @@ const confirmBooking = () => {
   .tickets-list-wrapper {
     gap: 12px !important;
   }
+
+  .facilities-simple-list {
+    gap: 12px;
+  }
+
+  .facility-text {
+    font-size: 0.78rem;
+  }
 }
 
 /* Dark theme support */
@@ -3331,16 +3462,8 @@ const confirmBooking = () => {
   color: #e5e7eb;
 }
 
-[data-theme="dark"] .facility-badge-item {
-  background: #252525;
-  border-color: rgba(255, 255, 255, 0.1);
-  color: #cbd5e1;
-}
-
-[data-theme="dark"] .facility-badge-item:hover {
-  background: #3f3f46;
-  color: #ffffff;
-  border-color: #52525b;
+[data-theme="dark"] .facility-text {
+  color: #e2e8f0;
 }
 
 /* Ticket divider line & side notches */
@@ -6169,5 +6292,549 @@ html.lock-scroll, body.lock-scroll {
   padding-bottom: 0 !important;
   margin-top: 0 !important;
   margin-bottom: 0 !important;
+}
+
+/* Premium Date Slider Styles (Image 3) */
+.date-slider-container {
+  display: flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1.5px solid #f1f5f9;
+  border-radius: 12px; /* Moderately rounded, uniform */
+  padding: 12px 18px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
+  width: 100%;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+.date-slider-scroll {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  padding: 4px 0 8px 0;
+  -ms-overflow-style: auto;
+  scrollbar-width: thin;
+}
+
+/* Beautiful custom scrollbar for date-slider-scroll */
+.date-slider-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.date-slider-scroll::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 10px;
+}
+
+.date-slider-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.date-slider-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+[data-theme="dark"] .date-slider-scroll::-webkit-scrollbar-track {
+  background: #27272a;
+}
+
+[data-theme="dark"] .date-slider-scroll::-webkit-scrollbar-thumb {
+  background: #52525b;
+}
+
+[data-theme="dark"] .date-slider-scroll::-webkit-scrollbar-thumb:hover {
+  background: #71717a;
+}
+
+.date-slider-item {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 76px;
+  border-radius: 10px; /* Uniform moderate rounded */
+  border: none;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
+}
+
+.date-slider-item:hover:not(.active):not(.disabled) {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.date-slider-item.active {
+  background: var(--primary, #C94C4C);
+  color: #ffffff;
+  box-shadow: 0 6px 18px -4px rgba(201, 76, 76, 0.35);
+  transform: scale(1.03);
+}
+
+.date-slider-item.disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.date-slider-day {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.date-slider-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.date-slider-divider {
+  width: 1px;
+  height: 38px;
+  background: #e2e8f0;
+  margin: 0 16px;
+  flex-shrink: 0;
+}
+
+/* Calendar Button Wrapper with absolute child */
+.calendar-btn-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.date-slider-calendar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px; /* Uniform rounded */
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+}
+
+.date-slider-calendar-btn:hover {
+  border-color: var(--primary, #C94C4C);
+  color: var(--primary, #C94C4C);
+  background: #fafafb;
+}
+
+/* Mini Calendar Pop-up Card */
+.mini-calendar-popup {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 99;
+  width: 240px;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px; /* Uniform moderate rounded */
+  padding: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.06);
+  box-sizing: border-box;
+}
+
+.mini-cal-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 10px;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+}
+
+.mini-cal-month {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.mini-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+
+.mini-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.mini-cal-day-btn {
+  border: none;
+  background: transparent;
+  height: 28px;
+  width: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #cbd5e1;
+  box-sizing: border-box;
+}
+
+.mini-cal-day-btn.disabled {
+  color: #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.mini-cal-day-btn.is-concert {
+  color: #1e293b;
+  font-weight: 800;
+}
+
+.mini-cal-day-btn.is-concert:hover:not(.active) {
+  background: #f1f5f9;
+  color: var(--primary, #C94C4C);
+}
+
+.mini-cal-day-btn.active {
+  background: var(--primary, #C94C4C);
+  color: #ffffff !important;
+  box-shadow: 0 2px 6px rgba(201, 76, 76, 0.3);
+}
+
+/* Transition: fade-in-scale */
+.fade-in-scale-enter-active,
+.fade-in-scale-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.fade-in-scale-enter-from,
+.fade-in-scale-leave-to {
+  opacity: 0;
+  transform: scale(0.95) translateY(-4px);
+}
+
+/* Premium Session Selector Styles (Image 2 Redesigned) */
+.session-section-wrapper {
+  background: #f8fafc; /* Different background than date section */
+  border: 1.5px solid #f1f5f9;
+  border-radius: 12px; /* Moderately rounded, uniform */
+  padding: 12px 16px; /* Smaller padding */
+  box-shadow: none; /* No shadow to differentiate */
+  width: fit-content; /* Custom size, non-uniform with date slider */
+  max-width: 100%;
+  margin-bottom: 8px; /* Reduced gap */
+  box-sizing: border-box;
+}
+
+.session-section-header {
+  margin-bottom: 10px;
+}
+
+.session-section-title {
+  font-size: 0.88rem; /* Smaller font */
+  font-weight: 800;
+  color: #475569; /* Distinct title color */
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.session-pills-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.session-pill-btn {
+  flex: 1;
+  min-width: 130px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px; /* Smaller button padding */
+  border-radius: 10px; /* Uniform rounded (no longer circular pill) */
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  text-align: center;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.session-pill-btn:hover:not(.active):not(.unavailable-session) {
+  border-color: var(--primary, #C94C4C);
+  background: #f8fafc;
+  color: var(--primary, #C94C4C);
+}
+
+.session-pill-btn.active {
+  background: var(--primary, #C94C4C);
+  color: #ffffff;
+  border-color: var(--primary, #C94C4C);
+  box-shadow: 0 4px 12px rgba(201, 76, 76, 0.2);
+  transform: translateY(-1px);
+}
+
+.session-pill-name {
+  font-size: 0.85rem;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+}
+
+.session-pill-time {
+  font-size: 0.72rem;
+  font-weight: 600;
+  opacity: 0.85;
+  margin-top: 1px;
+}
+
+.session-pill-status {
+  font-size: 0.52rem;
+  font-weight: 800;
+  background: #fee2e2;
+  color: #ef4444;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin-top: 3px;
+  text-transform: uppercase;
+}
+
+.session-pill-btn.unavailable-session {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #cbd5e1;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* UX Visual Indicator: Session Status Dot */
+.session-status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+}
+.session-status-dot.available {
+  background: #22c55e;
+}
+.session-status-dot.unavailable {
+  background: #ef4444;
+}
+.session-pill-btn.active .session-status-dot.available {
+  background: #4ade80; /* lighter green on active red background */
+}
+.session-pill-btn.active .session-status-dot.unavailable {
+  background: #f87171; /* lighter red on active red background */
+}
+
+/* Reduced Spacing between Filters Outer Group and Seated Group */
+.outer-section-group.filters-group {
+  margin-bottom: 12px;
+}
+
+/* Responsive Overrides */
+@media (max-width: 768px) {
+  .date-slider-container {
+    padding: 8px 10px;
+    margin-bottom: 12px;
+  }
+  
+  .date-slider-item {
+    width: 44px;
+    height: 56px;
+    border-radius: 6px;
+  }
+  
+  .date-slider-day {
+    font-size: 0.58rem;
+    margin-bottom: 1px;
+  }
+  
+  .date-slider-val {
+    font-size: 0.72rem;
+  }
+  
+  .date-slider-divider {
+    margin: 0 8px;
+    height: 22px;
+  }
+  
+  .date-slider-calendar-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+  }
+  
+  .date-slider-calendar-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+  
+  .session-section-wrapper {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    width: 100%; /* Spans full-width on mobile */
+  }
+  
+  .session-section-title {
+    font-size: 0.8rem;
+  }
+  
+  .session-pills-row {
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .session-pills-row::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .session-pill-btn {
+    flex: none;
+    padding: 6px 8px;
+    width: 105px;
+    border-radius: 6px;
+  }
+  
+  .session-pill-name {
+    font-size: 0.72rem;
+  }
+  
+  .session-status-dot {
+    width: 4px;
+    height: 4px;
+    margin-right: 4px;
+  }
+  
+  .session-pill-time {
+    font-size: 0.6rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .mini-calendar-popup {
+    width: 220px;
+    padding: 8px;
+  }
+  .mini-cal-day-btn {
+    height: 24px;
+    width: 24px;
+    font-size: 0.7rem;
+  }
+}
+
+/* Dark theme overrides */
+[data-theme="dark"] .date-slider-container {
+  background: #1e1e1e;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .session-section-wrapper {
+  background: #18181b; /* Dark neutral background for distinction */
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .date-slider-item:hover:not(.active):not(.disabled) {
+  background: #252525;
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .date-slider-item.disabled {
+  color: #4b5563;
+}
+
+[data-theme="dark"] .date-slider-divider {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .date-slider-calendar-btn {
+  background: #1e1e1e;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .date-slider-calendar-btn:hover {
+  background: #252525;
+  border-color: var(--primary, #C94C4C);
+}
+
+[data-theme="dark"] .mini-calendar-popup {
+  background: #1e1e1e;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .mini-cal-month {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .mini-cal-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .mini-cal-day-btn.disabled {
+  color: #4b5563;
+}
+
+[data-theme="dark"] .mini-cal-day-btn.is-concert {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .mini-cal-day-btn.is-concert:hover:not(.active) {
+  background: #2d2d2d;
+}
+
+[data-theme="dark"] .session-section-title {
+  color: #94a3b8;
+}
+
+[data-theme="dark"] .session-pill-btn {
+  background: #1e1e1e;
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+}
+
+[data-theme="dark"] .session-pill-btn:hover:not(.active):not(.unavailable-session) {
+  background: #252525;
+  border-color: var(--primary, #C94C4C);
+}
+
+[data-theme="dark"] .session-pill-btn.unavailable-session {
+  background: #18181b;
+  border-color: rgba(255, 255, 255, 0.04);
+  color: #52525b;
+}
+
+[data-theme="dark"] .session-pill-status {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
 }
 </style>
