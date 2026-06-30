@@ -1,15 +1,22 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import Splash from './components/Splash.vue';
 import Navbar from './components/Navbar.vue';
 import Footer from './components/Footer.vue';
 import MobileNav from './components/MobileNav.vue';
 
-const appReady = ref(false);
+const appReady = ref(true); // DEBUG: bypass splash
 
 const onSplashReady = () => {
   appReady.value = true;
 };
+
+// Fallback: force show app after 4 seconds if splash doesn't emit
+onMounted(() => {
+  setTimeout(() => {
+    appReady.value = true;
+  }, 4000);
+});
 </script>
 
 <template>

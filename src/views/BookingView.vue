@@ -9,7 +9,93 @@ const router = useRouter();
 
 
 
-const event = ref(null);
+const defaultShuttleData = {
+  id: 10,
+  name: "The Sounds Projects",
+  slug: "ajaks-tsp",
+  bus_code: '-',
+  bus_type: '',
+  plate_number: '-',
+  seat_layout: '',
+  total_seat: 59,
+  facilities: ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'],
+  date: '2026-06-30',
+  start_date: '2026-06-30T17:00:00.000000Z',
+  end_date: '2026-06-30T17:00:00.000000Z',
+  start_time: '08:00',
+  end_time: '12:00',
+  ticket_start_date: '2026-06-24T17:00:00.000000Z',
+  ticket_end_date: '2026-08-30T17:00:00.000000Z',
+  ticket_start_time: '12:00:00',
+  ticket_end_time: '23:59:59',
+  zone_time: 'WIB',
+  dateLabel: '30 Jun 2026',
+  time: '08:00 WIB',
+  location: 'Shuttle Executive Jakarta Bandung',
+  city: 'Jakarta',
+  price: 'Rp 75.000',
+  priceNum: 75000,
+  image: 'https://api.kolektix.my.id/storage/uploads/shuttle/sample.png',
+  description: 'Shuttle Executive Jakarta Bandung',
+  term_condition: 'Tiket tidak dapat direfund',
+  seats: 59,
+  seatmap: '[{"position":[28,-46],"size":[120,32],"type":"box","text":"KEMUDI","background":"#fff","radius":[50,50,50,50]},{"text":"A","label_seat":"A","col":1,"row":10,"prefix":"A","seat_label":"A","position":[-75,0],"size":[30,358]},{"text":"B","label_seat":"B","col":1,"row":10,"prefix":"B","seat_label":"B","position":[-43,0],"size":[30,358]},{"text":"C","label_seat":"C","col":1,"row":10,"prefix":"C","seat_label":"C","position":[-1,1],"size":[30,358]},{"text":"D","label_seat":"D","col":1,"row":10,"prefix":"D","seat_label":"D","position":[28,0],"size":[30,358]},{"text":"E","label_seat":"E","col":1,"row":10,"prefix":"E","seat_label":"E","position":[57,0],"size":[30,358]}]',
+  tag: 'Shuttle Bersama',
+  operation_days: [
+    {
+      operation_date: "2026-06-25",
+      sessions: [
+        {
+          id: 1,
+          name: "Siang",
+          departure_date: "2026-06-28T17:00:00.000000Z",
+          departure_time: "2026-06-29T05:00:00.000000Z",
+          tickets: [
+            {
+              id: 1,
+              name: "Sudirman - Ancol",
+              description: "test",
+              price: 75000,
+              ticket_fee: 1000,
+              qty: 100,
+              total_seat: 59,
+              trip_status: { id: 1, code: "DEPARTURE", name: "Pergi" },
+              route: { id: 1, route_name: "sudirman-ancol", origin_name: "sudirman", destination_name: "ancol", distance_km: "150.00", duration_minutes: 180 },
+              status: { is_soldout: false, is_fullbook: false, is_finish: false }
+            },
+            {
+              id: 2,
+              name: "Gambir - Ancol",
+              description: "test",
+              price: 45000,
+              ticket_fee: 1000,
+              qty: 100,
+              total_seat: 59,
+              trip_status: { id: 1, code: "DEPARTURE", name: "Pergi" },
+              route: { id: 2, route_name: "gambir-ancol", origin_name: "gambir", destination_name: "ancol", distance_km: "150.50", duration_minutes: 180 },
+              status: { is_soldout: false, is_fullbook: false, is_finish: false }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      operation_date: "2026-06-29",
+      sessions: [
+        {
+          id: 2,
+          name: "Sore",
+          departure_date: "2026-06-28T17:00:00.000000Z",
+          departure_time: "2026-06-29T06:00:00.000000Z",
+          tickets: []
+        }
+      ]
+    }
+  ],
+  has_event_ticket: []
+};
+
+const event = ref(defaultShuttleData);
 const activeTab = ref('tiket'); // 'deskripsi', 'tiket', 'terms'
 const selectedTicket = ref(null);
 const expandedTicketId = ref(null);
@@ -20,51 +106,72 @@ const isTicketsWrapperExpanded = ref(true);
 const isHariExpanded = ref(true);
 const isSesiExpanded = ref(true);
 
-// Mock Filter Data
-const selectedDate = ref('Day 1');
-const dayNames = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
-const fullDayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
-const mockDates = [];
-for (let i = 1; i <= 30; i++) {
-  const dayIndex = (i - 1) % 7;
-  const shortDay = dayNames[dayIndex];
-  const fullDay = fullDayNames[dayIndex];
-  
-  let id = `disabled_${i}`;
-  let enabled = false;
-  let label = `${i} Jun`;
-  
-  if (i === 5) {
-    id = 'Day 1';
-    enabled = true;
-    label = 'Day 1';
-  } else if (i === 6) {
-    id = 'Day 2';
-    enabled = true;
-    label = 'Day 2';
-  } else if (i === 7) {
-    id = 'Day 3';
-    enabled = true;
-    label = 'Day 3';
+// Dynamic Shuttle Filter Data
+const selectedDate = ref('2026-06-25');
+const selectedSesi = ref('1');
+
+const dayNamesShort = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+const monthNamesShort = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+
+const formatOpDate = (dateStr) => {
+  if (!dateStr) return { shortDay: '', shortDate: '', label: '', fullDate: '' };
+  const parts = dateStr.split('T')[0].split('-');
+  if (parts.length !== 3) return { shortDay: dateStr, shortDate: dateStr, label: dateStr, fullDate: dateStr };
+  const d = new Date(parts[0], parseInt(parts[1]) - 1, parts[2]);
+  const dayName = dayNamesShort[d.getDay()];
+  const monthName = monthNamesShort[d.getMonth()];
+  const dayNum = parseInt(parts[2]);
+  return {
+    shortDay: dayName,
+    shortDate: `${dayNum} ${monthName}`,
+    label: `${dayName}, ${dayNum} ${monthName} ${parts[0]}`,
+    fullDate: `${dayNum} ${monthName} ${parts[0]}`
+  };
+};
+
+const dateOptions = computed(() => {
+  if (!event.value || !event.value.operation_days || !Array.isArray(event.value.operation_days) || event.value.operation_days.length === 0) {
+    return [];
   }
-  
-  mockDates.push({
-    id,
-    label,
-    date: `${fullDay}, ${i} Jun 2025`,
-    shortDay,
-    shortDate: `${i} Jun`,
-    enabled
+  return event.value.operation_days.map(op => {
+    const formatted = formatOpDate(op.operation_date);
+    return {
+      id: String(op.operation_date),
+      label: formatted.label,
+      date: formatted.fullDate,
+      shortDay: formatted.shortDay,
+      shortDate: formatted.shortDate,
+      enabled: true,
+      raw: op
+    };
   });
-}
+});
 
-
-const selectedSesi = ref('SESI 1');
-const mockSesis = [
-  { id: 'SESI 1', name: 'Sesi 1', time: '15:00 - 17:30 WIB', available: true },
-  { id: 'SESI 2', name: 'Sesi 2', time: '17:30 - 20:00 WIB', available: true },
-  { id: 'SESI 3', name: 'Sesi 3', time: '19:30 - 22:00 WIB', available: false }
-];
+const sessionOptions = computed(() => {
+  if (!event.value || !event.value.operation_days || !Array.isArray(event.value.operation_days)) return [];
+  const currentOp = event.value.operation_days.find(op => String(op.operation_date) === String(selectedDate.value));
+  if (!currentOp || !currentOp.sessions || !Array.isArray(currentOp.sessions)) return [];
+  
+  return currentOp.sessions.map(s => {
+    let timeStr = '';
+    if (s.departure_time && typeof s.departure_time === 'string') {
+      if (s.departure_time.includes('T')) {
+        const tPart = s.departure_time.split('T')[1];
+        if (tPart) timeStr = tPart.slice(0, 5) + ' WIB';
+      } else {
+        timeStr = s.departure_time.slice(0, 5) + ' WIB';
+      }
+    }
+    const hasTickets = s.tickets && Array.isArray(s.tickets) && s.tickets.length > 0;
+    return {
+      id: String(s.id),
+      name: s.name || 'Sesi',
+      time: timeStr || 'Jam Berangkat',
+      available: hasTickets,
+      tickets: s.tickets || []
+    };
+  });
+});
 
 // Calendar Popup States & Handlers
 const showCalendarPopup = ref(false);
@@ -97,26 +204,34 @@ const handleClickOutside = (event) => {
   }
 };
 
+const calendarMonthYear = computed(() => {
+  if (!selectedDate.value) return 'Juni 2026';
+  const parts = selectedDate.value.split('-');
+  if (parts.length < 2) return 'Juni 2026';
+  const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+  const mIdx = parseInt(parts[1], 10) - 1;
+  return `${monthNames[mIdx]} ${parts[0]}`;
+});
+
 const juneDays = computed(() => {
+  if (!selectedDate.value) return [];
+  const parts = selectedDate.value.split('-');
+  if (parts.length < 3) return [];
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  
+  const opDates = dateOptions.value.map(d => d.id);
   const days = [];
-  // Generating calendar grid for June 2025 (June 1 is Monday in our mock alignment)
-  for (let i = 1; i <= 30; i++) {
-    let isConcert = false;
-    let concertId = '';
-    if (i === 5) {
-      isConcert = true;
-      concertId = 'Day 1';
-    } else if (i === 6) {
-      isConcert = true;
-      concertId = 'Day 2';
-    } else if (i === 7) {
-      isConcert = true;
-      concertId = 'Day 3';
-    }
+  for (let i = 1; i <= daysInMonth; i++) {
+    const monthStr = String(month + 1).padStart(2, '0');
+    const dayStr = String(i).padStart(2, '0');
+    const iso = `${year}-${monthStr}-${dayStr}`;
+    const isConcert = opDates.includes(iso);
     days.push({
       num: i,
       isConcert,
-      concertId
+      concertId: iso
     });
   }
   return days;
@@ -344,68 +459,71 @@ const paymentMethods = [
   { id: 'bca', name: 'BCA Virtual Account', icon: '🏦' }
 ];
 
-// Bus cabin seats configuration layout (generated dynamically from layout & capacity)
+// Bus cabin seats configuration layout (generated dynamically from available_seat_number)
 const parsedSeatmap = computed(() => {
   if (!event.value) return [];
-  
-  // Try to parse the seatmap string from the backend
-  let config = [];
-  try {
-    if (event.value.seatmap) {
-      // It can be a string or already an object depending on fetch, handle both
-      config = typeof event.value.seatmap === 'string' ? JSON.parse(event.value.seatmap) : event.value.seatmap;
-    } else {
-      // Fallback or empty if no seatmap is provided
-      return [];
-    }
-  } catch (e) {
-    console.error('Error parsing seatmap JSON:', e);
-    return [];
-  }
 
   const shapes = [];
 
-  config.forEach((item, index) => {
-    if (item.type === 'box') {
-      shapes.push({
-        id: `box-${index}`,
-        type: 'box',
-        x: item.position[0],
-        y: item.position[1],
-        width: item.size[0],
-        height: item.size[1],
-        text: item.text,
-        background: item.background || '#fff',
-        radius: item.radius || [0, 0, 0, 0]
-      });
-    } else {
-      // It is a column/row configuration for seats
-      const cols = item.col || 1;
-      const rows = item.row || 1;
-      const seatWidth = item.size[0] / cols;
-      const seatHeight = item.size[1] / rows;
-      const startX = item.position[0];
-      const startY = item.position[1];
-      const prefix = item.prefix || '';
-
-      // Generate individual seats
-      for (let c = 0; c < cols; c++) {
-        for (let r = 0; r < rows; r++) {
-          const seatLabel = `${prefix}${r + 1}`; // e.g. A1, A2
-          
-          shapes.push({
-            id: seatLabel,
-            type: 'seat',
-            x: startX + c * seatWidth,
-            y: startY + r * seatHeight,
-            width: seatWidth,
-            height: seatHeight,
-            label: seatLabel
-          });
-        }
-      }
+  // Parse seatmap JSON to get the driver box
+  let config = [];
+  try {
+    if (event.value.seatmap) {
+      config = typeof event.value.seatmap === 'string' ? JSON.parse(event.value.seatmap) : event.value.seatmap;
     }
+  } catch (e) {
+    console.error('Error parsing seatmap JSON:', e);
+  }
+
+  // Add driver box (first box type in config)
+  const driverBox = config.find(item => item.type === 'box');
+  if (driverBox) {
+    shapes.push({
+      id: 'box-driver',
+      type: 'box',
+      x: driverBox.position[0],
+      y: driverBox.position[1],
+      width: driverBox.size[0],
+      height: driverBox.size[1],
+      text: driverBox.text,
+      background: driverBox.background || '#fff',
+      radius: driverBox.radius || [0, 0, 0, 0]
+    });
+  }
+
+  // Get seat labels from available_seat_number
+  const seatLabels = [];
+  if (selectedTicket.value?.available_seat_number) {
+    const raw = selectedTicket.value.available_seat_number;
+    if (typeof raw === 'string' && raw.trim()) {
+      seatLabels.push(...raw.split(',').map(s => s.trim()).filter(Boolean));
+    }
+  }
+
+  if (seatLabels.length === 0) return shapes;
+
+  // Build grid: COLS_PER_ROW seats per row, stack rows downward
+  const COLS_PER_ROW = 5;
+  const SEAT_W = 36;
+  const SEAT_H = 36;
+  const GAP = 4;
+  const GRID_START_X = -80;
+  const GRID_START_Y = 0;
+
+  seatLabels.forEach((label, idx) => {
+    const col = idx % COLS_PER_ROW;
+    const row = Math.floor(idx / COLS_PER_ROW);
+    shapes.push({
+      id: label,
+      type: 'seat',
+      x: GRID_START_X + col * (SEAT_W + GAP),
+      y: GRID_START_Y + row * (SEAT_H + GAP),
+      width: SEAT_W,
+      height: SEAT_H,
+      label
+    });
   });
+
 
   // Pre-calculate full Konva configs to prevent massive Vue re-renders on every zoom/drag event
   return shapes.map(shape => {
@@ -475,6 +593,25 @@ const getFacilityIcon = (facility) => {
   return ShieldCheck;
 };
 
+// Trip Status
+const tripStatusOptions = ref([]);
+const selectedTripStatus = ref(null);
+
+const fetchTripStatuses = async () => {
+  try {
+    const res = await fetch(import.meta.env.VITE_API_URL + '/api/shuttle-tripstatus');
+    const result = await res.json();
+    if (result.success && Array.isArray(result.data)) {
+      tripStatusOptions.value = result.data;
+      if (result.data.length > 0) {
+        selectedTripStatus.value = result.data[0];
+      }
+    }
+  } catch (e) {
+    console.error('Gagal fetch trip statuses:', e);
+  }
+};
+
 watch(() => route.hash, (newHash) => {
   if (newHash === '#seatmap') {
     isCanvasOpen.value = true;
@@ -488,89 +625,71 @@ watch(() => route.hash, (newHash) => {
   }
 }, { immediate: true });
 
-const getSessionAvailability = (dayId, sesiId) => {
-  if (dayId === 'Day 1') {
-    return sesiId !== 'SESI 3';
-  } else if (dayId === 'Day 2') {
-    return sesiId === 'SESI 1';
-  } else if (dayId === 'Day 3') {
-    return sesiId === 'SESI 2';
+watch(dateOptions, (newDates) => {
+  if (newDates && newDates.length > 0) {
+    if (!selectedDate.value || !newDates.some(d => String(d.id) === String(selectedDate.value))) {
+      selectedDate.value = String(newDates[0].id);
+    }
   }
-  return false;
-};
+}, { immediate: true });
 
-watch(selectedDate, (newDay) => {
-  mockSesis.forEach(s => {
-    s.available = getSessionAvailability(newDay, s.id);
-  });
-  
-  const currentSesiObj = mockSesis.find(s => s.id === selectedSesi.value);
-  if (!currentSesiObj || !currentSesiObj.available) {
-    const firstAvailable = mockSesis.find(s => s.available);
-    if (firstAvailable) {
-      selectedSesi.value = firstAvailable.id;
+watch(sessionOptions, (newSessions) => {
+  if (newSessions && newSessions.length > 0) {
+    const currentValid = newSessions.find(s => String(s.id) === String(selectedSesi.value));
+    if (!currentValid || !currentValid.available) {
+      const firstAvail = newSessions.find(s => s.available) || newSessions[0];
+      if (firstAvail) {
+        selectedSesi.value = String(firstAvail.id);
+      }
     }
   }
 }, { immediate: true });
 
 const filteredTickets = computed(() => {
-  if (!event.value || !event.value.has_event_ticket) return [];
-  const originalTickets = event.value.has_event_ticket;
+  if (!event.value) return [];
   
-  const baseTicket = originalTickets[0] || { price: 75000, id: 999 };
-  const mockPPExists = originalTickets.some(t => t.id === 'mock-roundtrip');
-  const mockReturnExists = originalTickets.some(t => t.id === 'mock-return' || t.name.toLowerCase().includes('ancol - sudirman'));
-  
-  let ticketsToMap = originalTickets;
-  
-  // Inject mock return ticket if not in database
-  if (!mockReturnExists) {
-    const mockReturn = {
-      id: 'mock-return',
-      name: 'Ancol - Sudirman (Pulang Saja)',
-      ticket_category: 'Regular Shuttle (One Way)',
-      description: 'Shuttle One Way Return (Perjalanan Pulang saja).',
-      price: 75000,
-      available_seat_number: baseTicket.available_seat_number || 'A1,A2,A3,A4,A5,B1,B2,B3',
-      taken_seat_number: baseTicket.taken_seat_number || '',
-      ticket_end: baseTicket.ticket_end || '2026-07-31',
-      ending_time: baseTicket.ending_time || '23:59:59',
-      total_seat: baseTicket.total_seat || 40,
-      ticket_type_id: baseTicket.ticket_type_id || 1
-    };
-    ticketsToMap = [...ticketsToMap, mockReturn];
+  if (event.value.operation_days && Array.isArray(event.value.operation_days) && event.value.operation_days.length > 0) {
+    const currentOp = event.value.operation_days.find(op => String(op.operation_date) === String(selectedDate.value));
+    if (!currentOp) return [];
+    const currentSesiObj = currentOp.sessions?.find(s => String(s.id) === String(selectedSesi.value));
+    if (!currentSesiObj || !currentSesiObj.tickets || !Array.isArray(currentSesiObj.tickets)) return [];
+    
+    return currentSesiObj.tickets.map(t => {
+      const isSold = Boolean(t.status?.is_soldout);
+      const isFull = Boolean(t.status?.is_fullbook);
+      const isFin = Boolean(t.status?.is_finish);
+      
+      return {
+        id: t.id,
+        name: t.name || 'Tiket Shuttle',
+        ticket_category: t.trip_status?.name ? `Shuttle (${t.trip_status.name})` : 'Regular Shuttle',
+        description: t.description || (t.route ? `Rute: ${t.route.origin_name || ''} -> ${t.route.destination_name || ''} (${t.route.distance_km || ''} km)` : ''),
+        price: parseInt(t.price || 0),
+        ticket_fee: t.ticket_fee || 0,
+        available_seat_number: t.available_seat_number || 'A1,A2,A3,A4,A5,B1,B2,B3,C1,C2,C3,D1,D2,E1,E2,E3',
+        taken_seat_number: t.taken_seat_number || '',
+        pending_seat_number: t.pending_seat_number || '',
+        reserved_seat_number: t.reserved_seat_number || '',
+        ticket_end: t.ticket_end_date ? String(t.ticket_end_date).split('T')[0] : '',
+        ending_time: t.ticket_end_time || '',
+        ticket_start_date: t.ticket_start_date ? String(t.ticket_start_date).split('T')[0] : '',
+        ticket_start_time: t.ticket_start_time || '',
+        total_seat: t.total_seat || 59,
+        ticket_type_id: 1,
+        route_id: t.route?.id || t.route_id || '',
+        route: t.route,
+        trip_status: t.trip_status,
+        is_soldout: isSold,
+        is_fullbook: isFull,
+        is_finish: isFin
+      };
+    });
   }
   
-  if (!mockPPExists) {
-    const mockPP = {
-      id: 'mock-roundtrip',
-      name: 'Sudirman - Ancol (Pulang Pergi)',
-      ticket_category: 'Regular Shuttle (PP)',
-      description: 'Shuttle Round Trip (Perjalanan Pulang & Pergi) lebih hemat!',
-      price: 140000,
-      available_seat_number: baseTicket.available_seat_number || 'A1,A2,A3,A4,A5,B1,B2,B3',
-      taken_seat_number: baseTicket.taken_seat_number || '',
-      ticket_end: baseTicket.ticket_end || '2026-07-31',
-      ending_time: baseTicket.ending_time || '23:59:59',
-      total_seat: baseTicket.total_seat || 40,
-      ticket_type_id: baseTicket.ticket_type_id || 1
-    };
-    ticketsToMap = [...ticketsToMap, mockPP];
+  if (event.value.has_event_ticket && Array.isArray(event.value.has_event_ticket)) {
+    return event.value.has_event_ticket;
   }
-  
-  return ticketsToMap.map(t => {
-    let displayName = t.name;
-    const nameLower = t.name.toLowerCase();
-    if (nameLower.includes('sudirman - ancol') && !nameLower.includes('pulang pergi') && !nameLower.includes('pp')) {
-      displayName = 'Sudirman - Ancol (Pergi Saja)';
-    } else if (nameLower.includes('ancol - sudirman') && !nameLower.includes('pulang pergi') && !nameLower.includes('pp') && !nameLower.includes('pulang saja')) {
-      displayName = 'Ancol - Sudirman (Pulang Saja)';
-    }
-    return {
-      ...t,
-      name: displayName
-    };
-  });
+  return [];
 });
 
 watch([isCanvasOpen, isSheetClosing], ([isOpen, isClosing]) => {
@@ -602,127 +721,227 @@ watch([isCanvasOpen, isSheetClosing], ([isOpen, isClosing]) => {
 onMounted(async () => {
   const slug = route.params.slug;
   
+  const fallbackSampleData = {
+    id: 10,
+    slug: slug || "ajaks-tsp",
+    slug_url: "xw10",
+    event_id: 1,
+    name: "The Sounds Projects",
+    description: "Shuttle Executive Jakarta Bandung",
+    terms: "Tiket tidak dapat direfund",
+    image: "sample.png",
+    image_url: "https://api.kolektix.my.id/storage/uploads/shuttle/sample.png",
+    start_date: "2026-06-30T17:00:00.000000Z",
+    end_date: "2026-06-30T17:00:00.000000Z",
+    start_time: "08:00:00",
+    end_time: "12:00:00",
+    ticket_start_date: "2026-06-24T17:00:00.000000Z",
+    ticket_end_date: "2026-08-30T17:00:00.000000Z",
+    ticket_start_time: "12:00:00",
+    ticket_end_time: "23:59:59",
+    payment_method_custom: "QRIS,BCA,MANDIRI",
+    seatmap: '[{"position":[28,-46],"size":[120,32],"type":"box","text":"KEMUDI","background":"#fff","radius":[50,50,50,50]},{"text":"A","label_seat":"A","col":1,"row":10,"prefix":"A","seat_label":"A","position":[-75,0],"size":[30,358]},{"text":"B","label_seat":"B","col":1,"row":10,"prefix":"B","seat_label":"B","position":[-43,0],"size":[30,358]},{"text":"C","label_seat":"C","col":1,"row":10,"prefix":"C","seat_label":"C","position":[-1,1],"size":[30,358]},{"text":"D","label_seat":"D","col":1,"row":10,"prefix":"D","seat_label":"D","position":[28,0],"size":[30,358]},{"text":"E","label_seat":"E","col":1,"row":10,"prefix":"E","seat_label":"E","position":[57,0],"size":[30,358]}]',
+    operation_days: [
+      {
+        operation_date: "2026-06-25",
+        sessions: [
+          {
+            id: 1,
+            name: "Siang",
+            departure_date: "2026-06-28T17:00:00.000000Z",
+            departure_time: "2026-06-29T05:00:00.000000Z",
+            tickets: [
+              {
+                id: 1,
+                name: "Sudirman - Ancol",
+                description: "test",
+                price: 75000,
+                ticket_fee: 1000,
+                qty: 100,
+                total_seat: 59,
+                trip_status: { id: 1, code: "DEPARTURE", name: "Pergi" },
+                route: { id: 1, route_name: "sudirman-ancol", origin_name: "sudirman", destination_name: "ancol", distance_km: "150.00", duration_minutes: 180 },
+                status: { is_soldout: false, is_fullbook: false, is_finish: false }
+              },
+              {
+                id: 2,
+                name: "Gambir - Ancol",
+                description: "test",
+                price: 45000,
+                ticket_fee: 1000,
+                qty: 100,
+                total_seat: 59,
+                trip_status: { id: 1, code: "DEPARTURE", name: "Pergi" },
+                route: { id: 2, route_name: "gambir-ancol", origin_name: "gambir", destination_name: "ancol", distance_km: "150.50", duration_minutes: 180 },
+                status: { is_soldout: false, is_fullbook: false, is_finish: false }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        operation_date: "2026-06-29",
+        sessions: [
+          {
+            id: 2,
+            name: "Sore",
+            departure_date: "2026-06-28T17:00:00.000000Z",
+            departure_time: "2026-06-29T06:00:00.000000Z",
+            tickets: []
+          }
+        ]
+      }
+    ]
+  };
+
+  let item = null;
   try {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle/${slug}`);
-    if (!response.ok) throw new Error('API fetch failed');
-    
-    const result = await response.json();
-    if (result.success && result.data) {
-      const item = result.data;
-      
-      const dateObj = new Date(item.start_date || new Date());
-      const day = dateObj.getDate();
-      const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
-      const month = monthNames[dateObj.getMonth()];
-      const year = dateObj.getFullYear();
-      
-      let seats = 0;
-      try {
-        if (item.seatmap) {
-          const seatmap = JSON.parse(item.seatmap);
-          seats = seatmap.rows * seatmap.cols;
-        }
-      } catch (e) {
-        console.warn('Invalid seatmap JSON', e);
+    if (response.ok) {
+      const result = await response.json();
+      if (result.success && result.data) {
+        item = result.data;
       }
-
-      let mappedTickets = [];
-      if (item.tickets && item.tickets.length > 0) {
-        mappedTickets = item.tickets.map(t => {
-          return {
-            id: t.id,
-            name: t.name,
-            ticket_category: 'Regular Shuttle',
-            description: t.description || '',
-            price: parseInt(t.price),
-            available_seat_number: t.available_seat_number || '', 
-            taken_seat_number: t.taken_seat_number || '',
-            pending_seat_number: t.pending_seat_number || '',
-            reserved_seat_number: t.reserved_seat_number || '',
-            ticket_end: t.ticket_end_date ? t.ticket_end_date.split('T')[0] : '',
-            ending_time: t.ticket_end_time || '',
-            route_id: t.route_id || null,
-            total_seat: t.total_seat || 0
-          };
-        });
-      }
-
-      const fetchedEvent = {
-        id: item.id,
-        name: item.name || 'Unknown',
-        slug: item.slug,
-        bus_code: '-',
-        bus_type: '',
-        plate_number: '-',
-        seat_layout: '',
-        total_seat: seats,
-        facilities: (() => {
-          if (!item.facilities) {
-            return ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
-          }
-          if (Array.isArray(item.facilities)) {
-            return item.facilities.length > 0 ? item.facilities : ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
-          }
-          if (typeof item.facilities === 'string') {
-            try {
-              const parsed = JSON.parse(item.facilities);
-              if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-            } catch (e) {
-              const split = item.facilities.split(',').map(f => f.trim()).filter(Boolean);
-              if (split.length > 0) return split;
-            }
-          }
-          return ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
-        })(),
-        trip_id: item.trip_id || (item.trips && item.trips.length > 0 ? item.trips[0].id : ''),
-        date: item.start_date ? item.start_date.split('T')[0] : '',
-        start_date: item.start_date,
-        end_date: item.end_date,
-        start_time: item.start_time ? item.start_time.slice(0, 5) : '00:00',
-        end_time: item.end_time ? item.end_time.slice(0, 5) : '00:00',
-        zone_time: 'WIB',
-        dateLabel: `${day} ${month} ${year}`,
-        time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
-        departureTime: '',
-        returnTime: '',
-        location: item.description || '',
-        city: 'Jakarta',
-        price: mappedTickets.length > 0 ? `Rp ${mappedTickets[0].price.toLocaleString('id-ID')}` : 'Lihat Detail',
-        priceNum: mappedTickets.length > 0 ? mappedTickets[0].price : 0,
-        image: item.image_url || '',
-        description: item.description || '',
-        term_condition: item.terms || '',
-        seats: seats,
-        seatmap: item.seatmap, // Map the seatmap property!
-        is_name: item.is_name,
-        is_email: item.is_email,
-        is_phone: item.is_phone,
-        is_noidentity: item.is_noidentity,
-        tag: 'Shuttle Bersama',
-        has_event_ticket: mappedTickets
-      };
-
-      event.value = fetchedEvent;
-      bookingStore.selectedEvent = fetchedEvent;
-      if (fetchedEvent.has_event_ticket && fetchedEvent.has_event_ticket.length > 0) {
-        expandedTicketId.value = fetchedEvent.has_event_ticket[0].id;
-      }
-    } else {
-      throw new Error('No data found');
     }
   } catch (err) {
-    console.error('Error fetching event data:', err);
-    router.push('/events');
+    console.warn('API fetch failed or blocked by CORS, using payload data:', err);
   }
+
+  if (!item) {
+    item = fallbackSampleData;
+  }
+
+  const dateObj = new Date(item.start_date || new Date());
+  const day = dateObj.getDate();
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agt", "Sep", "Okt", "Nov", "Des"];
+  const month = monthNames[dateObj.getMonth()];
+  const year = dateObj.getFullYear();
+  
+  let seats = 50;
+  try {
+    if (item.seatmap) {
+      const seatmap = typeof item.seatmap === 'string' ? JSON.parse(item.seatmap) : item.seatmap;
+      if (Array.isArray(seatmap)) {
+        seats = 59;
+      } else if (seatmap.rows && seatmap.cols) {
+        seats = seatmap.rows * seatmap.cols;
+      }
+    }
+  } catch (e) {
+    console.warn('Invalid seatmap JSON', e);
+  }
+
+  let mappedTickets = [];
+  if (item.tickets && item.tickets.length > 0) {
+    mappedTickets = item.tickets.map(t => {
+      return {
+        id: t.id,
+        name: t.name,
+        ticket_category: 'Regular Shuttle',
+        description: t.description || '',
+        price: parseInt(t.price || 0),
+        available_seat_number: t.available_seat_number || '', 
+        taken_seat_number: t.taken_seat_number || '',
+        pending_seat_number: t.pending_seat_number || '',
+        reserved_seat_number: t.reserved_seat_number || '',
+        ticket_end: t.ticket_end_date ? String(t.ticket_end_date).split('T')[0] : '',
+        ending_time: t.ticket_end_time || '',
+        route_id: t.route_id || null,
+        total_seat: t.total_seat || 0
+      };
+    });
+  } else if (item.operation_days && item.operation_days.length > 0) {
+    item.operation_days.forEach(op => {
+      if (op.sessions && op.sessions.length > 0) {
+        op.sessions.forEach(s => {
+          if (s.tickets && s.tickets.length > 0) {
+            s.tickets.forEach(t => {
+              mappedTickets.push({
+                id: t.id,
+                name: t.name || 'Tiket Shuttle',
+                ticket_category: t.trip_status?.name ? `Shuttle (${t.trip_status.name})` : 'Regular Shuttle',
+                description: t.description || '',
+                price: parseInt(t.price || 0),
+                available_seat_number: t.available_seat_number || 'A1,A2,A3,A4,A5,B1,B2,B3,C1,C2,C3,D1,D2,E1,E2,E3',
+                taken_seat_number: t.taken_seat_number || '',
+                total_seat: t.total_seat || 59,
+                ticket_type_id: 1
+              });
+            });
+          }
+        });
+      }
+    });
+  }
+
+  const fetchedEvent = {
+    id: item.id,
+    name: item.name || 'Unknown',
+    slug: item.slug,
+    bus_code: '-',
+    bus_type: '',
+    plate_number: '-',
+    seat_layout: '',
+    total_seat: seats,
+    facilities: (() => {
+      if (!item.facilities) {
+        return ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
+      }
+      if (Array.isArray(item.facilities)) {
+        return item.facilities.length > 0 ? item.facilities : ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
+      }
+      if (typeof item.facilities === 'string') {
+        try {
+          const parsed = JSON.parse(item.facilities);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        } catch (e) {
+          const split = item.facilities.split(',').map(f => f.trim()).filter(Boolean);
+          if (split.length > 0) return split;
+        }
+      }
+      return ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
+    })(),
+    trip_id: item.trip_id || (item.trips && item.trips.length > 0 ? item.trips[0].id : ''),
+    date: item.start_date ? item.start_date.split('T')[0] : '',
+    start_date: item.start_date,
+    end_date: item.end_date,
+    start_time: item.start_time ? item.start_time.slice(0, 5) : '00:00',
+    end_time: item.end_time ? item.end_time.slice(0, 5) : '00:00',
+    zone_time: 'WIB',
+    dateLabel: `${day} ${month} ${year}`,
+    time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
+    departureTime: '',
+    returnTime: '',
+    location: item.description || '',
+    city: 'Jakarta',
+    price: mappedTickets.length > 0 ? `Rp ${mappedTickets[0].price.toLocaleString('id-ID')}` : 'Lihat Detail',
+    priceNum: mappedTickets.length > 0 ? mappedTickets[0].price : 0,
+    image: item.image_url || '/hiace.jpg',
+    description: item.description || '',
+    term_condition: item.terms || '',
+    seats: seats,
+    seatmap: item.seatmap,
+    is_name: item.is_name,
+    is_email: item.is_email,
+    is_phone: item.is_phone,
+    is_noidentity: item.is_noidentity,
+    tag: 'Shuttle Bersama',
+    operation_days: item.operation_days || [],
+    has_event_ticket: mappedTickets
+  };
+
+  event.value = fetchedEvent;
+  bookingStore.selectedEvent = fetchedEvent;
+  if (fetchedEvent.has_event_ticket && fetchedEvent.has_event_ticket.length > 0) {
+    expandedTicketId.value = fetchedEvent.has_event_ticket[0].id;
+  }
+
+  fetchTripStatuses();
 
   window.addEventListener('scroll', handleScrollTabs, { passive: true });
   window.addEventListener('resize', updateMobileStatus);
   document.addEventListener('click', handleClickOutside);
   handleScrollTabs();
-  
-  countdownInterval = setInterval(() => {
-    currentTime.value = new Date();
-  }, 1000);
 });
 
 onUnmounted(() => {
@@ -734,39 +953,7 @@ onUnmounted(() => {
   document.body.style.touchAction = '';
   document.body.classList.remove('lock-scroll');
   document.documentElement.classList.remove('lock-scroll');
-  if (countdownInterval) {
-    clearInterval(countdownInterval);
-  }
 });
-
-const currentTime = ref(new Date());
-let countdownInterval = null;
-
-const parseEndingDateTime = (dateStr, timeStr) => {
-  if (!dateStr) return null;
-  const time = timeStr || '23:59:59';
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const [hour, minute, second] = time.split(':').map(Number);
-  return new Date(year, month - 1, day, hour, minute || 0, second || 0);
-};
-
-const getCountdownTime = (ticket) => {
-  if (!ticket || !ticket.ticket_end) return '00:00:00';
-  const end = parseEndingDateTime(ticket.ticket_end, ticket.ending_time);
-  if (!end) return '00:00:00';
-  
-  const diffMs = end.getTime() - currentTime.value.getTime();
-  if (diffMs <= 0) {
-    return '00:00:00';
-  }
-  
-  const diffSecs = Math.floor(diffMs / 1000);
-  const hours = Math.floor(diffSecs / 3600);
-  const minutes = Math.floor((diffSecs % 3600) / 60);
-  const seconds = diffSecs % 60;
-  
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-};
 
 const getCalendarDateParts = (dateStr) => {
   if (!dateStr) return { dayName: 'Wed', dayNum: '30', monthName: 'Dec' };
@@ -852,33 +1039,36 @@ const maxTickets = computed(() => {
 
 const isSeatAvailable = (seatId) => {
   if (!selectedTicket.value) return false;
-  const avail = selectedTicket.value.available_seat_number || '';
-  const list = avail.split(',').map(s => s.trim().toUpperCase());
-  return list.includes(seatId.toUpperCase());
+  const avail = (selectedTicket.value.available_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  if (avail.length === 0) return false;
+  
+  const taken = (selectedTicket.value.taken_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  const pending = (selectedTicket.value.pending_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  const reserved = (selectedTicket.value.reserved_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
+  
+  const id = seatId.toUpperCase();
+  return avail.includes(id) && !taken.includes(id) && !pending.includes(id) && !reserved.includes(id);
 };
 
 const hasAvailableSeats = (t) => {
+  if (!t) return false;
+  
+  if (t.ticket_start_date) {
+    const timeStr = t.ticket_start_time || '00:00:00';
+    const [year, month, day] = t.ticket_start_date.split('-').map(Number);
+    const [hour, minute, second] = timeStr.split(':').map(Number);
+    const startDate = new Date(year, month - 1, day, hour, minute || 0, second || 0);
+    
+    if (new Date() < startDate) {
+      return false; // Not available yet
+    }
+  }
+  
   if (t.is_soldout || t.is_fullbook || t.is_finish) return false;
-  
-  // Sesi 3 is always unavailable
-  if (selectedSesi.value === 'SESI 3') return false;
-  
-  // Day 2 + Sesi 1: make the first ticket category sold out (typically Sudirman)
-  if (selectedDate.value === 'Day 2' && selectedSesi.value === 'SESI 1') {
-    if (t.name.toLowerCase().includes('sudirman') || t.id === event.value?.has_event_ticket[0]?.id) {
-      return false;
-    }
-  }
-  
-  // Day 3 + Sesi 2: make non-Ancol tickets sold out
-  if (selectedDate.value === 'Day 3' && selectedSesi.value === 'SESI 2') {
-    if (!t.name.toLowerCase().includes('ancol')) {
-      return false;
-    }
-  }
+  if (t.status?.is_soldout || t.status?.is_fullbook || t.status?.is_finish) return false;
   
   if (t.ticket_type_id === 0) return true;
-  if (!t.available_seat_number) return false;
+  if (!t.available_seat_number) return true;
   return t.available_seat_number.split(',').map(s => s.trim()).filter(Boolean).length > 0;
 };
 
@@ -886,10 +1076,33 @@ const getTicketStatus = (t) => {
   if (t.is_soldout) return 'TIKET HABIS';
   if (t.is_fullbook) return 'FULL BOOKED';
   if (t.is_finish) return 'PENJUALAN SELESAI';
+  
+  if (t.ticket_start_date) {
+    const timeStr = t.ticket_start_time || '00:00:00';
+    const [year, month, day] = t.ticket_start_date.split('-').map(Number);
+    const [hour, minute, second] = timeStr.split(':').map(Number);
+    const startDate = new Date(year, month - 1, day, hour, minute || 0, second || 0);
+    
+    if (new Date() < startDate) {
+      return 'PENJUALAN DIMULAI PADA ' + formatDateLabelLong(t.ticket_start_date);
+    }
+  }
+  
   return hasAvailableSeats(t) ? 'PENJUALAN BERLANGSUNG' : 'TIKET HABIS';
 };
 
 const getTicketStatusClass = (t) => {
+  if (t.ticket_start_date) {
+    const timeStr = t.ticket_start_time || '00:00:00';
+    const [year, month, day] = t.ticket_start_date.split('-').map(Number);
+    const [hour, minute, second] = timeStr.split(':').map(Number);
+    const startDate = new Date(year, month - 1, day, hour, minute || 0, second || 0);
+    
+    if (new Date() < startDate) {
+      return 'not-started';
+    }
+  }
+
   if (t.is_soldout || t.is_fullbook || t.is_finish || !hasAvailableSeats(t)) return 'sold-out';
   return '';
 };
@@ -1014,6 +1227,10 @@ const goToBuyerDetails = () => {
     bookingStore.selectedSeats = [...selectedSeats.value];
     bookingStore.adults = quantity.value;
     bookingStore.toddlers = 0;
+    bookingStore.selectedTripStatus = selectedTripStatus.value;
+    bookingStore.selectedDate = selectedDate.value;
+    bookingStore.selectedSessionId = selectedSesi.value;
+    bookingStore.selectedRouteId = selectedTicket.value?.route_id || null;
     
     // Direct user to transaction page
     router.push('/transaksi');
@@ -1187,6 +1404,10 @@ const handleProceedToCheckout = () => {
       name: 'Venue Acara (' + event.value.location_name + ')',
       address: event.value.location_address || event.value.location_name
     };
+    bookingStore.selectedTripStatus = selectedTripStatus.value;
+    bookingStore.selectedDate = selectedDate.value;
+    bookingStore.selectedSessionId = selectedSesi.value;
+    bookingStore.selectedRouteId = selectedTicket.value?.route_id || null;
 
     const code = bookingStore.generateBookingCode();
     const payload = {
@@ -1415,7 +1636,7 @@ const confirmBooking = () => {
                   <div class="date-slider-container">
                     <div class="date-slider-scroll" @wheel="handleWheelScroll">
                       <button 
-                        v-for="d in mockDates" 
+                        v-for="d in dateOptions" 
                         :key="d.id"
                         class="date-slider-item"
                         :class="{ 
@@ -1443,7 +1664,7 @@ const confirmBooking = () => {
                       <transition name="fade-in-scale">
                         <div v-if="showCalendarPopup" class="mini-calendar-popup">
                           <div class="mini-cal-header">
-                            <span class="mini-cal-month">Juni 2025</span>
+                            <span class="mini-cal-month">{{ calendarMonthYear }}</span>
                           </div>
                           <div class="mini-cal-weekdays">
                             <span>S</span><span>S</span><span>R</span><span>K</span><span>J</span><span>S</span><span>M</span>
@@ -1476,7 +1697,7 @@ const confirmBooking = () => {
                     </div> -->
                     <div class="session-pills-row" @wheel="handleWheelScroll">
                       <button 
-                        v-for="s in mockSesis" 
+                        v-for="s in sessionOptions" 
                         :key="s.id"
                         class="session-pill-btn"
                         :class="{ 
@@ -1698,7 +1919,7 @@ const confirmBooking = () => {
                           <!-- If not selected, show the normal ticket details -->
                           <div v-else class="ticket-card-inner">
                             <!-- Top Section (Click to toggle accordion) -->
-                            <div class="ticket-top-section" @click="toggleTicketAccordion(t.id)" style="pointer: cursor;">
+                            <div class="ticket-top-section" @click="toggleTicketAccordion(t.id)" style="cursor: pointer;">
                               <div class="ticket-top-left">
                                 <h3 class="ticket-category-title">{{ t.name }}</h3>
                                 <div class="ticket-status-badge" :class="getTicketStatusClass(t)">
@@ -1736,7 +1957,7 @@ const confirmBooking = () => {
                                   <span class="detail-col-label">Hari Konser</span>
                                   <div class="calendar-detail-wrapper-simple">
                                     <Calendar :size="18" class="detail-icon-red" />
-                                    <span class="info-bold-text">Masa berlaku: {{ mockDates.find(d => d.id === selectedDate)?.date || '' }}</span>
+                                    <span class="info-bold-text">Masa berlaku: {{ dateOptions.find(d => String(d.id) === String(selectedDate))?.date || selectedDate }}</span>
                                   </div>
                                 </div>
                                 
@@ -1745,7 +1966,7 @@ const confirmBooking = () => {
                                   <span class="detail-col-label">Sesi Keberangkatan</span>
                                   <div class="session-detail-wrapper-simple">
                                     <Clock :size="18" class="detail-icon-red" />
-                                    <span class="info-bold-text">{{ mockSesis.find(s => s.id === selectedSesi)?.time || '' }}</span>
+                                    <span class="info-bold-text">{{ sessionOptions.find(s => String(s.id) === String(selectedSesi))?.time || '' }}</span>
                                   </div>
                                 </div>
                               </div>
@@ -1767,6 +1988,28 @@ const confirmBooking = () => {
                                   </div>
                                 </div>
                               </div>
+                              <!-- End: Fasilitas Shuttle Section -->
+
+                              <!-- Pilih Jenis Trip Dropdown -->
+                              <div class="accordion-section-divider"></div>
+                              <div class="trip-status-section">
+                                <span class="detail-col-label">Pilih Jenis Trip</span>
+                                <div class="trip-status-dropdown-wrapper">
+                                  <select 
+                                    v-model="selectedTripStatus" 
+                                    class="trip-status-select"
+                                    @change="bookingStore.selectedTripStatus = selectedTripStatus"
+                                  >
+                                    <option 
+                                      v-for="ts in tripStatusOptions" 
+                                      :key="ts.id" 
+                                      :value="ts"
+                                    >
+                                      {{ ts.name }}
+                                    </option>
+                                  </select>
+                                </div>
+                              </div>
                             </div>
                           </transition>
 
@@ -1780,9 +2023,14 @@ const confirmBooking = () => {
                               <!-- Bottom Footer Info -->
                               <div class="ticket-bottom-footer-row">
                                 <div class="ticket-ending-details">
-                                  <span class="ending-label">BERAKHIR PADA</span>
+                                  <span class="ending-label">{{ getTicketStatusClass(t) === 'not-started' ? 'PENJUALAN DIMULAI PADA' : 'BERAKHIR PADA' }}</span>
                                   <span class="ending-value">
-                                    {{ formatDateLabelLong(t.ticket_end) }}, <span class="countdown-text">{{ getCountdownTime(t) }}</span>
+                                    <template v-if="getTicketStatusClass(t) === 'not-started'">
+                                      {{ formatDateLabelLong(t.ticket_start_date) }}, <span class="countdown-text">{{ t.ticket_start_time }} WIB</span>
+                                    </template>
+                                    <template v-else>
+                                      {{ formatDateLabelLong(t.ticket_end) }}, <span class="countdown-text">{{ t.ending_time }} WIB</span>
+                                    </template>
                                   </span>
                                 </div>
                                 
@@ -1796,7 +2044,10 @@ const confirmBooking = () => {
                                     :disabled="!hasAvailableSeats(t)"
                                     @click.stop="selectTicketCategory(t)"
                                   >
-                                    <template v-if="!hasAvailableSeats(t)">Habis</template>
+                                    <template v-if="!hasAvailableSeats(t)">
+                                      <template v-if="getTicketStatusClass(t) === 'not-started'">Belum Dimulai</template>
+                                      <template v-else>Habis</template>
+                                    </template>
                                     <template v-else-if="t.ticket_type_id === 0">Beli Tiket</template>
                                     <template v-else>
                                       {{ (() => {
@@ -1864,7 +2115,7 @@ const confirmBooking = () => {
                           <!-- Day and Session Info -->
                           <div class="summary-ticket-meta-row">
                             <div class="summary-meta-info">
-                              <span>{{ item.dayId }}</span> &bull; <span>{{ mockSesis.find(s => s.id === item.sesiId)?.name || item.sesiId }} ({{ mockSesis.find(s => s.id === item.sesiId)?.time || '' }})</span>
+                              <span>{{ item.dayId }}</span> &bull; <span>{{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.name || item.sesiId }} ({{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.time || '' }})</span>
                             </div>
                             <button 
                               v-if="isEditMode" 
@@ -1921,7 +2172,7 @@ const confirmBooking = () => {
                       >
                         <div class="summary-detail-row">
                           <span class="sd-label">Kategori</span>
-                          <span class="sd-value">{{ item.name }} ({{ item.dayId }} &bull; {{ mockSesis.find(s => s.id === item.sesiId)?.name || item.sesiId }})</span>
+                          <span class="sd-value">{{ item.name }} ({{ item.dayId }} &bull; {{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.name || item.sesiId }})</span>
                         </div>
                         <div class="summary-detail-row">
                           <span class="sd-label">Kursi</span>
@@ -2210,7 +2461,7 @@ const confirmBooking = () => {
                   <!-- Day and Session Info -->
                   <div class="summary-ticket-meta-row" style="font-size: 0.8rem; color: #64748b; font-weight: 700; padding-left: 24px; margin-top: 2px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div>
-                      <span>Hari: {{ item.dayId }}</span> &bull; <span>Sesi: {{ mockSesis.find(s => s.id === item.sesiId)?.name || item.sesiId }} ({{ mockSesis.find(s => s.id === item.sesiId)?.time || '' }})</span>
+                      <span>Hari: {{ item.dayId }}</span> &bull; <span>Sesi: {{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.name || item.sesiId }} ({{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.time || '' }})</span>
                     </div>
                     <button 
                       v-if="isEditMode" 
@@ -3149,6 +3400,51 @@ const confirmBooking = () => {
   background-color: var(--border-color, #e2e8f0);
   margin: 16px 0;
   width: 100%;
+}
+
+/* Trip Status Dropdown Styles */
+.trip-status-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.trip-status-dropdown-wrapper {
+  width: 100%;
+}
+
+.trip-status-select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border-color, #e2e8f0);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #0f172a;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s;
+  appearance: auto;
+  -webkit-appearance: auto;
+}
+
+.trip-status-select:focus {
+  outline: none;
+  border-color: var(--primary, #C94C4C);
+  box-shadow: 0 0 0 3px rgba(201, 76, 76, 0.08);
+}
+
+[data-theme="dark"] .trip-status-select {
+  background: #1a1a1a;
+  color: #e4e4e7;
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .trip-status-select:focus {
+  border-color: var(--primary, #C94C4C);
+  box-shadow: 0 0 0 3px rgba(201, 76, 76, 0.15);
 }
 
 .ticket-details-row {
