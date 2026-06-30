@@ -1526,7 +1526,7 @@ const confirmBooking = () => {
               <span class="org-label">Diselenggarakan Oleh</span>
               <div class="org-profile-new">
                 <img 
-                  :src="event.has_creator?.image_url || 'https://api.kolektix.my.id/storage/uploads/creator/logo-k.png'" 
+                  :src="event.has_creator?.image_url || '/AJAKLogo/LOGO.png'" 
                   :alt="event.has_creator?.name || 'AJAK!'" 
                   class="org-logo-new" 
                 />
@@ -1565,7 +1565,7 @@ const confirmBooking = () => {
           <div class="mobile-organizer-left">
             <div class="mobile-organizer-logo-container">
               <img 
-                :src="event.has_creator?.image_url || 'https://api.kolektix.my.id/storage/uploads/creator/logo-k.png'" 
+                :src="event.has_creator?.image_url || '/AJAKLogo/LOGO.png'" 
                 :alt="event.has_creator?.name || 'AJAK!'" 
                 class="mobile-organizer-logo-img" 
               />
