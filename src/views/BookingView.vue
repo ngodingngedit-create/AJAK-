@@ -9,93 +9,7 @@ const router = useRouter();
 
 
 
-const defaultShuttleData = {
-  id: 10,
-  name: "The Sounds Projects",
-  slug: "ajaks-tsp",
-  bus_code: '-',
-  bus_type: '',
-  plate_number: '-',
-  seat_layout: '',
-  total_seat: 59,
-  facilities: ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'],
-  date: '2026-06-30',
-  start_date: '2026-06-30T17:00:00.000000Z',
-  end_date: '2026-06-30T17:00:00.000000Z',
-  start_time: '08:00',
-  end_time: '12:00',
-  ticket_start_date: '2026-06-24T17:00:00.000000Z',
-  ticket_end_date: '2026-08-30T17:00:00.000000Z',
-  ticket_start_time: '12:00:00',
-  ticket_end_time: '23:59:59',
-  zone_time: 'WIB',
-  dateLabel: '30 Jun 2026',
-  time: '08:00 WIB',
-  location: 'Shuttle Executive Jakarta Bandung',
-  city: 'Jakarta',
-  price: 'Rp 75.000',
-  priceNum: 75000,
-  image: import.meta.env.VITE_API_URL + '/storage/uploads/shuttle/sample.png',
-  description: 'Shuttle Executive Jakarta Bandung',
-  term_condition: 'Tiket tidak dapat direfund',
-  seats: 59,
-  seatmap: '[{"position":[28,-46],"size":[120,32],"type":"box","text":"KEMUDI","background":"#fff","radius":[50,50,50,50]},{"text":"A","label_seat":"A","col":1,"row":10,"prefix":"A","seat_label":"A","position":[-75,0],"size":[30,358]},{"text":"B","label_seat":"B","col":1,"row":10,"prefix":"B","seat_label":"B","position":[-43,0],"size":[30,358]},{"text":"C","label_seat":"C","col":1,"row":10,"prefix":"C","seat_label":"C","position":[-1,1],"size":[30,358]},{"text":"D","label_seat":"D","col":1,"row":10,"prefix":"D","seat_label":"D","position":[28,0],"size":[30,358]},{"text":"E","label_seat":"E","col":1,"row":10,"prefix":"E","seat_label":"E","position":[57,0],"size":[30,358]}]',
-  tag: 'Shuttle Bersama',
-  operation_days: [
-    {
-      operation_date: "2026-06-25",
-      sessions: [
-        {
-          id: 1,
-          name: "Siang",
-          departure_date: "2026-06-28T17:00:00.000000Z",
-          departure_time: "2026-06-29T05:00:00.000000Z",
-          tickets: [
-            {
-              id: 1,
-              name: "Sudirman - Ancol",
-              description: "test",
-              price: 75000,
-              ticket_fee: 1000,
-              qty: 100,
-              total_seat: 59,
-              trip_status: { id: 1, code: "DEPARTURE", name: "Pergi" },
-              route: { id: 1, route_name: "sudirman-ancol", origin_name: "sudirman", destination_name: "ancol", distance_km: "150.00", duration_minutes: 180 },
-              status: { is_soldout: false, is_fullbook: false, is_finish: false }
-            },
-            {
-              id: 2,
-              name: "Gambir - Ancol",
-              description: "test",
-              price: 45000,
-              ticket_fee: 1000,
-              qty: 100,
-              total_seat: 59,
-              trip_status: { id: 1, code: "DEPARTURE", name: "Pergi" },
-              route: { id: 2, route_name: "gambir-ancol", origin_name: "gambir", destination_name: "ancol", distance_km: "150.50", duration_minutes: 180 },
-              status: { is_soldout: false, is_fullbook: false, is_finish: false }
-            }
-          ]
-        }
-      ]
-    },
-    {
-      operation_date: "2026-06-29",
-      sessions: [
-        {
-          id: 2,
-          name: "Sore",
-          departure_date: "2026-06-28T17:00:00.000000Z",
-          departure_time: "2026-06-29T06:00:00.000000Z",
-          tickets: []
-        }
-      ]
-    }
-  ],
-  has_event_ticket: []
-};
-
-const event = ref(defaultShuttleData);
+const event = ref(null);
 const activeTab = ref('tiket'); // 'deskripsi', 'tiket', 'terms'
 const selectedTicket = ref(null);
 const expandedTicketId = ref(null);
@@ -720,79 +634,6 @@ watch([isCanvasOpen, isSheetClosing], ([isOpen, isClosing]) => {
 
 onMounted(async () => {
   const slug = route.params.slug;
-  
-  const fallbackSampleData = {
-    id: 10,
-    slug: slug || "ajaks-tsp",
-    slug_url: "xw10",
-    event_id: 1,
-    name: "The Sounds Projects",
-    description: "Shuttle Executive Jakarta Bandung",
-    terms: "Tiket tidak dapat direfund",
-    image: "sample.png",
-    image_url: import.meta.env.VITE_API_URL + "/storage/uploads/shuttle/sample.png",
-    start_date: "2026-06-30T17:00:00.000000Z",
-    end_date: "2026-06-30T17:00:00.000000Z",
-    start_time: "08:00:00",
-    end_time: "12:00:00",
-    ticket_start_date: "2026-06-24T17:00:00.000000Z",
-    ticket_end_date: "2026-08-30T17:00:00.000000Z",
-    ticket_start_time: "12:00:00",
-    ticket_end_time: "23:59:59",
-    payment_method_custom: "QRIS,BCA,MANDIRI",
-    seatmap: '[{"position":[28,-46],"size":[120,32],"type":"box","text":"KEMUDI","background":"#fff","radius":[50,50,50,50]},{"text":"A","label_seat":"A","col":1,"row":10,"prefix":"A","seat_label":"A","position":[-75,0],"size":[30,358]},{"text":"B","label_seat":"B","col":1,"row":10,"prefix":"B","seat_label":"B","position":[-43,0],"size":[30,358]},{"text":"C","label_seat":"C","col":1,"row":10,"prefix":"C","seat_label":"C","position":[-1,1],"size":[30,358]},{"text":"D","label_seat":"D","col":1,"row":10,"prefix":"D","seat_label":"D","position":[28,0],"size":[30,358]},{"text":"E","label_seat":"E","col":1,"row":10,"prefix":"E","seat_label":"E","position":[57,0],"size":[30,358]}]',
-    operation_days: [
-      {
-        operation_date: "2026-06-25",
-        sessions: [
-          {
-            id: 1,
-            name: "Siang",
-            departure_date: "2026-06-28T17:00:00.000000Z",
-            departure_time: "2026-06-29T05:00:00.000000Z",
-            tickets: [
-              {
-                id: 1,
-                name: "Sudirman - Ancol",
-                description: "test",
-                price: 75000,
-                ticket_fee: 1000,
-                qty: 100,
-                total_seat: 59,
-                trip_status: { id: 1, code: "DEPARTURE", name: "Pergi" },
-                route: { id: 1, route_name: "sudirman-ancol", origin_name: "sudirman", destination_name: "ancol", distance_km: "150.00", duration_minutes: 180 },
-                status: { is_soldout: false, is_fullbook: false, is_finish: false }
-              },
-              {
-                id: 2,
-                name: "Gambir - Ancol",
-                description: "test",
-                price: 45000,
-                ticket_fee: 1000,
-                qty: 100,
-                total_seat: 59,
-                trip_status: { id: 1, code: "DEPARTURE", name: "Pergi" },
-                route: { id: 2, route_name: "gambir-ancol", origin_name: "gambir", destination_name: "ancol", distance_km: "150.50", duration_minutes: 180 },
-                status: { is_soldout: false, is_fullbook: false, is_finish: false }
-              }
-            ]
-          }
-        ]
-      },
-      {
-        operation_date: "2026-06-29",
-        sessions: [
-          {
-            id: 2,
-            name: "Sore",
-            departure_date: "2026-06-28T17:00:00.000000Z",
-            departure_time: "2026-06-29T06:00:00.000000Z",
-            tickets: []
-          }
-        ]
-      }
-    ]
-  };
 
   let item = null;
   try {
@@ -804,11 +645,12 @@ onMounted(async () => {
       }
     }
   } catch (err) {
-    console.warn('API fetch failed or blocked by CORS, using payload data:', err);
+    console.warn('API fetch failed:', err);
   }
 
   if (!item) {
-    item = fallbackSampleData;
+    router.replace('/');
+    return;
   }
 
   const dateObj = new Date(item.start_date || new Date());
@@ -1088,7 +930,14 @@ const getTicketStatus = (t) => {
     }
   }
   
-  return hasAvailableSeats(t) ? 'PENJUALAN BERLANGSUNG' : 'TIKET HABIS';
+  // Show route name instead of 'PENJUALAN BERLANGSUNG'
+  if (hasAvailableSeats(t)) {
+    if (t.route) {
+      return `${t.route.origin_name} → ${t.route.destination_name}`;
+    }
+    return 'Tiket Tersedia';
+  }
+  return 'TIKET HABIS';
 };
 
 const getTicketStatusClass = (t) => {
@@ -2591,13 +2440,13 @@ const confirmBooking = () => {
   display: grid;
   grid-template-columns: 1fr 360px;
   gap: 32px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .banner-image-container {
   position: relative;
   width: 100%;
-  height: 360px;
+  aspect-ratio: 1080/350;
   border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
@@ -2646,6 +2495,9 @@ const confirmBooking = () => {
   gap: 16px;
   border: 1px solid rgba(0, 0, 0, 0.05);
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .detail-row {
@@ -2671,6 +2523,7 @@ const confirmBooking = () => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  margin-top: auto;
 }
 
 .org-label {
