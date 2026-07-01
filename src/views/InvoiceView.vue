@@ -54,8 +54,9 @@ const getStatusConfig = (status) => {
 
 const statusConfig = computed(() => getStatusConfig(invoice.value?.payment_status));
 
-const printInvoice = () => {
-  window.print();
+const downloadPdf = () => {
+  const url = `${import.meta.env.VITE_API_URL}/api/shuttle-order/download/${invoiceNo}`;
+  window.open(url, '_blank');
 };
 
 const continuePayment = () => {
@@ -125,6 +126,14 @@ const hasIdentity = computed(() => {
               <div class="detail-item">
                 <span class="label">Event / Shuttle</span>
                 <span class="value">{{ invoice.tickets?.[0]?.ticket?.name || 'Shuttle Reguler' }}</span>
+              </div>
+              <div class="detail-item" v-if="invoice.tickets?.[0]?.shuttle_session">
+                <span class="label">Sesi Keberangkatan</span>
+                <span class="value">{{ invoice.tickets[0].shuttle_session.name }} ({{ invoice.tickets[0].shuttle_session.departure_time }})</span>
+              </div>
+              <div class="detail-item" v-if="invoice.tickets?.[0]?.trip_status">
+                <span class="label">Jenis Trip</span>
+                <span class="value">{{ invoice.tickets[0].trip_status.name }}</span>
               </div>
               <div class="detail-item">
                 <span class="label">Total Tiket</span>
@@ -200,7 +209,11 @@ const hasIdentity = computed(() => {
                   <tr v-for="t in invoice.tickets" :key="t.id">
                     <td>
                       <strong>{{ t.ticket?.name || 'Tiket Shuttle' }}</strong><br>
-                      <small>Kursi: {{ t.order_seat_number }}</small>
+                      <small>
+                        Kursi: {{ t.order_seat_number }}
+                        <span v-if="t.shuttle_session"> | Sesi: {{ t.shuttle_session.name }}</span>
+                        <span v-if="t.trip_status"> | Trip: {{ t.trip_status.name }}</span>
+                      </small>
                     </td>
                     <td class="text-right">{{ formatRp(t.price + (t.ticket_fee || 0)) }}</td>
                     <td class="text-right">{{ formatRp(t.subtotal_price) }}</td>
@@ -232,8 +245,8 @@ const hasIdentity = computed(() => {
         </div>
 
         <div class="invoice-footer print-hidden">
-          <button class="btn-action btn-outline" @click="printInvoice">
-            <Download :size="18" /> Cetak / Unduh PDF
+          <button class="btn-action btn-outline" @click="downloadPdf">
+            <Download :size="18" /> Unduh PDF
           </button>
           
           <button 

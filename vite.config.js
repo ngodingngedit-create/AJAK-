@@ -14,11 +14,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'https://45.76.152.89',
+        target: 'https://45.76.182.72',
         changeOrigin: true,
         secure: false,
         headers: {
-          Host: 'api.kolektix.my.id'
+          Host: 'api.kolektix.com'
         }
       }
     }

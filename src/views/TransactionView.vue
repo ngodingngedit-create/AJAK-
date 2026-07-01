@@ -107,42 +107,63 @@ const isEksklusif = computed(() => {
 
 const pickupLocations = ref([]);
 
-const fetchPickupLocations = async () => {
-  try {
-    const res = await fetch(import.meta.env.VITE_API_URL + '/api/shuttleroutes');
-    const result = await res.json();
-    if (result.success && result.data?.data) {
-      const uniqueRoutes = new Set();
-      const mapped = [];
-      result.data.data.forEach(r => {
-        if (r.route_name && !uniqueRoutes.has(r.id)) {
-          uniqueRoutes.add(r.id);
-          const regionName = r.origin_name ? (r.origin_name.charAt(0).toUpperCase() + r.origin_name.slice(1)) : 'Rute';
-          mapped.push({
-            id: r.id,
-            region: regionName,
-            name: r.route_name,
-            address: `${r.origin_name || ''} - ${r.destination_name || ''}`,
-            lat: null,
-            lng: null,
-            price: ''
+const fetchPickupLocations = () => {
+  if (!ticket.value) {
+    pickupLocations.value = [];
+    return;
+  }
+  
+  // Use the selected ticket's route directly
+  const mapped = [];
+
+  if (ticket.value.route_id) {
+    // Try to find route from ticket.route if available
+    if (ticket.value.route) {
+      const r = ticket.value.route;
+      const regionName = r.origin_name ? 
+        (r.origin_name.charAt(0).toUpperCase() + r.origin_name.slice(1)) : 'Rute';
+      mapped.push({
+        id: r.id,
+        region: regionName,
+        name: r.route_name,
+        address: `${r.origin_name || ''} - ${r.destination_name || ''}`,
+        lat: null,
+        lng: null,
+        price: ''
+      });
+    } else if (shuttleDetail.value?.operation_days) {
+      // Fallback: find the matching route from shuttleDetail
+      shuttleDetail.value.operation_days.forEach(op => {
+        if (op.sessions) {
+          op.sessions.forEach(ses => {
+            if (ses.tickets) {
+              ses.tickets.forEach(t => {
+                if (t.route && t.route.id === ticket.value.route_id) {
+                  const regionName = t.route.origin_name ? 
+                    (t.route.origin_name.charAt(0).toUpperCase() + t.route.origin_name.slice(1)) : 'Rute';
+                  mapped.push({
+                    id: t.route.id,
+                    region: regionName,
+                    name: t.route.route_name,
+                    address: `${t.route.origin_name || ''} - ${t.route.destination_name || ''}`,
+                    lat: null,
+                    lng: null,
+                    price: ''
+                  });
+                }
+              });
+            }
           });
         }
       });
-      
-      // Auto-select and filter route if ticket has route_id
-      if (ticket.value?.route_id) {
-        pickupLocations.value = mapped.filter(m => m.id === ticket.value.route_id);
-        const found = pickupLocations.value[0];
-        if (found) {
-          bookingStore.selectedPickup = found;
-        }
-      } else {
-        pickupLocations.value = mapped;
-      }
     }
-  } catch (error) {
-    console.error('Failed to fetch pickup locations:', error);
+  }
+  
+  pickupLocations.value = mapped;
+  
+  // Auto-select the route
+  if (mapped.length > 0) {
+    bookingStore.selectedPickup = mapped[0];
   }
 };
 
@@ -397,8 +418,8 @@ const executeCheckout = async () => {
   const payload = {
     shuttle_id: event.value?.id || "",
     trip_id: event.value?.trip_id || 1,
-    route_id: bookingStore.selectedPickup?.id || ticket.value?.route_id || "",
-    invoice_no: invoice_no,
+    route_id: bookingStore.selectedRouteId || bookingStore.selectedPickup?.id || ticket.value?.route_id || "",
+    operational_date: bookingStore.selectedDate || "",
     total_qty: quantity.value,
     total_price: baseTicketPrice.value,
     total_voucher: totalDiscount.value,
@@ -408,6 +429,8 @@ const executeCheckout = async () => {
     payment_status: "PENDING",
     tickets: selectedSeats.value.map(seat => ({
       shuttle_ticket_id: ticket.value?.id || "",
+      shuttle_session_id: parseInt(bookingStore.selectedSessionId) || 0,
+      trip_status_id: bookingStore.selectedTripStatus?.id || 1,
       order_seat_number: seat,
       qty_ticket: 1,
       price: ticket.value.price || 0,

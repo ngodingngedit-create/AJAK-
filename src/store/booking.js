@@ -14,6 +14,10 @@ export const bookingStore = reactive({
   toddlers: 0,
   bookingCode: null,
   selectedSeats: [],
+  selectedTripStatus: null,
+  selectedRouteId: null,
+  selectedSessionId: null,
+  selectedDate: null,
 
   reset() {
     this.selectedEvent = null;
@@ -25,6 +29,10 @@ export const bookingStore = reactive({
     this.toddlers = 0;
     this.bookingCode = null;
     this.selectedSeats = [];
+    this.selectedTripStatus = null;
+    this.selectedRouteId = null;
+    this.selectedSessionId = null;
+    this.selectedDate = null;
   },
 
   generateBookingCode() {

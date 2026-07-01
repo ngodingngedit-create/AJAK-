@@ -21,7 +21,7 @@ const router = createRouter({
     { path: '/confirmation', name: 'confirmation', component: ConfirmationView },
     { path: '/login', name: 'login', component: LoginView },
     { path: '/dashboard', name: 'dashboard', component: () => import('../views/DashboardView.vue') },
-    { path: '/invoice/:invoice_no', name: 'invoice', component: () => import('../views/InvoiceView.vue') },
+    { path: '/shuttle-invoice/:invoice_no', name: 'invoice', component: () => import('../views/InvoiceView.vue') },
     { path: '/profile', name: 'profile', component: ProfileView },
     { path: '/profile/payments', name: 'profile-payments', component: ComingSoonView },
     { path: '/profile/notifications', name: 'profile-notif', component: ComingSoonView },

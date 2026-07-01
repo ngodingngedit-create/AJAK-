@@ -28,8 +28,21 @@ const filterJenisTiket = ref('Semua');
 const searchQuery = ref('');
 
 const getSesi = (b) => {
+  if (b.tickets?.[0]?.shuttle_session?.name) {
+    return b.tickets[0].shuttle_session.name;
+  }
+  if (b.tickets?.[0]?.shuttle_session?.departure_time) {
+    return b.tickets[0].shuttle_session.departure_time;
+  }
   if (b.trip && b.trip.name) return b.trip.name;
   if (b.trip && b.trip.departure_time) return b.trip.departure_time;
+  return '-';
+};
+
+const getTripStatus = (b) => {
+  if (b.tickets?.[0]?.trip_status?.name) {
+    return b.tickets[0].trip_status.name;
+  }
   return '-';
 };
 
@@ -129,6 +142,14 @@ const totalRevenue = computed(() => {
 });
 
 const getPemesanName = (booking) => {
+  // New API structure: pemesan as direct object
+  if (booking.pemesan?.passenger_name) {
+    return booking.pemesan.passenger_name;
+  }
+  if (booking.pemesan?.name) {
+    return booking.pemesan.name;
+  }
+  // Legacy: find from passengers array
   if (booking.passengers && booking.passengers.length > 0) {
     const pemesan = booking.passengers.find(p => p.is_pemesan);
     return pemesan ? pemesan.passenger_name : booking.passengers[0].passenger_name;
@@ -292,6 +313,7 @@ const closeModal = () => {
                 <th>Shuttle</th>
                 <th>Deskripsi</th>
                 <th>Sesi</th>
+                <th>Trip</th>
                 <th>Jenis Tiket</th>
                 <th>Seat</th>
                 <th>Qty</th>
@@ -302,10 +324,10 @@ const closeModal = () => {
             </thead>
             <tbody>
               <tr v-if="isLoading">
-                <td colspan="9" class="empty-state">Loading data...</td>
+                <td colspan="14" class="empty-state">Loading data...</td>
               </tr>
               <tr v-else-if="filteredBookings.length === 0">
-                <td colspan="9" class="empty-state">
+                <td colspan="14" class="empty-state">
                   Belum ada data pemesanan untuk filter ini.
                 </td>
               </tr>
@@ -316,6 +338,7 @@ const closeModal = () => {
                 <td class="event-name" style="white-space: nowrap;">{{ b.shuttle?.name || '-' }}</td>
                 <td style="white-space: nowrap;">{{ b.shuttle?.description || '-' }}</td>
                 <td style="white-space: nowrap;">{{ getSesi(b) }}</td>
+                <td style="white-space: nowrap;">{{ getTripStatus(b) }}</td>
                 <td style="white-space: nowrap;">{{ getJenisTiket(b) }}</td>
                 <td style="white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" :title="getSeats(b)">{{ getSeats(b) }}</td>
                 <td>{{ b.total_qty }}</td>
@@ -384,7 +407,11 @@ const closeModal = () => {
                 <div v-for="t in selectedInvoice.tickets" :key="t.id" class="ticket-item">
                   <div class="t-main">
                     <strong>{{ t.ticket?.name || 'Tiket Shuttle' }}</strong>
-                    <span class="t-seat">Kursi: {{ t.order_seat_number }}</span>
+                    <span class="t-seat">
+                      Kursi: {{ t.order_seat_number }}
+                      <span v-if="t.shuttle_session"> | Sesi: {{ t.shuttle_session.name }}</span>
+                      <span v-if="t.trip_status"> | Trip: {{ t.trip_status.name }}</span>
+                    </span>
                   </div>
                   <div class="t-price">
                     {{ formatRp(t.subtotal_price) }}
