@@ -8,6 +8,8 @@ import BookingView from '../views/BookingView.vue'
 import ConfirmationView from '../views/ConfirmationView.vue'
 import TransactionView from '../views/TransactionView.vue'
 
+import HelpView from '../views/HelpView.vue'
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
@@ -25,7 +27,8 @@ const router = createRouter({
     { path: '/profile/notifications', name: 'profile-notif', component: ComingSoonView },
     { path: '/profile/security', name: 'profile-security', component: ComingSoonView },
     { path: '/profile/settings', name: 'profile-settings', component: ComingSoonView },
-    { path: '/profile/help', name: 'profile-help', component: ComingSoonView },
+    { path: '/profile/help', redirect: '/help' },
+    { path: '/help', name: 'help', component: HelpView },
     { path: '/portfolio', name: 'portfolio', component: () => import('../views/PortfolioView.vue') },
   ],
   scrollBehavior() {
