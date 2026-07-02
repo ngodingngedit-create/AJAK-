@@ -94,7 +94,7 @@ const getFacilityIcon = (facility) => {
 const formatBusType = (type) => {
   if (type === 'BIG_BUS') return 'Big Bus';
   if (type === 'MEDIUM_BUS') return 'Medium Bus';
-  if (type === 'MINIBUS') return 'Minibus / Hiace';
+  if (type === 'MINIBUS') return 'Minibus';
   return type;
 };
 
@@ -273,8 +273,6 @@ const tagColors = {
           </div>
           <div class="event-card-body">
             <div class="event-bus-header-row">
-              <span class="bus-badge-type">{{ formatBusType(event.bus_type) }}</span>
-              <span class="bus-badge-plate">{{ event.plate_number }}</span>
             </div>
             <h3 class="event-name">{{ event.name }}</h3>
             <div class="event-meta">

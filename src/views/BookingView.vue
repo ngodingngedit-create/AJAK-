@@ -1820,25 +1820,6 @@ const confirmBooking = () => {
                                 </div>
                               </div>
                               
-                              <!-- Horizontal line separator -->
-                              <div class="accordion-section-divider"></div>
-                              
-                              <!-- Fasilitas Shuttle Section -->
-                              <div class="ticket-facilities-section">
-                                <span class="detail-col-label">Fasilitas Shuttle</span>
-                                <div class="facilities-simple-list">
-                                  <div 
-                                    v-for="fac in event?.facilities || []" 
-                                    :key="fac" 
-                                    class="facility-simple-item"
-                                  >
-                                    <component :is="getFacilityIcon(fac)" :size="16" class="facility-icon-red" />
-                                    <span class="facility-text">{{ fac }}</span>
-                                  </div>
-                                </div>
-                              </div>
-                              <!-- End: Fasilitas Shuttle Section -->
-
                               <!-- Pilih Jenis Trip Dropdown -->
                               <div class="accordion-section-divider"></div>
                               <div class="trip-status-section">
@@ -1859,6 +1840,23 @@ const confirmBooking = () => {
                                   </select>
                                 </div>
                               </div>
+
+                              <!-- Fasilitas Shuttle Section -->
+                              <div class="accordion-section-divider"></div>
+                              <div class="ticket-facilities-section">
+                                <span class="detail-col-label">Fasilitas Shuttle</span>
+                                <div class="facilities-simple-list">
+                                  <div 
+                                    v-for="fac in event?.facilities || []" 
+                                    :key="fac" 
+                                    class="facility-simple-item"
+                                  >
+                                    <component :is="getFacilityIcon(fac)" :size="16" class="facility-icon-red" />
+                                    <span class="facility-text">{{ fac }}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <!-- End: Fasilitas Shuttle Section -->
                             </div>
                           </transition>
 

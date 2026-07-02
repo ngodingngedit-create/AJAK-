@@ -8,9 +8,9 @@ const router = useRouter();
 
 // Hero Images Loop
 const heroImages = [
-  { src: '/busbiru.png', alt: 'Bus Biru' },
-  { src: '/busputih.png', alt: 'Bus Putih' },
-  { src: '/hiace.jpg', alt: 'Hiace' }
+  { src: '/bus_parkir.png', alt: 'Bus Parkir' },
+  { src: '/bus_parkir2.png', alt: 'Bus Parkir 2' },
+  { src: '/bus_parkir3.png', alt: 'Bus Parkir 3' }
 ];
 const currentHeroIndex = ref(0);
 let heroInterval;
@@ -477,8 +477,6 @@ const tagColors = {
             </div>
             <div class="event-card-body">
               <div class="event-bus-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-                <span class="bus-badge-type" style="font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: rgba(201, 76, 76, 0.1); color: var(--primary); padding: 4px 10px; border-radius: 6px; border: 1px solid rgba(201, 76, 76, 0.2);">{{ event.bus_type === 'BIG_BUS' ? 'Big Bus' : (event.bus_type === 'MEDIUM_BUS' ? 'Medium Bus' : 'Minibus / Hiace') }}</span>
-                <span class="bus-badge-plate" style="font-family: 'Courier New', Courier, monospace; font-size: 0.72rem; font-weight: 700; color: var(--text-dark); background: var(--input-bg); padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border-color); letter-spacing: 0.5px;">{{ event.plate_number }}</span>
               </div>
               <h3 class="event-name">{{ event.name }}</h3>
               <!-- <p class="event-desc">{{ event.desc }}</p> -->

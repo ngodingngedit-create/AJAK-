@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Users, Ticket, DollarSign, Filter, Search, Download, Eye, X } from 'lucide-vue-next';
+import { Users, Ticket, DollarSign, Filter, Search, Download, Eye, X, Clock, Tag } from 'lucide-vue-next';
 
 const router = useRouter();
 const bookings = ref([]);
@@ -28,14 +28,27 @@ const filterJenisTiket = ref('Semua');
 const searchQuery = ref('');
 
 const getSesi = (b) => {
-  if (b.tickets?.[0]?.shuttle_session?.name) {
-    return b.tickets[0].shuttle_session.name;
-  }
+  // Helper: extract HH:mm from departure_time
+  const getTime = (timeStr) => {
+    if (!timeStr) return null;
+    if (typeof timeStr === 'string') {
+      if (timeStr.includes('T')) {
+        const tPart = timeStr.split('T')[1];
+        return tPart.slice(0, 5);
+      }
+      return timeStr.slice(0, 5);
+    }
+    return null;
+  };
+
   if (b.tickets?.[0]?.shuttle_session?.departure_time) {
-    return b.tickets[0].shuttle_session.departure_time;
+    const time = getTime(b.tickets[0].shuttle_session.departure_time);
+    if (time) return time;
   }
-  if (b.trip && b.trip.name) return b.trip.name;
-  if (b.trip && b.trip.departure_time) return b.trip.departure_time;
+  if (b.trip && b.trip.departure_time) {
+    const time = getTime(b.trip.departure_time);
+    if (time) return time;
+  }
   return '-';
 };
 
@@ -141,6 +154,39 @@ const totalRevenue = computed(() => {
   }, 0);
 });
 
+// Statistik per sesi
+const perSesiStats = computed(() => {
+  const stats = {};
+  filteredBookings.value.forEach(b => {
+    if (b.payment_status !== 'PAID' && b.payment_status !== 'SUCCESS') return;
+    const sesi = getSesi(b);
+    if (sesi === '-') return;
+    if (!stats[sesi]) stats[sesi] = { qty: 0, revenue: 0 };
+    stats[sesi].qty += Number(b.total_qty) || 0;
+    stats[sesi].revenue += Number(b.total_price) || 0;
+  });
+  // Sort by time (HH:mm)
+  const sorted = Object.entries(stats).sort(([a], [b]) => a.localeCompare(b));
+  return Object.fromEntries(sorted);
+});
+
+// Statistik per jenis tiket
+const perJenisTiketStats = computed(() => {
+  const stats = {};
+  filteredBookings.value.forEach(b => {
+    if (b.payment_status !== 'PAID' && b.payment_status !== 'SUCCESS') return;
+    if (b.tickets && b.tickets.length > 0) {
+      b.tickets.forEach(t => {
+        const tName = t.ticket?.name || 'Tiket';
+        if (!stats[tName]) stats[tName] = { qty: 0, revenue: 0 };
+        stats[tName].qty += 1;
+        stats[tName].revenue += Number(t.subtotal_price) || 0;
+      });
+    }
+  });
+  return stats;
+});
+
 const getPemesanName = (booking) => {
   // New API structure: pemesan as direct object
   if (booking.pemesan?.passenger_name) {
@@ -240,7 +286,7 @@ const closeModal = () => {
         </div>
       </div>
 
-      <!-- Metrics -->
+      <!-- Metrics + Statistik per Sesi & per Jenis Tiket -->
       <div class="metrics-grid">
         <div class="metric-card">
           <div class="metric-icon"><Ticket :size="24" /></div>
@@ -257,10 +303,26 @@ const closeModal = () => {
           </div>
         </div>
         <div class="metric-card">
-          <div class="metric-icon green"><DollarSign :size="24" /></div>
+          <div class="metric-icon green"><span style="font-weight: 900; font-size: 1.1rem;">Rp</span></div>
           <div class="metric-info">
             <div class="metric-label">Total Pendapatan</div>
             <div class="metric-value">{{ formatRp(totalRevenue) }}</div>
+          </div>
+        </div>
+        <div v-for="(stat, sesi) in perSesiStats" :key="'sesi-' + sesi" class="metric-card">
+          <div class="metric-icon"><Clock :size="24" /></div>
+          <div class="metric-info">
+            <div class="metric-label">{{ sesi }} WIB</div>
+            <div class="metric-value">{{ stat.qty }} tiket</div>
+            <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-light);">{{ formatRp(stat.revenue) }}</div>
+          </div>
+        </div>
+        <div v-for="(stat, jenis) in perJenisTiketStats" :key="'jenis-' + jenis" class="metric-card">
+          <div class="metric-icon"><Tag :size="24" /></div>
+          <div class="metric-info">
+            <div class="metric-label">{{ jenis }}</div>
+            <div class="metric-value">{{ stat.qty }} tiket</div>
+            <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-light);">{{ formatRp(stat.revenue) }}</div>
           </div>
         </div>
       </div>
@@ -475,42 +537,45 @@ const closeModal = () => {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 24px;
-  margin-bottom: 32px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
 }
+
+/* Stats section — reused .metric-card, .metrics-grid from above */
 .metric-card {
   background: var(--card-bg);
   border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 24px;
+  border-radius: 12px;
+  padding: 14px 16px;
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
   box-shadow: var(--shadow-sm);
 }
 .metric-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 14px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   background: rgba(201, 76, 76, 0.1);
   color: var(--primary);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 .metric-icon.blue { background: rgba(21, 101, 192, 0.1); color: #1565C0; }
 .metric-icon.green { background: rgba(46, 125, 50, 0.1); color: #2E7D32; }
 
 .metric-label {
-  font-size: 0.85rem;
+  font-size: 0.7rem;
   font-weight: 700;
   color: var(--text-light);
   text-transform: uppercase;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 .metric-value {
-  font-size: 1.8rem;
+  font-size: 1.1rem;
   font-weight: 900;
   color: var(--text-dark);
 }
