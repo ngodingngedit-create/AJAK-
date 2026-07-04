@@ -105,8 +105,6 @@ const searchQuery = ref('');
 const selectedCity = ref('Semua');
 const selectedGenre = ref('Semua');
 const showFilters = ref(false);
-const sortBy = ref('date');
-
 const filteredEvents = computed(() => {
   let result = [...shuttleBuses.value];
   if (searchQuery.value) {
@@ -121,9 +119,6 @@ const filteredEvents = computed(() => {
   }
   if (selectedCity.value !== 'Semua') result = result.filter(e => e.city === selectedCity.value);
   if (selectedGenre.value !== 'Semua') result = result.filter(e => e.tag === selectedGenre.value);
-  if (sortBy.value === 'date') result.sort((a, b) => a.date.localeCompare(b.date));
-  if (sortBy.value === 'price-asc') result.sort((a, b) => a.priceNum - b.priceNum);
-  if (sortBy.value === 'price-desc') result.sort((a, b) => b.priceNum - a.priceNum);
   return result;
 });
 
@@ -186,11 +181,6 @@ const tagColors = {
             <span v-if="activeFiltersCount > 0" class="filter-badge">{{ activeFiltersCount }}</span>
           </button>
 
-          <select v-model="sortBy" class="sort-select">
-            <option value="date">Tanggal Terdekat</option>
-            <option value="price-asc">Harga: Terendah</option>
-            <option value="price-desc">Harga: Tertinggi</option>
-          </select>
         </div>
 
         <!-- Expanded Filters -->

@@ -416,27 +416,76 @@ const parsedSeatmap = computed(() => {
 
   if (seatLabels.length === 0) return shapes;
 
-  // Build grid: COLS_PER_ROW seats per row, stack rows downward
-  const COLS_PER_ROW = 5;
-  const SEAT_W = 36;
-  const SEAT_H = 36;
-  const GAP = 4;
-  const GRID_START_X = -80;
-  const GRID_START_Y = 0;
+  // Try to get seat config (type: 'seat') from parsed seatmap JSON
+  const seatConfig = config.find(item => item.type === 'seat');
 
-  seatLabels.forEach((label, idx) => {
-    const col = idx % COLS_PER_ROW;
-    const row = Math.floor(idx / COLS_PER_ROW);
-    shapes.push({
-      id: label,
-      type: 'seat',
-      x: GRID_START_X + col * (SEAT_W + GAP),
-      y: GRID_START_Y + row * (SEAT_H + GAP),
-      width: SEAT_W,
-      height: SEAT_H,
-      label
+  if (seatConfig) {
+    // Use seat config with left/right column split (cls_left + gap)
+    const totalCol = seatConfig.col ?? 5;
+    const colsLeft = seatConfig.cols_left ?? Math.floor(totalCol / 2);
+    const gapAisle = seatConfig.gap ?? 20;
+    const areaX = seatConfig.position?.[0] ?? -80;
+    const areaY = seatConfig.position?.[1] ?? 0;
+    const seatW = 36;
+    const seatH = 36;
+    const gapX = 4;
+
+    seatLabels.forEach((label, idx) => {
+      const col = idx % totalCol;
+      const row = Math.floor(idx / totalCol);
+      
+      let x;
+      if (col < colsLeft) {
+        // Left side group
+        x = areaX + col * (seatW + gapX);
+      } else {
+        // Right side group (after the aisle gap)
+        x = areaX + colsLeft * (seatW + gapX) + gapAisle + (col - colsLeft) * (seatW + gapX);
+      }
+      const y = areaY + row * (seatH + gapX);
+
+      shapes.push({
+        id: label,
+        type: 'seat',
+        x,
+        y,
+        width: seatW,
+        height: seatH,
+        label
+      });
     });
-  });
+  } else {
+    // Fallback: 5 columns split 2-3 with aisle gap when no seat config
+    const totalCol = 5;
+    const colsLeft = 2;
+    const gapAisle = 20;
+    const SEAT_W = 36;
+    const SEAT_H = 36;
+    const GAP = 4;
+    const GRID_START_X = -80;
+    const GRID_START_Y = 0;
+
+    seatLabels.forEach((label, idx) => {
+      const col = idx % totalCol;
+      const row = Math.floor(idx / totalCol);
+      let x;
+      if (col < colsLeft) {
+        x = GRID_START_X + col * (SEAT_W + GAP);
+      } else {
+        x = GRID_START_X + colsLeft * (SEAT_W + GAP) + gapAisle + (col - colsLeft) * (SEAT_W + GAP);
+      }
+      const y = GRID_START_Y + row * (SEAT_H + GAP);
+      shapes.push({
+        id: label,
+        type: 'seat',
+        x,
+        y,
+        width: SEAT_W,
+        height: SEAT_H,
+        label
+      });
+    });
+  }
 
 
   // Pre-calculate full Konva configs to prevent massive Vue re-renders on every zoom/drag event

@@ -431,6 +431,7 @@ const executeCheckout = async () => {
       shuttle_ticket_id: ticket.value?.id || "",
       shuttle_session_id: parseInt(bookingStore.selectedSessionId) || 0,
       trip_status_id: bookingStore.selectedTripStatus?.id || 1,
+      type_id: 1, // 1 = pergi, 2 = pulang
       order_seat_number: seat,
       qty_ticket: 1,
       price: ticket.value.price || 0,
