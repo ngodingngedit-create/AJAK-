@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Users, Ticket, DollarSign, Filter, Search, Download, Eye, X, Clock, Tag } from 'lucide-vue-next';
+import { Users, Ticket, DollarSign, Filter, Search, Download, Eye, X, Tag } from 'lucide-vue-next';
 
 const router = useRouter();
 const bookings = ref([]);
@@ -154,37 +154,29 @@ const totalRevenue = computed(() => {
   }, 0);
 });
 
-// Statistik per sesi
-const perSesiStats = computed(() => {
+
+const perSesiDanJenisStats = computed(() => {
   const stats = {};
   filteredBookings.value.forEach(b => {
     if (b.payment_status !== 'PAID' && b.payment_status !== 'SUCCESS') return;
     const sesi = getSesi(b);
     if (sesi === '-') return;
-    if (!stats[sesi]) stats[sesi] = { qty: 0, revenue: 0 };
-    stats[sesi].qty += Number(b.total_qty) || 0;
-    stats[sesi].revenue += Number(b.total_price) || 0;
-  });
-  // Sort by time (HH:mm)
-  const sorted = Object.entries(stats).sort(([a], [b]) => a.localeCompare(b));
-  return Object.fromEntries(sorted);
-});
-
-// Statistik per jenis tiket
-const perJenisTiketStats = computed(() => {
-  const stats = {};
-  filteredBookings.value.forEach(b => {
-    if (b.payment_status !== 'PAID' && b.payment_status !== 'SUCCESS') return;
     if (b.tickets && b.tickets.length > 0) {
       b.tickets.forEach(t => {
         const tName = t.ticket?.name || 'Tiket';
-        if (!stats[tName]) stats[tName] = { qty: 0, revenue: 0 };
-        stats[tName].qty += 1;
-        stats[tName].revenue += Number(t.subtotal_price) || 0;
+        const key = `${tName} - ${sesi}`;
+        if (!stats[key]) stats[key] = { qty: 0, revenue: 0, jenisTiket: tName, sesi };
+        stats[key].qty += 1;
+        stats[key].revenue += Number(t.subtotal_price) || 0;
       });
     }
   });
-  return stats;
+  // Sort by session time first, then ticket type
+  const sorted = Object.entries(stats).sort(([, a], [, b]) => {
+    if (a.sesi !== b.sesi) return a.sesi.localeCompare(b.sesi);
+    return a.jenisTiket.localeCompare(b.jenisTiket);
+  });
+  return Object.fromEntries(sorted);
 });
 
 const getPemesanName = (booking) => {
@@ -309,18 +301,10 @@ const closeModal = () => {
             <div class="metric-value">{{ formatRp(totalRevenue) }}</div>
           </div>
         </div>
-        <div v-for="(stat, sesi) in perSesiStats" :key="'sesi-' + sesi" class="metric-card">
-          <div class="metric-icon"><Clock :size="24" /></div>
-          <div class="metric-info">
-            <div class="metric-label">{{ sesi }} WIB</div>
-            <div class="metric-value">{{ stat.qty }} tiket</div>
-            <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-light);">{{ formatRp(stat.revenue) }}</div>
-          </div>
-        </div>
-        <div v-for="(stat, jenis) in perJenisTiketStats" :key="'jenis-' + jenis" class="metric-card">
+        <div v-for="(stat, key) in perSesiDanJenisStats" :key="key" class="metric-card">
           <div class="metric-icon"><Tag :size="24" /></div>
           <div class="metric-info">
-            <div class="metric-label">{{ jenis }}</div>
+            <div class="metric-label">{{ stat.jenisTiket }} — {{ stat.sesi }} WIB</div>
             <div class="metric-value">{{ stat.qty }} tiket</div>
             <div style="font-size: 0.78rem; font-weight: 600; color: var(--text-light);">{{ formatRp(stat.revenue) }}</div>
           </div>
