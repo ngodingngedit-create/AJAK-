@@ -14,6 +14,7 @@ const activeTab = ref('tiket'); // 'deskripsi', 'tiket', 'terms'
 const selectedTicket = ref(null);
 const expandedTicketId = ref(null);
 const currentStep = ref(1); // 1 = Select seat, 2 = Buyer details form
+const ppStep = ref(1); // 1 = Pergi, 2 = Pulang (only for PP / trip_status_id === 3)
 const isEditMode = ref(false);
 const isFilterWrapperExpanded = ref(true);
 const isTicketsWrapperExpanded = ref(true);
@@ -210,6 +211,16 @@ const totalSelectedTicketsPrice = computed(() => {
 const mergedSelectedSeats = computed(() => {
   return Object.values(selectedSeatsMap.value).flat();
 });
+
+const isPP = computed(() => selectedTripStatus.value?.id === 3);
+
+const ppPergiSelectedCount = computed(() => {
+  return selectedSeats.value.filter(s => s.endsWith('_1')).length;
+});
+const ppPulangSelectedCount = computed(() => {
+  return selectedSeats.value.filter(s => s.endsWith('_2')).length;
+});
+
 const buyer = ref({
   name: '',
   email: '',
@@ -444,15 +455,43 @@ const parsedSeatmap = computed(() => {
       }
       const y = areaY + row * (seatH + gapX);
 
-      shapes.push({
-        id: label,
-        type: 'seat',
-        x,
-        y,
-        width: seatW,
-        height: seatH,
-        label
-      });
+      const isPP = selectedTripStatus.value?.id === 3;
+      if (isPP) {
+        // Show only seats for current ppStep (1=Pergi, 2=Pulang)
+        if (ppStep.value === 1) {
+          shapes.push({
+            id: `${label}_1`,
+            type: 'seat',
+            x,
+            y,
+            width: seatW,
+            height: seatH,
+            label,
+            typeId: 1
+          });
+        } else {
+          shapes.push({
+            id: `${label}_2`,
+            type: 'seat',
+            x: x + 6,
+            y: y + 6,
+            width: seatW,
+            height: seatH,
+            label,
+            typeId: 2
+          });
+        }
+      } else {
+        shapes.push({
+          id: label,
+          type: 'seat',
+          x,
+          y,
+          width: seatW,
+          height: seatH,
+          label
+        });
+      }
     });
   } else {
     // Fallback: 5 columns split 2-3 with aisle gap when no seat config
@@ -475,15 +514,43 @@ const parsedSeatmap = computed(() => {
         x = GRID_START_X + colsLeft * (SEAT_W + GAP) + gapAisle + (col - colsLeft) * (SEAT_W + GAP);
       }
       const y = GRID_START_Y + row * (SEAT_H + GAP);
-      shapes.push({
-        id: label,
-        type: 'seat',
-        x,
-        y,
-        width: SEAT_W,
-        height: SEAT_H,
-        label
-      });
+      const isPP = selectedTripStatus.value?.id === 3;
+      if (isPP) {
+        // Show only seats for current ppStep (1=Pergi, 2=Pulang)
+        if (ppStep.value === 1) {
+          shapes.push({
+            id: `${label}_1`,
+            type: 'seat',
+            x,
+            y,
+            width: SEAT_W,
+            height: SEAT_H,
+            label,
+            typeId: 1
+          });
+        } else {
+          shapes.push({
+            id: `${label}_2`,
+            type: 'seat',
+            x: x + 6,
+            y: y + 6,
+            width: SEAT_W,
+            height: SEAT_H,
+            label,
+            typeId: 2
+          });
+        }
+      } else {
+        shapes.push({
+          id: label,
+          type: 'seat',
+          x,
+          y,
+          width: SEAT_W,
+          height: SEAT_H,
+          label
+        });
+      }
     });
   }
 
@@ -517,6 +584,35 @@ const parsedSeatmap = computed(() => {
       const available = isSeatAvailable(shape.id);
       const selected = selectedSeats.value.includes(shape.id);
       
+      // Determine colors based on typeId (1=Pergi=blue, 2=Pulang=orange)
+      let seatFill, seatStroke;
+      if (!available) {
+        seatFill = '#e2e8f0';
+        seatStroke = '#cbd5e1';
+      } else if (selected) {
+        if (shape.typeId === 2) {
+          seatFill = '#f97316';
+          seatStroke = '#ea580c';
+        } else if (shape.typeId === 1) {
+          seatFill = '#3b82f6';
+          seatStroke = '#2563eb';
+        } else {
+          seatFill = '#ef4444';
+          seatStroke = '#ef4444';
+        }
+      } else {
+        if (shape.typeId === 2) {
+          seatFill = '#fff7ed';
+          seatStroke = '#fdba74';
+        } else if (shape.typeId === 1) {
+          seatFill = '#eff6ff';
+          seatStroke = '#93c5fd';
+        } else {
+          seatFill = '#fff';
+          seatStroke = '#94a3b8';
+        }
+      }
+      
       return {
         ...shape,
         available,
@@ -526,9 +622,9 @@ const parsedSeatmap = computed(() => {
           height: shape.height - 4,
           x: 2,
           y: 2,
-          fill: !available ? '#e2e8f0' : (selected ? '#ef4444' : '#fff'),
+          fill: seatFill,
           cornerRadius: 8,
-          stroke: !available ? '#cbd5e1' : (selected ? '#ef4444' : '#94a3b8'),
+          stroke: seatStroke,
           strokeWidth: 2
         },
         textConfig: {
@@ -928,6 +1024,17 @@ const maxTickets = computed(() => {
   return event.value?.max_buy_ticket || 5;
 });
 
+const formatSeatLabel = (seatId) => {
+  if (!seatId) return '';
+  const match = seatId.match(/^(.*?)_(1|2)$/);
+  if (match) {
+    const base = match[1];
+    const typeId = parseInt(match[2], 10);
+    return `${base} (${typeId === 1 ? 'Pergi' : 'Pulang'})`;
+  }
+  return seatId;
+};
+
 const isSeatAvailable = (seatId) => {
   if (!selectedTicket.value) return false;
   const avail = (selectedTicket.value.available_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
@@ -938,7 +1045,9 @@ const isSeatAvailable = (seatId) => {
   const reserved = (selectedTicket.value.reserved_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
   
   const id = seatId.toUpperCase();
-  return avail.includes(id) && !taken.includes(id) && !pending.includes(id) && !reserved.includes(id);
+  // Strip _1 or _2 suffix used for PP type differentiation
+  const baseId = id.replace(/_(1|2)$/, '');
+  return avail.includes(baseId) && !taken.includes(baseId) && !pending.includes(baseId) && !reserved.includes(baseId);
 };
 
 const hasAvailableSeats = (t) => {
@@ -1009,6 +1118,7 @@ const selectTicketCategory = (t) => {
   selectedTicket.value = t;
   errors.value.seats = '';
   isEditMode.value = false;
+  ppStep.value = 1;
   
   if (t.ticket_type_id === 0) {
     goToBuyerDetails();
@@ -1063,6 +1173,7 @@ const clearSelectedTicket = () => {
     }
   }
   errors.value.seats = '';
+  ppStep.value = 1;
 };
 
 const clearSelectedSeats = () => {
@@ -1116,8 +1227,30 @@ const scrollToTickets = () => {
   }
 };
 
+const goToPpStep2 = () => {
+  if (ppPergiSelectedCount.value === 0) {
+    errors.value.seats = 'Pilih minimal 1 kursi Pergi terlebih dahulu';
+    return;
+  }
+  errors.value.seats = '';
+  ppStep.value = 2;
+};
+
+const goToPpStep1 = () => {
+  ppStep.value = 1;
+};
+
 const goToBuyerDetails = () => {
   validateSeats();
+  // For PP, ensure both Pergi and Pulang seats are selected
+  if (isPP.value) {
+    const hasPergi = selectedSeats.value.some(s => s.endsWith('_1'));
+    const hasPulang = selectedSeats.value.some(s => s.endsWith('_2'));
+    if (!hasPergi || !hasPulang) {
+      errors.value.seats = 'Pilih kursi Pergi dan Pulang terlebih dahulu';
+      return;
+    }
+  }
   if (!errors.value.seats) {
     // Populate bookingStore with event, ticket, seats, and quantity
     bookingStore.selectedEvent = event.value;
@@ -1683,13 +1816,37 @@ const confirmBooking = () => {
                               <div class="seatmap-canvas-header">
                                 <div class="seatmap-canvas-title-group">
                                   <span class="seatmap-canvas-badge" :style="{ backgroundColor: t.seat_color || 'var(--primary)' }">
-                                    {{ t.ticket_category }}
+                                    {{ selectedTripStatus?.name || t.trip_status?.name || 'Pergi' }}
                                   </span>
                                   <h3 class="seatmap-canvas-ticket-name">{{ t.name }}</h3>
                                 </div>
                                 <button type="button" class="btn-back-to-tickets" @click="clearSelectedTicket">
                                   Kembali
                                 </button>
+                              </div>
+
+                              <!-- PP Step Indicator (only for PP trips) -->
+                              <div v-if="isPP" class="pp-step-indicator">
+                                <div class="pp-step-item" :class="{ active: ppStep === 1, completed: ppStep === 2 }" @click="goToPpStep1">
+                                  <div class="pp-step-circle">
+                                    <span v-if="ppStep === 2" class="pp-checkmark">✓</span>
+                                    <span v-else>1</span>
+                                  </div>
+                                  <div class="pp-step-text">
+                                    <span class="pp-step-title">Pilih Kursi Pergi</span>
+                                    <span v-if="ppPergiSelectedCount > 0" class="pp-step-count">{{ ppPergiSelectedCount }} kursi</span>
+                                  </div>
+                                </div>
+                                <div class="pp-step-connector" :class="{ active: ppStep === 2 }"></div>
+                                <div class="pp-step-item" :class="{ active: ppStep === 2 }">
+                                  <div class="pp-step-circle">
+                                    <span>2</span>
+                                  </div>
+                                  <div class="pp-step-text">
+                                    <span class="pp-step-title">Pilih Kursi Pulang</span>
+                                    <span v-if="ppPulangSelectedCount > 0" class="pp-step-count">{{ ppPulangSelectedCount }} kursi</span>
+                                  </div>
+                                </div>
                               </div>
 
                               <div class="seatmap-canvas-body">
@@ -1797,16 +1954,40 @@ const confirmBooking = () => {
                                   </div>
                                 </div>
 
-                                <!-- Mobile Confirm Bar inside the seatmap selection screen -->
-                                <!-- <div class="mobile-canvas-confirm-bar">
-                                  <div class="m-confirm-bar-left">
-                                    <span class="m-confirm-label">Total Harga</span>
-                                    <span class="m-confirm-value">{{ selectedSeats.length > 0 ? formatRp(t.price * selectedSeats.length) : 'Rp 0' }}</span>
+                                <!-- PP Step Navigation Bar -->
+                                <div v-if="isPP" class="pp-step-nav-bar">
+                                  <div class="pp-nav-info">
+                                    <span class="pp-nav-label" v-if="ppStep === 1">
+                                      <strong>Step 1:</strong> Pilih kursi Pergi
+                                    </span>
+                                    <span class="pp-nav-label" v-else>
+                                      <strong>Step 2:</strong> Pilih kursi Pulang
+                                    </span>
+                                    <span class="pp-nav-seat-count">
+                                      {{ ppStep === 1 ? ppPergiSelectedCount : ppPulangSelectedCount }} kursi dipilih
+                                    </span>
                                   </div>
-                                  <button type="button" class="btn-confirm-seats-mobile" :disabled="selectedSeats.length === 0" @click="clearSelectedTicket">
-                                    Lanjut
-                                  </button>
-                                </div> -->
+                                  <div class="pp-nav-actions">
+                                    <button 
+                                      v-if="ppStep === 2" 
+                                      type="button" 
+                                      class="pp-nav-btn pp-nav-back" 
+                                      @click="goToPpStep1"
+                                    >
+                                      ← Kembali
+                                    </button>
+                                    <button 
+                                      v-if="ppStep === 1"
+                                      type="button" 
+                                      class="pp-nav-btn pp-nav-next" 
+                                      :disabled="ppPergiSelectedCount === 0"
+                                      @click="goToPpStep2"
+                                    >
+                                      Lanjut ke Pulang →
+                                    </button>
+                                    <span v-else-if="ppStep === 2 && errors.seats" class="pp-nav-error">{{ errors.seats }}</span>
+                                  </div>
+                                </div>
                               </div>
                             </div><!-- end sheet-inner-card -->
                           </div>
@@ -2025,7 +2206,7 @@ const confirmBooking = () => {
                           </div>
                           
                           <div class="summary-ticket-seats-row">
-                            Seat: {{ item.seats.join(', ') }}
+                            Seat: {{ item.seats.map(s => formatSeatLabel(s)).join(', ') }}
                           </div>
                           
                           <div class="summary-ticket-price-row">
@@ -2072,7 +2253,7 @@ const confirmBooking = () => {
                         </div>
                         <div class="summary-detail-row">
                           <span class="sd-label">Kursi</span>
-                          <span class="sd-value seats-highlight">{{ item.seats.join(', ') }}</span>
+                          <span class="sd-value seats-highlight">{{ item.seats.map(s => formatSeatLabel(s)).join(', ') }}</span>
                         </div>
                         <div class="summary-detail-row">
                           <span class="sd-label">Jumlah</span>
@@ -2200,9 +2381,11 @@ const confirmBooking = () => {
           <button 
             v-else-if="currentStep === 1"
             class="bottom-bar-buy-btn animate-pulse-once"
-            @click="goToBuyerDetails"
+            :disabled="isPP && ppStep === 1 && ppPergiSelectedCount === 0"
+            @click="isPP && ppStep === 1 ? goToPpStep2() : goToBuyerDetails()"
           >
-            Selanjutnya
+            <template v-if="isPP && ppStep === 1">Lanjut ke Pulang</template>
+            <template v-else>Selanjutnya</template>
           </button>
           
           <!-- State 3: Buyer details step 2 -->
@@ -2250,9 +2433,11 @@ const confirmBooking = () => {
           <button 
             v-else-if="currentStep === 1"
             class="m-buy-btn"
-            @click="goToBuyerDetails"
+            :disabled="isPP && ppStep === 1 && ppPergiSelectedCount === 0"
+            @click="isPP && ppStep === 1 ? goToPpStep2() : goToBuyerDetails()"
           >
-            Beli Tiket Sekarang
+            <template v-if="isPP && ppStep === 1">Lanjut ke Pulang</template>
+            <template v-else>Beli Tiket Sekarang</template>
           </button>
           
           <button 
@@ -2371,7 +2556,7 @@ const confirmBooking = () => {
                   </div>
                   
                   <div class="summary-ticket-seats-row">
-                    Seat No: {{ item.seats.join(', ') }}
+                    Seat No: {{ item.seats.map(s => formatSeatLabel(s)).join(', ') }}
                   </div>
                   
                   <div class="summary-ticket-price-row">
@@ -4204,6 +4389,150 @@ const confirmBooking = () => {
 .btn-back-to-tickets:hover {
   background: var(--primary);
   color: #ffffff;
+}
+
+/* PP Step Indicator */
+.pp-step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+.pp-step-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  flex: 1;
+}
+.pp-step-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #94a3b8;
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+.pp-step-item.active .pp-step-circle {
+  background: var(--primary, #2563eb);
+  color: #fff;
+}
+.pp-step-item.completed .pp-step-circle {
+  background: #10b981;
+  color: #fff;
+}
+.pp-step-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pp-step-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #94a3b8;
+  transition: color 0.3s ease;
+}
+.pp-step-item.active .pp-step-title,
+.pp-step-item.completed .pp-step-title {
+  color: #0f172a;
+}
+.pp-step-count {
+  font-size: 0.7rem;
+  color: var(--primary, #2563eb);
+  font-weight: 500;
+}
+.pp-step-connector {
+  width: 24px;
+  height: 2px;
+  background: #e2e8f0;
+  flex-shrink: 0;
+  transition: background 0.3s ease;
+}
+.pp-step-connector.active {
+  background: #10b981;
+}
+.pp-checkmark {
+  font-size: 0.75rem;
+}
+/* PP Step Navigation Bar */
+.pp-step-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  gap: 12px;
+}
+.pp-nav-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pp-nav-label {
+  font-size: 0.85rem;
+  color: #334155;
+}
+.pp-nav-seat-count {
+  font-size: 0.75rem;
+  color: var(--primary, #2563eb);
+  font-weight: 600;
+}
+.pp-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pp-nav-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.pp-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.pp-nav-next {
+  background: var(--primary, #2563eb);
+  color: #fff;
+}
+.pp-nav-next:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+.pp-nav-back {
+  background: #f1f5f9;
+  color: #475569;
+}
+.pp-nav-back:hover {
+  background: #e2e8f0;
+}
+.pp-nav-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+  font-weight: 500;
+}
+/* Mobile PP Nav */
+.mobile-pp-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  gap: 8px;
 }
 
 .seatmap-canvas-body {

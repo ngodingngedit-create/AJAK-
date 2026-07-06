@@ -42,7 +42,7 @@ onMounted(async () => {
           <!-- Image Section -->
           <div style="flex: 1; min-width: 300px;">
             <img 
-              :src="bus.bus_type === 'BIG_BUS' ? '/busbiru.png' : (bus.bus_type === 'MEDIUM_BUS' ? '/busputih.png' : '/hiace.jpg')" 
+              src="/bus_parkir.png"
               :alt="bus.bus_name"
               style="width: 100%; height: 100%; border-radius: 12px; object-fit: cover;"
             />

@@ -31,8 +31,14 @@ const router = createRouter({
     { path: '/help', name: 'help', component: HelpView },
     { path: '/portfolio', name: 'portfolio', component: () => import('../views/PortfolioView.vue') },
   ],
-  scrollBehavior() {
-    return { top: 0 }
+  scrollBehavior(to, from, savedPosition) {
+    if (to.hash) {
+      return { el: to.hash, behavior: 'smooth' };
+    }
+    if (savedPosition) {
+      return savedPosition;
+    }
+    return { top: 0 };
   }
 })
 

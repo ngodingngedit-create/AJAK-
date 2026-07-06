@@ -11,9 +11,7 @@ import {
   ArrowLeft, 
   Ticket, 
   Info,
-  Calendar,
-  MapPin,
-  Navigation
+  Calendar
 } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
 
@@ -24,6 +22,22 @@ const event = computed(() => bookingStore.selectedEvent);
 const ticket = computed(() => bookingStore.selectedTicket);
 const selectedSeats = computed(() => bookingStore.selectedSeats);
 const quantity = computed(() => bookingStore.adults || 1);
+
+// Trip type label from user's selection (Pergi, Pulang, Pulang Pergi)
+const tripTypeName = computed(() => {
+  return bookingStore.selectedTripStatus?.name || ticket.value?.trip_status?.name || 'Pergi';
+});
+
+const formatSeatLabel = (seatId) => {
+  if (!seatId) return '';
+  const match = seatId.match(/^(.*?)_(1|2)$/);
+  if (match) {
+    const base = match[1];
+    const typeId = parseInt(match[2], 10);
+    return `${base} (${typeId === 1 ? 'Pergi' : 'Pulang'})`;
+  }
+  return seatId;
+};
 
 // Fetch extra detail
 const shuttleDetail = ref(null);
@@ -49,7 +63,6 @@ onMounted(async () => {
     }
   }
 
-  fetchPickupLocations();
   startTimer();
 });
 
@@ -85,7 +98,6 @@ onUnmounted(() => {
 
 // Accordion states
 const isRegistrantOpen = ref(true);
-const isRouteOpen = ref(true);
 const isVoucherOpen = ref(true);
 const openTicketIndex = ref(0); // Index of the ticket accordion currently open
 const isMobileSummaryOpen = ref(false);
@@ -96,103 +108,6 @@ const registrant = ref({
   email: '',
   phonePrefix: '+62',
   phoneNumber: ''
-});
-
-// Route Selection Data
-const customPickupInput = ref('');
-const isEksklusif = computed(() => {
-  if (!event.value) return false;
-  return event.value.tag === 'Shuttle Eksklusif' || event.value.tag === 'VIP Pribadi';
-});
-
-const pickupLocations = ref([]);
-
-const fetchPickupLocations = () => {
-  if (!ticket.value) {
-    pickupLocations.value = [];
-    return;
-  }
-  
-  // Use the selected ticket's route directly
-  const mapped = [];
-
-  if (ticket.value.route_id) {
-    // Try to find route from ticket.route if available
-    if (ticket.value.route) {
-      const r = ticket.value.route;
-      const regionName = r.origin_name ? 
-        (r.origin_name.charAt(0).toUpperCase() + r.origin_name.slice(1)) : 'Rute';
-      mapped.push({
-        id: r.id,
-        region: regionName,
-        name: r.route_name,
-        address: `${r.origin_name || ''} - ${r.destination_name || ''}`,
-        lat: null,
-        lng: null,
-        price: ''
-      });
-    } else if (shuttleDetail.value?.operation_days) {
-      // Fallback: find the matching route from shuttleDetail
-      shuttleDetail.value.operation_days.forEach(op => {
-        if (op.sessions) {
-          op.sessions.forEach(ses => {
-            if (ses.tickets) {
-              ses.tickets.forEach(t => {
-                if (t.route && t.route.id === ticket.value.route_id) {
-                  const regionName = t.route.origin_name ? 
-                    (t.route.origin_name.charAt(0).toUpperCase() + t.route.origin_name.slice(1)) : 'Rute';
-                  mapped.push({
-                    id: t.route.id,
-                    region: regionName,
-                    name: t.route.route_name,
-                    address: `${t.route.origin_name || ''} - ${t.route.destination_name || ''}`,
-                    lat: null,
-                    lng: null,
-                    price: ''
-                  });
-                }
-              });
-            }
-          });
-        }
-      });
-    }
-  }
-  
-  pickupLocations.value = mapped;
-  
-  // Auto-select the route
-  if (mapped.length > 0) {
-    bookingStore.selectedPickup = mapped[0];
-  }
-};
-
-const groupedLocations = computed(() => {
-  const groups = {};
-  pickupLocations.value.forEach(loc => {
-    if (!groups[loc.region]) groups[loc.region] = [];
-    groups[loc.region].push(loc);
-  });
-  return groups;
-});
-
-const selectPickup = (loc) => {
-  if (bookingStore.selectedPickup?.name === loc.name) {
-    bookingStore.selectedPickup = null;
-  } else {
-    bookingStore.selectedPickup = loc;
-    customPickupInput.value = ''; // clear custom
-  }
-  validateRoute();
-};
-
-watch(customPickupInput, (val) => {
-  if (val.trim()) {
-    bookingStore.selectedPickup = { name: 'Custom', address: val };
-  } else if (bookingStore.selectedPickup?.name === 'Custom') {
-    bookingStore.selectedPickup = null;
-  }
-  validateRoute();
 });
 
 // Ticket Owners
@@ -279,7 +194,6 @@ watch(
 // Errors validation
 const errors = ref({
   registrant: { fullName: '', email: '', phoneNumber: '' },
-  pickup: '',
   owners: Array.from({ length: quantity.value }, () => ({
     fullName: '',
     email: '',
@@ -290,15 +204,6 @@ const errors = ref({
     birthDate: ''
   }))
 });
-
-const validateRoute = () => {
-  if (!bookingStore.selectedPickup) {
-    errors.value.pickup = 'Titik jemput wajib dipilih';
-    return false;
-  }
-  errors.value.pickup = '';
-  return true;
-};
 
 // Form Validation Helpers
 const getNameError = (name) => {
@@ -427,19 +332,25 @@ const executeCheckout = async () => {
     admin_fee: adminFee.value,
     ppn: 0,
     payment_status: "PENDING",
-    tickets: selectedSeats.value.map(seat => ({
-      shuttle_ticket_id: ticket.value?.id || "",
-      shuttle_session_id: parseInt(bookingStore.selectedSessionId) || 0,
-      trip_status_id: bookingStore.selectedTripStatus?.id || 1,
-      type_id: 1, // 1 = pergi, 2 = pulang
-      order_seat_number: seat,
-      qty_ticket: 1,
-      price: ticket.value.price || 0,
-      ticket_fee: adminFee.value / quantity.value,
-      is_promo: totalDiscount.value > 0 ? 1 : 0,
-      promo_price: totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0,
-      subtotal_price: (ticket.value.price || 0) + (adminFee.value / quantity.value) - (totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0)
-    })),
+    tickets: selectedSeats.value.map(seat => {
+      // Parse type_id from seat ID suffix (_1 = Pergi, _2 = Pulang)
+      const seatMatch = seat.match(/^(.*?)_(1|2)$/);
+      const typeId = seatMatch ? parseInt(seatMatch[2], 10) : 1;
+      const baseSeat = seatMatch ? seatMatch[1] : seat;
+      return {
+        shuttle_ticket_id: ticket.value?.id || "",
+        shuttle_session_id: parseInt(bookingStore.selectedSessionId) || 0,
+        trip_status_id: bookingStore.selectedTripStatus?.id || 1,
+        type_id: typeId, // 1 = pergi, 2 = pulang
+        order_seat_number: baseSeat,
+        qty_ticket: 1,
+        price: ticket.value.price || 0,
+        ticket_fee: adminFee.value / quantity.value,
+        is_promo: totalDiscount.value > 0 ? 1 : 0,
+        promo_price: totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0,
+        subtotal_price: (ticket.value.price || 0) + (adminFee.value / quantity.value) - (totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0)
+      };
+    }),
     passengers: [
       {
         is_pemesan: 1,
@@ -497,15 +408,12 @@ const executeCheckout = async () => {
 // Form submission (proceed to confirmation)
 const handleNext = () => {
   const isRegValid = validateRegistrant();
-  const isRouteValid = validateRoute();
   const isOwnValid = validateOwners();
 
-  if (!isRegValid || !isRouteValid || !isOwnValid) {
+  if (!isRegValid || !isOwnValid) {
     // Open the accordion of first error
     if (!isRegValid) {
       isRegistrantOpen.value = true;
-    } else if (!isRouteValid) {
-      isRouteOpen.value = true;
     } else {
       const errorIdx = errors.value.owners.findIndex(o => Object.values(o).some(e => e !== ''));
       if (errorIdx !== -1) {
@@ -646,7 +554,7 @@ const isLongText = (str, limit = 20) => {
                 </div>
                 <div>
                   <h3 class="ticket-owner-title">
-                    {{ idx + 1 }}. Pemilik Tiket {{ ticket.ticket_category }} {{ selectedSeats[idx] ? `(Seat ${selectedSeats[idx]})` : '' }}
+                    {{ idx + 1 }}. Pemilik Tiket {{ tripTypeName }} {{ selectedSeats[idx] ? `(Seat ${formatSeatLabel(selectedSeats[idx])})` : '' }}
                   </h3>
                   <span class="ticket-owner-subtitle">1 Tiket x {{ formatRp(ticket.price) }}</span>
                 </div>
@@ -785,89 +693,6 @@ const isLongText = (str, limit = 20) => {
             </div>
           </div>
 
-          <!-- 2. RUTE PERJALANAN CARD (ACCORDION) -->
-          <div class="form-card-wrapper route-card">
-            <div 
-              class="form-card-header" 
-              @click="isRouteOpen = !isRouteOpen"
-              :class="{ 'header-expanded': isRouteOpen }"
-            >
-              <div>
-                <h2 class="form-header-title">Rute Perjalanan</h2>
-                <span class="route-header-subtitle">Tentukan lokasi perjalanan Anda</span>
-              </div>
-              <button type="button" class="btn-toggle-accordion">
-                <ChevronUp v-if="isRouteOpen" :size="20" />
-                <ChevronDown v-else :size="20" />
-              </button>
-            </div>
-
-            <div class="form-card-body" v-show="isRouteOpen">
-              <!-- PICKUP -->
-              <h3 class="sub-sect-title">Titik Jemput</h3>
-              <span class="departure-time-info-alert">
-                Jam Keberangkatan Shuttle: {{ event?.departureTime || '12:00 WIB' }}
-              </span>
-              
-              <div v-if="isEksklusif" class="custom-input-box mb-3">
-                <input 
-                  type="text" 
-                  v-model="customPickupInput" 
-                  placeholder="Ketik alamat jemput spesifik atau pilih dari daftar di bawah..." 
-                  class="form-text-input full-width-field" 
-                />
-              </div>
-  
-              <div class="locations-list mb-4">
-                <div v-for="(locs, region) in groupedLocations" :key="'p'+region" class="loc-group">
-                  <div class="loc-region-label">{{ region }}</div>
-                  <div 
-                    v-for="loc in locs" 
-                    :key="'p'+loc.name" 
-                    class="loc-item" 
-                    :class="{ selected: bookingStore.selectedPickup?.name === loc.name }" 
-                    @click="selectPickup(loc)"
-                  >
-                    <div class="loc-icon">
-                      <MapPin :size="16" />
-                    </div>
-                    <div class="loc-text">
-                      <div class="loc-name">{{ loc.name }}</div>
-                      <div class="loc-address">{{ loc.address }}</div>
-                      <div class="loc-price">{{ loc.price }}</div>
-                    </div>
-                    <div class="loc-check" v-if="bookingStore.selectedPickup?.name === loc.name">
-                      <Check :size="12" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <span class="form-error-msg" v-if="errors.pickup" style="margin-top: -10px; margin-bottom: 15px; display: block;">
-                {{ errors.pickup }}
-              </span>
-
-              <div class="route-divider-solid"></div>
-  
-              <!-- RETURN (FIXED TO VENUE) -->
-              <h3 class="sub-sect-title">Titik Pulang (Tujuan Akhir)</h3>
-              <span class="departure-time-info-alert">
-                Jam Kepulangan Shuttle: {{ event?.returnTime || '01:00 WIB' }}
-              </span>
-              <div class="loc-item selected fixed-return-item">
-                <div class="loc-icon return-icon">
-                  <Navigation :size="16" />
-                </div>
-                <div class="loc-text">
-                  <div class="loc-name">{{ event?.location }}</div>
-                  <div class="loc-address">Lokasi Tempat Diselenggarakannya Acara</div>
-                </div>
-                <div class="loc-check return-check">
-                  <Check :size="12" />
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- ================== RIGHT COLUMN: EVENT + VOUCHER + SUMMARY ================== -->
@@ -962,36 +787,15 @@ const isLongText = (str, limit = 20) => {
                 </div>
               </div>
 
-              <!-- Titik Jemput -->
-              <div class="summary-route-section" v-if="bookingStore.selectedPickup">
-                <div class="summary-route-label">TITIK JEMPUT</div>
-                <div class="summary-route-value" v-if="!isLongText(bookingStore.selectedPickup.name, 25)">
-                  {{ bookingStore.selectedPickup.name }}
+              <!-- Trip Status / Jenis Trip -->
+              <div class="summary-route-section">
+                <div class="summary-route-label">JENIS TRIP</div>
+                <div class="summary-route-value">
+                  {{ tripTypeName }}
                 </div>
-                <div class="marquee-container" v-else>
-                  <div class="marquee-inner-scroll">
-                    <span class="summary-route-value">{{ bookingStore.selectedPickup.name }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                    <span class="summary-route-value">{{ bookingStore.selectedPickup.name }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                  </div>
-                </div>
-                <div class="summary-route-sub">{{ bookingStore.selectedPickup.address }}</div>
               </div>
 
-              <!-- Titik Pulang / Tujuan Akhir -->
-              <div class="summary-route-section">
-                <div class="summary-route-label">TITIK PULANG (TUJUAN AKHIR)</div>
-                <div class="summary-route-value" v-if="!isLongText(event?.location, 25)">
-                  {{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }}
-                </div>
-                <div class="marquee-container" v-else>
-                  <div class="marquee-inner-scroll">
-                    <span class="summary-route-value">{{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                    <span class="summary-route-value">{{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                  </div>
-                </div>
-                <div class="summary-route-sub" v-if="shuttleDetail?.description">{{ shuttleDetail.description }}</div>
-                <div class="summary-route-sub" v-else>Lokasi Tujuan Shuttle</div>
-              </div>
+
 
               <!-- Pemesan -->
               <div class="summary-route-section">
@@ -1008,7 +812,7 @@ const isLongText = (str, limit = 20) => {
               <!-- Nomor Kursi -->
               <div class="summary-route-section">
                 <div class="summary-route-label">NOMOR KURSI</div>
-                <div class="summary-route-value">{{ selectedSeats && selectedSeats.length > 0 ? selectedSeats.join(', ') : '-' }}</div>
+                <div class="summary-route-value">{{ selectedSeats && selectedSeats.length > 0 ? selectedSeats.map(s => formatSeatLabel(s)).join(', ') : '-' }}</div>
               </div>
 
               <div class="summary-divider-dashed" style="margin-top: 20px;"></div>
@@ -1126,36 +930,15 @@ const isLongText = (str, limit = 20) => {
               </div>
             </div>
 
-            <!-- Titik Jemput -->
-            <div class="summary-route-section" v-if="bookingStore.selectedPickup">
-              <div class="summary-route-label">TITIK JEMPUT</div>
-              <div class="summary-route-value" v-if="!isLongText(bookingStore.selectedPickup.name, 25)">
-                {{ bookingStore.selectedPickup.name }}
+            <!-- Trip Status / Jenis Trip -->
+            <div class="summary-route-section">
+              <div class="summary-route-label">JENIS TRIP</div>
+              <div class="summary-route-value">
+                {{ tripTypeName }}
               </div>
-              <div class="marquee-container" v-else>
-                <div class="marquee-inner-scroll">
-                  <span class="summary-route-value">{{ bookingStore.selectedPickup.name }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                  <span class="summary-route-value">{{ bookingStore.selectedPickup.name }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                </div>
-              </div>
-              <div class="summary-route-sub">{{ bookingStore.selectedPickup.address }}</div>
             </div>
 
-            <!-- Titik Pulang / Tujuan Akhir -->
-            <div class="summary-route-section">
-              <div class="summary-route-label">TITIK PULANG (TUJUAN AKHIR)</div>
-              <div class="summary-route-value" v-if="!isLongText(event?.location, 25)">
-                {{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }}
-              </div>
-              <div class="marquee-container" v-else>
-                <div class="marquee-inner-scroll">
-                  <span class="summary-route-value">{{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                  <span class="summary-route-value">{{ event?.location || (shuttleDetail ? shuttleDetail.name : '-') }} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                </div>
-              </div>
-              <div class="summary-route-sub" v-if="shuttleDetail?.description">{{ shuttleDetail.description }}</div>
-              <div class="summary-route-sub" v-else>Lokasi Tujuan Shuttle</div>
-            </div>
+
 
             <!-- Pemesan -->
             <div class="summary-route-section">
@@ -1172,7 +955,7 @@ const isLongText = (str, limit = 20) => {
             <!-- Nomor Kursi -->
             <div class="summary-route-section">
               <div class="summary-route-label">NOMOR KURSI</div>
-              <div class="summary-route-value">{{ selectedSeats && selectedSeats.length > 0 ? selectedSeats.join(', ') : '-' }}</div>
+              <div class="summary-route-value">{{ selectedSeats && selectedSeats.length > 0 ? selectedSeats.map(s => formatSeatLabel(s)).join(', ') : '-' }}</div>
             </div>
 
             <div class="summary-divider-dashed" style="margin-top: 20px;"></div>
@@ -1646,230 +1429,6 @@ const isLongText = (str, limit = 20) => {
 [data-theme="dark"] .use-registrant-toggle-row {
   background-color: #141c2f;
   border-color: rgba(255, 255, 255, 0.04);
-}
-
-/* ================== RUTE PERJALANAN CARD ================== */
-.sub-sect-title {
-  font-size: 0.95rem;
-  font-weight: 800;
-  color: #1e293b;
-  margin-top: 10px;
-  margin-bottom: 4px;
-}
-
-[data-theme="dark"] .sub-sect-title {
-  color: #f1f5f9;
-}
-
-.departure-time-info-alert {
-  font-size: 0.85rem;
-  color: var(--primary, #C94C4C);
-  font-weight: 700;
-  margin-bottom: 16px;
-  display: block;
-}
-
-.locations-list {
-  max-height: 280px;
-  overflow-y: auto;
-  padding-right: 8px;
-  margin-top: 12px;
-}
-
-/* Custom scrollbar for locations list */
-.locations-list::-webkit-scrollbar {
-  width: 6px;
-}
-.locations-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-.locations-list::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 3px;
-}
-[data-theme="dark"] .locations-list::-webkit-scrollbar-thumb {
-  background: #475569;
-}
-
-.loc-group {
-  margin-bottom: 16px;
-}
-
-.loc-region-label {
-  font-size: 0.65rem;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: var(--primary, #C94C4C);
-  padding: 0 4px;
-  margin-bottom: 8px;
-}
-
-.loc-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: 1.5px solid transparent;
-  margin-bottom: 8px;
-  background: #f8fafc;
-}
-
-[data-theme="dark"] .loc-item {
-  background: #0f172a;
-}
-
-.loc-item:hover {
-  background: rgba(201, 76, 76, 0.04);
-  border-color: rgba(201, 76, 76, 0.15);
-}
-
-.loc-item.selected {
-  background: rgba(201, 76, 76, 0.06);
-  border-color: var(--primary, #C94C4C);
-}
-
-[data-theme="dark"] .loc-item.selected {
-  background: rgba(201, 76, 76, 0.12);
-}
-
-.loc-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: rgba(201, 76, 76, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--primary, #C94C4C);
-  font-size: 1rem;
-  flex-shrink: 0;
-}
-
-[data-theme="dark"] .loc-icon {
-  background: rgba(201, 76, 76, 0.15);
-}
-
-.loc-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.loc-name {
-  font-size: 0.9rem;
-  font-weight: 800;
-  color: #1e293b;
-  margin-bottom: 2px;
-}
-
-[data-theme="dark"] .loc-name {
-  color: #f1f5f9;
-}
-
-.loc-address {
-  font-size: 0.75rem;
-  color: #64748b;
-  line-height: 1.4;
-}
-
-[data-theme="dark"] .loc-address {
-  color: #94a3b8;
-}
-
-.loc-price {
-  font-size: 0.72rem;
-  color: var(--primary, #C94C4C);
-  font-weight: 700;
-  margin-top: 4px;
-}
-
-.loc-check {
-  margin-left: auto;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: var(--primary, #C94C4C);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.route-divider-solid {
-  height: 1px;
-  background-color: rgba(226, 232, 240, 0.8);
-  margin: 20px 0;
-}
-
-[data-theme="dark"] .route-divider-solid {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-/* Return item styling */
-.fixed-return-item {
-  background-color: rgba(21, 101, 192, 0.04);
-  border-color: #1565C0;
-  cursor: default;
-}
-
-[data-theme="dark"] .fixed-return-item {
-  background-color: rgba(21, 101, 192, 0.12);
-  border-color: #42a5f5;
-}
-
-.return-icon {
-  background-color: rgba(21, 101, 192, 0.08);
-  color: #1565C0;
-}
-
-[data-theme="dark"] .return-icon {
-  background-color: rgba(21, 101, 192, 0.2);
-  color: #42a5f5;
-}
-
-.return-check {
-  background: #1565C0;
-}
-
-[data-theme="dark"] .return-check {
-  background: #42a5f5;
-}
-
-/* Route card header */
-.route-card-header {
-  padding: 24px 24px 16px;
-  background-color: #ffffff;
-  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-}
-
-[data-theme="dark"] .route-card-header {
-  background-color: #1e293b;
-  border-color: rgba(255, 255, 255, 0.05);
-}
-
-.route-header-title {
-  font-size: 1.15rem;
-  font-weight: 800;
-  color: #1e293b;
-  margin-bottom: 4px;
-}
-
-[data-theme="dark"] .route-header-title {
-  color: #f1f5f9;
-}
-
-.route-header-subtitle {
-  font-size: 0.85rem;
-  color: #64748b;
-  margin-bottom: 0;
-}
-
-[data-theme="dark"] .route-header-subtitle {
-  color: #94a3b8;
 }
 
 /* Custom styling for ticket owner accordion body under toggle row */
@@ -2414,10 +1973,6 @@ const isLongText = (str, limit = 20) => {
     padding: 14px 16px;
   }
 
-  .route-card-header {
-    padding: 18px 16px 12px;
-  }
-
   .form-card-body {
     padding: 16px;
   }
@@ -2427,32 +1982,6 @@ const isLongText = (str, limit = 20) => {
     padding: 8px 12px;
   }
 
-  .loc-item {
-    padding: 12px 14px;
-    gap: 10px;
-  }
-
-  .loc-icon {
-    width: 32px;
-    height: 32px;
-    font-size: 0.9rem;
-  }
-
-  .loc-name {
-    font-size: 0.85rem;
-  }
-
-  .loc-address {
-    font-size: 0.72rem;
-  }
-
-  .loc-price {
-    font-size: 0.7rem;
-  }
-
-  .route-divider-solid {
-    margin: 16px 0;
-  }
 }
 
 @media (max-width: 480px) {

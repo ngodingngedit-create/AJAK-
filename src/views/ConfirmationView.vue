@@ -18,6 +18,17 @@ const code = computed(() => bookingStore.bookingCode);
 const ticket = computed(() => bookingStore.selectedTicket);
 const customer = computed(() => bookingStore.customer);
 
+const formatSeatLabel = (seatId) => {
+  if (!seatId) return '';
+  const match = seatId.match(/^(.*?)_(1|2)$/);
+  if (match) {
+    const base = match[1];
+    const typeId = parseInt(match[2], 10);
+    return `${base} (${typeId === 1 ? 'Pergi' : 'Pulang'})`;
+  }
+  return seatId;
+};
+
 const formatRp = (num) => {
   if (!num) return 'Rp 0';
   return 'Rp ' + num.toLocaleString('id-ID');
@@ -181,7 +192,7 @@ const qrPattern = [1,2,3,4,5,7,11,13,15,17,19,21,22,23,24,25];
                       <span class="ed-icon">💺</span>
                       <div>
                         <div class="ed-label">Nomor Kursi</div>
-                        <div class="ed-value">{{ bookingStore.selectedSeats.join(', ') }}</div>
+                        <div class="ed-value">{{ bookingStore.selectedSeats.map(s => formatSeatLabel(s)).join(', ') }}</div>
                       </div>
                     </div>
                     <div class="eticket-detail-row">
@@ -253,7 +264,7 @@ const qrPattern = [1,2,3,4,5,7,11,13,15,17,19,21,22,23,24,25];
                   <div class="di-icon-wrap">💺</div>
                   <div>
                     <div class="di-label">Nomor Kursi</div>
-                    <div class="di-value">{{ bookingStore.selectedSeats.join(', ') }}</div>
+                    <div class="di-value">{{ bookingStore.selectedSeats.map(s => formatSeatLabel(s)).join(', ') }}</div>
                   </div>
                 </div>
                 <div class="di-item" v-if="ticket">

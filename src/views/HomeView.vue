@@ -540,9 +540,9 @@ const tagColors = {
         </div>
 
         <div class="tiers-grid">
-          <div v-for="bus in shuttleBuses" :key="bus.id" class="tier-card public">
+          <div v-for="(bus, busIdx) in shuttleBuses" :key="bus.id" class="tier-card public">
             <div class="tier-visual">
-              <img :src="bus.bus_type === 'BIG_BUS' ? '/busbiru.png' : (bus.bus_type === 'MEDIUM_BUS' ? '/busputih.png' : '/hiace.jpg')" :alt="bus.bus_name" />
+              <img :src="busIdx === 0 ? '/bus_parkir2.png' : (busIdx === 1 ? '/bus_parkir.png' : '/bus_parkir3.png')" :alt="bus.bus_name" />
               <div class="tier-badge">{{ bus.bus_code }}</div>
             </div>
             <div class="tier-info">
