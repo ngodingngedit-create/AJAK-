@@ -18,7 +18,7 @@ const code = computed(() => bookingStore.bookingCode);
 const ticket = computed(() => bookingStore.selectedTicket);
 const customer = computed(() => bookingStore.customer);
 
-const formatSeatLabel = (seatId) => {
+const formatseatLabel = (seatId) => {
   if (!seatId) return '';
   const match = seatId.match(/^(.*?)_(1|2)$/);
   if (match) {
@@ -188,11 +188,11 @@ const qrPattern = [1,2,3,4,5,7,11,13,15,17,19,21,22,23,24,25];
                         <div class="ed-value">{{ pickup?.name }}</div>
                       </div>
                     </div>
-                    <div class="eticket-detail-row" v-if="bookingStore.selectedSeats?.length > 0">
+                    <div class="eticket-detail-row" v-if="bookingStore.selectedseats?.length > 0">
                       <span class="ed-icon">💺</span>
                       <div>
-                        <div class="ed-label">Nomor Kursi</div>
-                        <div class="ed-value">{{ bookingStore.selectedSeats.map(s => formatSeatLabel(s)).join(', ') }}</div>
+                        <div class="ed-label">Nomor seat</div>
+                        <div class="ed-value">{{ bookingStore.selectedseats.map(s => formatseatLabel(s)).join(', ') }}</div>
                       </div>
                     </div>
                     <div class="eticket-detail-row">
@@ -260,11 +260,11 @@ const qrPattern = [1,2,3,4,5,7,11,13,15,17,19,21,22,23,24,25];
                     <div class="di-value">{{ bookingStore.adults }} Dewasa{{ bookingStore.toddlers > 0 ? ` + ${bookingStore.toddlers} Balita` : '' }}</div>
                   </div>
                 </div>
-                <div class="di-item" v-if="bookingStore.selectedSeats?.length > 0">
+                <div class="di-item" v-if="bookingStore.selectedseats?.length > 0">
                   <div class="di-icon-wrap">💺</div>
                   <div>
-                    <div class="di-label">Nomor Kursi</div>
-                    <div class="di-value">{{ bookingStore.selectedSeats.map(s => formatSeatLabel(s)).join(', ') }}</div>
+                    <div class="di-label">Nomor seat</div>
+                    <div class="di-value">{{ bookingStore.selectedseats.map(s => formatseatLabel(s)).join(', ') }}</div>
                   </div>
                 </div>
                 <div class="di-item" v-if="ticket">

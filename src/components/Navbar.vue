@@ -42,7 +42,7 @@ const navLinks = [
   { id: 'home',      label: 'Beranda', icon: Home,     isRoute: true,  to: '/' },
   { id: 'events',    label: 'Event',   icon: Calendar, isRoute: true,  to: '/events' },
   { id: 'services',  label: 'Layanan', icon: Layers,   isRoute: false },
-  { id: 'discovery', label: 'Pick Up', icon: MapPin,   isRoute: false },
+  { id: 'discovery', label: 'Penjemputan', icon: MapPin,   isRoute: false },
   { id: 'about',     label: 'About',   icon: Info,     isRoute: false },
 ];
 

@@ -12,7 +12,7 @@ const navItems = [
   { id: 'home',      label: 'Beranda', icon: Home,     route: '/' },
   { id: 'events',    label: 'Event',   icon: Calendar, route: '/events' },
   { id: 'services',  label: 'Layanan', icon: Layers,   route: null },
-  { id: 'discovery', label: 'Pick Up', icon: MapPin,   route: null },
+  { id: 'discovery', label: 'Penjemputan', icon: MapPin,   route: null },
 ];
 
 const isOnHome = computed(() => route.path === '/');

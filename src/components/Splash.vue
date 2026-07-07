@@ -41,7 +41,7 @@ onMounted(() => {
 
       <!-- Tagline -->
       <p class="tagline" :class="`phase-${phase}`">
-        Ride · Arrive · Experience
+        kendaraan · Arrive · Experience
       </p>
 
       <!-- Loading bar -->

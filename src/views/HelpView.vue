@@ -43,7 +43,7 @@ const menuData = ref([
         isOpen: true,
         children: [
           { id: 'sk-umum-daftar', label: 'Pendaftaran Akun & Keanggotaan' },
-          { id: 'sk-umum-tanggung', label: 'Batasan Tanggung Jawab Platform' }
+          { id: 'sk-umum-tanggung', label: 'Batasan Tanggung Jawab platform perjalanan untuk seluruh acara/event di indonesia, kami menyediakan solusi shuttle bus yang aman, nyaman dan terpercaya untuk mengantar anda ke event/acara impian' }
         ]
       },
       {
@@ -101,7 +101,7 @@ const menuData = ref([
         label: 'Panduan Pemesanan',
         isOpen: true,
         children: [
-          { id: 'beli-langkah-pilih', label: 'Langkah 1: Memilih Event dan Kursi Shuttle' },
+          { id: 'beli-langkah-pilih', label: 'Langkah 1: Memilih Event dan seat Shuttle' },
           { id: 'beli-langkah-bayar', label: 'Langkah 2: Proses Pembayaran Tiket' },
           { id: 'beli-langkah-tiket', label: 'Langkah 3: Pengambilan E-Tiket Resmi' }
         ]
@@ -131,7 +131,7 @@ const docsDatabase = {
     ]
   },
   'sk-umum-tanggung': {
-    title: 'Batasan Tanggung Jawab Platform',
+    title: 'Batasan Tanggung Jawab platform perjalanan untuk seluruh acara/event di indonesia, kami menyediakan solusi shuttle bus yang aman, nyaman dan terpercaya untuk mengantar anda ke event/acara impian',
     sections: [
       { id: 'keterlambatan-jalan', title: 'Kemacetan & Kondisi Jalan', content: 'AJAK! berupaya semaksimal mungkin untuk tiba di tujuan sesuai jadwal. Namun, kami tidak bertanggung jawab atas keterlambatan yang diakibatkan oleh bencana alam, kemacetan lalu lintas luar biasa, kecelakaan jalan raya, penutupan jalan oleh aparat penegak hukum, maupun force majeure lainnya.' },
       { id: 'barang-hilang', title: 'Keamanan Barang Bawaan', content: 'Penyelenggara tidak bertanggung jawab atas hilangnya barang berharga milik penumpang selama perjalanan berlangsung. Setiap penumpang dihimbau untuk menjaga barang bawaannya masing-masing di dalam kabin bus.' }
@@ -140,7 +140,7 @@ const docsDatabase = {
   'sk-batal-waktu': {
     title: 'Batas Waktu Pembatalan Perjalanan',
     sections: [
-      { id: 'batas-h-3', title: 'Pembatalan H-3 Keberangkatan', content: 'Pembatalan perjalanan shuttle bus yang diajukan selambat-lambatnya 3 hari (72 jam) sebelum jadwal keberangkatan akan mendapatkan pengembalian dana penuh setelah dikurangi biaya administrasi platform.' },
+      { id: 'batas-h-3', title: 'Pembatalan H-3 Keberangkatan', content: 'Pembatalan perjalanan shuttle bus yang diajukan selambat-lambatnya 3 hari (72 jam) sebelum jadwal keberangkatan akan mendapatkan pengembalian dana penuh setelah dikurangi biaya administrasi platform perjalanan untuk seluruh acara/event di indonesia, kami menyediakan solusi shuttle bus yang aman, nyaman dan terpercaya untuk mengantar anda ke event/acara impian.' },
       { id: 'pembatalan-terlambat', title: 'Pembatalan Kurang dari 72 Jam', content: 'Untuk pengajuan pembatalan yang dilakukan kurang dari 72 jam sebelum jam keberangkatan, tiket dinyatakan hangus dan tidak dapat dikembalikan atau dijadwalkan ulang (reschedule) dengan alasan apa pun.' }
     ]
   },
@@ -161,7 +161,7 @@ const docsDatabase = {
   'sk-refund-syarat': {
     title: 'Syarat & Ketentuan Refund Khusus',
     sections: [
-      { id: 'konser-batal', title: 'Pembatalan Konser oleh Promotor', content: 'Apabila pihak penyelenggara konser/festival membatalkan acaranya secara resmi, AJAK! akan mengembalikan 100% biaya tiket shuttle bus Anda tanpa potongan biaya administrasi platform.' },
+      { id: 'konser-batal', title: 'Pembatalan Konser oleh Promotor', content: 'Apabila pihak penyelenggara konser/festival membatalkan acaranya secara resmi, AJAK! akan mengembalikan 100% biaya tiket shuttle bus Anda tanpa potongan biaya administrasi platform perjalanan untuk seluruh acara/event di indonesia, kami menyediakan solusi shuttle bus yang aman, nyaman dan terpercaya untuk mengantar anda ke event/acara impian.' },
       { id: 'keadaan-kahar', title: 'Pembatalan Akibat Keadaan Darurat', content: 'Refund darurat di luar batas waktu reguler hanya dapat dipertimbangkan apabila terjadi keadaan duka keluarga inti atau kondisi medis darurat dengan melampirkan surat bukti resmi.' }
     ]
   },
@@ -178,7 +178,7 @@ const docsDatabase = {
     title: 'Metode Pengumpulan Data Informasi',
     sections: [
       { id: 'registrasi-langsung', title: 'Pengisian Formulir Mandiri', content: 'Sebagian besar data dikumpulkan langsung saat Anda mengisi formulir registrasi, memperbarui halaman profil, atau mengisi data penumpang pada formulir pemesanan tiket shuttle.' },
-      { id: 'cookie-analisis', title: 'Penggunaan Cookie Sistem', content: 'Kami menggunakan cookie sesi dan cookie pelacakan analisis untuk mengingat preferensi rute shuttle Anda, serta memahami interaksi navigasi Anda guna meningkatkan performa teknis platform.' }
+      { id: 'cookie-analisis', title: 'Penggunaan Cookie Sistem', content: 'Kami menggunakan cookie sesi dan cookie pelacakan analisis untuk mengingat preferensi rute shuttle Anda, serta memahami interaksi navigasi Anda guna meningkatkan performa teknis platform perjalanan untuk seluruh acara/event di indonesia, kami menyediakan solusi shuttle bus yang aman, nyaman dan terpercaya untuk mengantar anda ke event/acara impian.' }
     ]
   },
   'privasi-aman-lindungi': {
@@ -198,11 +198,11 @@ const docsDatabase = {
 
   // Category 3: Cara Beli
   'beli-langkah-pilih': {
-    title: 'Langkah 1: Memilih Event dan Kursi Shuttle',
+    title: 'Langkah 1: Memilih Event dan seat Shuttle',
     sections: [
       { id: 'pencarian-event', title: 'Cari Konser atau Festival', content: 'Buka menu "Event" untuk menjelajahi daftar konser musik aktif. Anda juga dapat mengetik nama artis atau kota tujuan pada kolom pencarian di halaman utama.' },
       { id: 'penentuan-titik', title: 'Pilih Shuttle Bus dan Titik Jemput', content: 'Klik tombol "Pesan Shuttle" pada event pilihan. Tentukan kota asal, lokasi titik jemput (pick-up point) terdekat, serta jam keberangkatan bus yang sesuai dengan jadwal luang Anda.' },
-      { id: 'pemilihan-kursi', title: 'Pilih Nomor Kursi Bus', content: 'Gunakan layout denah bus interaktif untuk memilih kursi shuttle yang tersedia. Kursi yang berwarna merah menunjukkan telah dipesan oleh orang lain, pilih kursi berwarna hijau untuk dipesan.' }
+      { id: 'pemilihan-seat', title: 'Pilih Nomor seat Bus', content: 'Gunakan layout denah bus interaktif untuk memilih seat shuttle yang tersedia. seat yang berwarna merah menunjukkan telah dipesan oleh orang lain, pilih seat berwarna hijau untuk dipesan.' }
     ]
   },
   'beli-langkah-bayar': {

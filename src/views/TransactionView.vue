@@ -20,7 +20,7 @@ const router = useRouter();
 // State
 const event = computed(() => bookingStore.selectedEvent);
 const ticket = computed(() => bookingStore.selectedTicket);
-const selectedSeats = computed(() => bookingStore.selectedSeats);
+const selectedseats = computed(() => bookingStore.selectedseats);
 const quantity = computed(() => bookingStore.adults || 1);
 
 // Trip type label from user's selection (Pergi, Pulang, Pulang Pergi)
@@ -28,7 +28,7 @@ const tripTypeName = computed(() => {
   return bookingStore.selectedTripStatus?.name || ticket.value?.trip_status?.name || 'Pergi';
 });
 
-const formatSeatLabel = (seatId) => {
+const formatseatLabel = (seatId) => {
   if (!seatId) return '';
   const match = seatId.match(/^(.*?)_(1|2)$/);
   if (match) {
@@ -332,17 +332,17 @@ const executeCheckout = async () => {
     admin_fee: adminFee.value,
     ppn: 0,
     payment_status: "PENDING",
-    tickets: selectedSeats.value.map(seat => {
+    tickets: selectedseats.value.map(seat => {
       // Parse type_id from seat ID suffix (_1 = Pergi, _2 = Pulang)
       const seatMatch = seat.match(/^(.*?)_(1|2)$/);
       const typeId = seatMatch ? parseInt(seatMatch[2], 10) : 1;
-      const baseSeat = seatMatch ? seatMatch[1] : seat;
+      const baseseat = seatMatch ? seatMatch[1] : seat;
       return {
         shuttle_ticket_id: ticket.value?.id || "",
         shuttle_session_id: parseInt(bookingStore.selectedSessionId) || 0,
         trip_status_id: bookingStore.selectedTripStatus?.id || 1,
         type_id: typeId, // 1 = pergi, 2 = pulang
-        order_seat_number: baseSeat,
+        order_seat_number: baseseat,
         qty_ticket: 1,
         price: ticket.value.price || 0,
         ticket_fee: adminFee.value / quantity.value,
@@ -554,7 +554,7 @@ const isLongText = (str, limit = 20) => {
                 </div>
                 <div>
                   <h3 class="ticket-owner-title">
-                    {{ idx + 1 }}. Pemilik Tiket {{ tripTypeName }} {{ selectedSeats[idx] ? `(Seat ${formatSeatLabel(selectedSeats[idx])})` : '' }}
+                    {{ idx + 1 }}. Pemilik Tiket {{ tripTypeName }} {{ selectedseats[idx] ? `(seat ${formatseatLabel(selectedseats[idx])})` : '' }}
                   </h3>
                   <span class="ticket-owner-subtitle">1 Tiket x {{ formatRp(ticket.price) }}</span>
                 </div>
@@ -809,10 +809,10 @@ const isLongText = (str, limit = 20) => {
                 <div class="summary-route-value">{{ quantity }} Dewasa</div>
               </div>
 
-              <!-- Nomor Kursi -->
+              <!-- Nomor seat -->
               <div class="summary-route-section">
-                <div class="summary-route-label">NOMOR KURSI</div>
-                <div class="summary-route-value">{{ selectedSeats && selectedSeats.length > 0 ? selectedSeats.map(s => formatSeatLabel(s)).join(', ') : '-' }}</div>
+                <div class="summary-route-label">NOMOR seat</div>
+                <div class="summary-route-value">{{ selectedseats && selectedseats.length > 0 ? selectedseats.map(s => formatseatLabel(s)).join(', ') : '-' }}</div>
               </div>
 
               <div class="summary-divider-dashed" style="margin-top: 20px;"></div>
@@ -952,10 +952,10 @@ const isLongText = (str, limit = 20) => {
               <div class="summary-route-value">{{ quantity }} Dewasa</div>
             </div>
 
-            <!-- Nomor Kursi -->
+            <!-- Nomor seat -->
             <div class="summary-route-section">
-              <div class="summary-route-label">NOMOR KURSI</div>
-              <div class="summary-route-value">{{ selectedSeats && selectedSeats.length > 0 ? selectedSeats.map(s => formatSeatLabel(s)).join(', ') : '-' }}</div>
+              <div class="summary-route-label">NOMOR seat</div>
+              <div class="summary-route-value">{{ selectedseats && selectedseats.length > 0 ? selectedseats.map(s => formatseatLabel(s)).join(', ') : '-' }}</div>
             </div>
 
             <div class="summary-divider-dashed" style="margin-top: 20px;"></div>
@@ -1068,7 +1068,7 @@ const isLongText = (str, limit = 20) => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap');
 
-/* Main layouts and vars overrides */
+/* Main layouts and vars overkendaraans */
 .transaction-page {
   min-height: 100vh;
   background-color: #f3f6fa;

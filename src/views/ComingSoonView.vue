@@ -7,7 +7,7 @@ const route = useRoute();
 const router = useRouter();
 
 const pageNames = {
-  '/profile/payments':      { label: 'Riwayat Pembayaran', emoji: '💳', desc: 'Lihat semua riwayat transaksi dan pembayaran ride kamu.' },
+  '/profile/payments':      { label: 'Riwayat Pembayaran', emoji: '💳', desc: 'Lihat semua riwayat transaksi dan pembayaran kendaraan kamu.' },
   '/profile/notifications': { label: 'Notifikasi',          emoji: '🔔', desc: 'Atur preferensi notifikasi dan pengingat dari AJAK!' },
   '/profile/security':      { label: 'Keamanan Akun',       emoji: '🔐', desc: 'Kelola password, 2FA, dan pengaturan privasi akun kamu.' },
   '/profile/settings':      { label: 'Pengaturan',          emoji: '⚙️', desc: 'Sesuaikan preferensi aplikasi sesuai keinginan kamu.' },

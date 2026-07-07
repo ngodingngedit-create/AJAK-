@@ -28,7 +28,7 @@ const stats = [
   { value: '4.9', label: 'Rating',    icon: Star },
 ];
 
-const recentRides = [
+const recentkendaraans = [
   { id: 1, event: 'Neon Lights Festival', from: 'Margo City, Depok', date: '15 Oct 2026', status: 'Selesai', amount: 'Rp 89.000' },
   { id: 2, event: 'Symphony in the Park', from: 'Grand Indonesia', date: '22 Oct 2026', status: 'Selesai', amount: 'Rp 65.000' },
   { id: 3, event: 'Midnight Rock', from: 'Botani Square, Bogor', date: '5 Nov 2026', status: 'Aktif', amount: 'Rp 110.000' },
@@ -94,31 +94,31 @@ const initials = computed(() => {
     <div class="container profile-body">
       <div class="profile-grid">
 
-        <!-- Left: Recent Rides -->
+        <!-- Left: Recent kendaraans -->
         <div class="profile-card">
           <div class="card-heading">
             <Clock size="18" />
             <h2>Perjalanan Terakhir</h2>
           </div>
 
-          <div class="ride-list">
-            <div v-for="ride in recentRides" :key="ride.id" class="ride-item">
-              <div class="ride-icon">
+          <div class="kendaraan-list">
+            <div v-for="kendaraan in recentkendaraans" :key="kendaraan.id" class="kendaraan-item">
+              <div class="kendaraan-icon">
                 <MapPin size="18" color="var(--primary)" />
               </div>
-              <div class="ride-detail">
-                <div class="ride-top">
-                  <span class="ride-event">{{ ride.event }}</span>
-                  <span class="ride-badge" :class="ride.status === 'Aktif' ? 'active' : 'done'">
-                    {{ ride.status }}
+              <div class="kendaraan-detail">
+                <div class="kendaraan-top">
+                  <span class="kendaraan-event">{{ kendaraan.event }}</span>
+                  <span class="kendaraan-badge" :class="kendaraan.status === 'Aktif' ? 'active' : 'done'">
+                    {{ kendaraan.status }}
                   </span>
                 </div>
-                <div class="ride-meta">
-                  <span>{{ ride.from }}</span>
+                <div class="kendaraan-meta">
+                  <span>{{ kendaraan.from }}</span>
                   <span class="dot-sep">·</span>
-                  <span>{{ ride.date }}</span>
+                  <span>{{ kendaraan.date }}</span>
                 </div>
-                <div class="ride-price">{{ ride.amount }}</div>
+                <div class="kendaraan-price">{{ kendaraan.amount }}</div>
               </div>
             </div>
           </div>
@@ -160,10 +160,10 @@ const initials = computed(() => {
       <div class="book-cta">
         <div class="cta-text">
           <h3>Siap untuk perjalanan berikutnya?</h3>
-          <p>Temukan event dan pesan ride kamu sekarang.</p>
+          <p>Temukan event dan pesan kendaraan kamu sekarang.</p>
         </div>
         <router-link to="/" class="cta-btn">
-          Cari Ride <ChevronRight size="18" />
+          Cari kendaraan <ChevronRight size="18" />
         </router-link>
       </div>
 
@@ -338,17 +338,17 @@ const initials = computed(() => {
   margin: 0;
 }
 
-/* Rides */
-.ride-list { display: flex; flex-direction: column; gap: 4px; }
-.ride-item {
+/* kendaraans */
+.kendaraan-list { display: flex; flex-direction: column; gap: 4px; }
+.kendaraan-item {
   display: flex;
   gap: 14px;
   padding: 14px;
   border-radius: 14px;
   transition: background 0.2s;
 }
-.ride-item:hover { background: rgba(201,76,76,0.03); }
-.ride-icon {
+.kendaraan-item:hover { background: rgba(201,76,76,0.03); }
+.kendaraan-icon {
   width: 38px;
   height: 38px;
   background: rgba(201,76,76,0.08);
@@ -358,38 +358,38 @@ const initials = computed(() => {
   justify-content: center;
   flex-shrink: 0;
 }
-.ride-detail { flex: 1; min-width: 0; }
-.ride-top {
+.kendaraan-detail { flex: 1; min-width: 0; }
+.kendaraan-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 4px;
   gap: 8px;
 }
-.ride-event {
+.kendaraan-event {
   font-weight: 700;
   font-size: 0.9rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.ride-badge {
+.kendaraan-badge {
   font-size: 0.65rem;
   font-weight: 800;
   padding: 3px 10px;
   border-radius: 20px;
   flex-shrink: 0;
 }
-.ride-badge.done { background: #f0f0f0; color: #888; }
-.ride-badge.active { background: rgba(201,76,76,0.1); color: var(--primary); }
-.ride-meta {
+.kendaraan-badge.done { background: #f0f0f0; color: #888; }
+.kendaraan-badge.active { background: rgba(201,76,76,0.1); color: var(--primary); }
+.kendaraan-meta {
   font-size: 0.78rem;
   color: var(--text-light);
   display: flex;
   gap: 6px;
 }
 .dot-sep { opacity: 0.4; }
-.ride-price { font-size: 0.82rem; font-weight: 800; color: var(--primary); margin-top: 4px; }
+.kendaraan-price { font-size: 0.82rem; font-weight: 800; color: var(--primary); margin-top: 4px; }
 
 .see-all-btn {
   display: flex;
@@ -500,10 +500,10 @@ const initials = computed(() => {
   .profile-body { padding-top: 24px; padding-left: 12px; padding-right: 12px; }
   .profile-card { padding: 20px 16px; }
   
-  .ride-item { padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.03); border-radius: 0; }
-  .ride-item:last-child { border-bottom: none; }
-  .ride-event { font-size: 0.85rem; }
-  .ride-meta { font-size: 0.72rem; flex-wrap: wrap; }
+  .kendaraan-item { padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.03); border-radius: 0; }
+  .kendaraan-item:last-child { border-bottom: none; }
+  .kendaraan-event { font-size: 0.85rem; }
+  .kendaraan-meta { font-size: 0.72rem; flex-wrap: wrap; }
   
   .book-cta { padding: 24px; flex-direction: column; text-align: center; gap: 20px; }
   .cta-text h3 { font-size: 1.2rem; }

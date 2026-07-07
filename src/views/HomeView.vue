@@ -1,19 +1,72 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ShieldCheck, Bus, Zap, Coffee, Sofa, MapPin, Navigation, Search, ArrowRight, Users, Baby, X, Calendar, Star, Clock, Tag } from 'lucide-vue-next';
+import { ShieldCheck, Bus, Zap, Coffee, Sofa, MapPin, Navigation, Search, ArrowRight, Users, Baby, X, Calendar, Star, Clock, Tag, ChevronLeft, ChevronRight } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
 
 const router = useRouter();
 
-// Hero Images Loop
+// Hero Images Loop (previous bus parkir images)
 const heroImages = [
-  { src: '/bus_parkir.png', alt: 'Bus Parkir' },
+  { src: '/bus_parkir.png', alt: 'Bus Parkir 1' },
   { src: '/bus_parkir2.png', alt: 'Bus Parkir 2' },
   { src: '/bus_parkir3.png', alt: 'Bus Parkir 3' }
 ];
-const currentHeroIndex = ref(0);
+const currentHeroIndex = ref(0); // Default to first image
 let heroInterval;
+
+const prevIndex = computed(() => {
+  return (currentHeroIndex.value - 1 + heroImages.length) % heroImages.length;
+});
+const nextIndex = computed(() => {
+  return (currentHeroIndex.value + 1) % heroImages.length;
+});
+
+const prevSlide = () => {
+  currentHeroIndex.value = prevIndex.value;
+  resetAutoplay();
+};
+
+const nextSlide = () => {
+  currentHeroIndex.value = nextIndex.value;
+  resetAutoplay();
+};
+
+const goToSlide = (index) => {
+  currentHeroIndex.value = index;
+  resetAutoplay();
+};
+
+const resetAutoplay = () => {
+  if (heroInterval) clearInterval(heroInterval);
+  heroInterval = setInterval(() => {
+    currentHeroIndex.value = nextIndex.value;
+  }, 6000);
+};
+
+// Touch swipe logic for mobile devices
+const touchStartX = ref(0);
+const touchEndX = ref(0);
+
+const handleTouchStart = (e) => {
+  touchStartX.value = e.touches[0].clientX;
+  touchEndX.value = e.touches[0].clientX;
+};
+
+const handleTouchMove = (e) => {
+  touchEndX.value = e.touches[0].clientX;
+};
+
+const handleTouchEnd = () => {
+  const diffX = touchStartX.value - touchEndX.value;
+  if (Math.abs(diffX) > 50) {
+    if (diffX > 0) {
+      nextSlide();
+    } else {
+      prevSlide();
+    }
+  }
+};
 
 const ekslusifImages = [
   '/Toyota-Innova-Reborn-1.jpg',
@@ -32,9 +85,7 @@ const mapUrl = computed(() => {
 });
 
 onMounted(() => {
-  heroInterval = setInterval(() => {
-    currentHeroIndex.value = (currentHeroIndex.value + 1) % heroImages.length;
-  }, 6000);
+  resetAutoplay();
 
   ekslusifInterval = setInterval(() => {
     currentEkslusifIndex.value = (currentEkslusifIndex.value + 1) % ekslusifImages.length;
@@ -119,6 +170,7 @@ const fetchUpcomingEvents = async () => {
           time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
           location: item.description || 'TBA',
           city: 'Jakarta',
+          organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
           price: 'Lihat Detail',
           priceNum: 0,
           tag: 'Shuttle Bersama',
@@ -242,15 +294,15 @@ const selectPickup = (loc) => {
 const handleSearch = () => {
   if (!bookingDestination.value) { alert('Please enter a destination.'); return; }
   if (!bookingOrigin.value) { alert('Please enter a pickup location.'); return; }
-  alert(`Searching ride for ${adultCount.value} adult(s) & ${toddlerCount.value} toddler(s) from ${bookingOrigin.value} to ${bookingDestination.value}`);
+  alert(`Searching kendaraan for ${adultCount.value} adult(s) & ${toddlerCount.value} toddler(s) from ${bookingOrigin.value} to ${bookingDestination.value}`);
 };
 
 // Reviews
 const reviews = [
-  { id: 1, name: 'Rizky Aditya', initials: 'RA', trip: 'Silaturahmi → City Arena', stars: 5, color: '#C94C4C', comment: 'Pelayanan luar biasa! Berangkat on time, kursinya nyaman banget, dan drivernya ramah. Gak perlu khawatir soal parkir event lagi. Worth every penny!', date: '16 Okt 2026', tag: 'Shuttle Bersama' },
+  { id: 1, name: 'Rizky Aditya', initials: 'RA', trip: 'Silaturahmi → City Arena', stars: 5, color: '#C94C4C', comment: 'Pelayanan luar biasa! Berangkat on time, seatnya nyaman banget, dan drivernya ramah. Gak perlu khawatir soal parkir event lagi. Worth every penny!', date: '16 Okt 2026', tag: 'Shuttle Bersama' },
   { id: 2, name: 'Salsabila Putri', initials: 'SP', trip: 'Silaturahmi → Grand Park', stars: 5, color: '#7C4DFF', comment: 'Pertama kali coba AJAK! dan langsung ketagihan. Mobilnya bersih, ada charger USB, dan rutenya pas banget dari dekat rumah. Akan pakai lagi pastinya!', date: '23 Okt 2026', tag: 'Shuttle Bersama' },
   { id: 3, name: 'Daffa Ramadhan', initials: 'DR', trip: 'Silaturahmi → Stadium One', stars: 5, color: '#00897B', comment: 'VIP experience yang sesungguhnya. Dijemput langsung di depan venue, privat tanpa ribet. Untuk artis dan tamu penting, AJAK! Black Label adalah pilihan terbaik.', date: '6 Nov 2026', tag: 'VIP Pribadi' },
-  { id: 4, name: 'Nadia Kusuma', initials: 'NK', trip: 'Silaturahmi → Downtown', stars: 4, color: '#F4511E', comment: 'Sangat membantu! Aplikasinya mudah, pick up point-nya jelas, dan harganya reasonable untuk kualitas yang didapat. Sedikit telat 5 menit, tapi overall bagus.', date: '13 Nov 2026', tag: 'Shuttle Bersama' },
+  { id: 4, name: 'Nadia Kusuma', initials: 'NK', trip: 'Silaturahmi → Downtown', stars: 4, color: '#F4511E', comment: 'Sangat membantu! Aplikasinya mudah, penjemputan point-nya jelas, dan harganya reasonable untuk kualitas yang didapat. Sedikit telat 5 menit, tapi overall bagus.', date: '13 Nov 2026', tag: 'Shuttle Bersama' },
   { id: 5, name: 'Kevin Pratama', initials: 'KP', trip: 'Silaturahmi → City Arena', stars: 5, color: '#1565C0', comment: 'Game changer untuk concert goers! Gak perlu mikirin parkir, macet, atau pulang kemalaman. AJAK! bikin experience konser jadi 10x lebih enjoyable.', date: '17 Okt 2026', tag: 'Shuttle Bersama' },
   { id: 6, name: 'Amelia Santoso', initials: 'AS', trip: 'Silaturahmi → Grand Park', stars: 5, color: '#6D4C41', comment: 'Recommended banget! Koordinasi grupnya mudah, seats comfy, dan systemnya terorganisir. Tim AJAK! juga responsif kalau ada pertanyaan.', date: '24 Okt 2026', tag: 'Shuttle Bersama' }
 ];
@@ -342,7 +394,7 @@ const tagColors = {
             </div>
 
             <button class="modal-book-btn" @click="bookEvent">
-              Pesan Ride Sekarang →
+              Pesan kendaraan Sekarang →
             </button>
           </div>
         </div>
@@ -351,88 +403,63 @@ const tagColors = {
 
     <!-- ===== HERO SECTION ===== -->
     <section class="hero-section">
-      <!-- Background slideshow -->
-      <div class="hero-bg">
-        <transition-group name="fade-slideshow" tag="div">
-          <div v-for="(img, index) in heroImages" :key="img.src" v-show="currentHeroIndex === index" class="slide-layer">
-            <img :src="img.src" :alt="img.alt" />
+
+      <!-- Main Slider Wrapper -->
+      <div 
+        class="slider-wrapper"
+        @touchstart="handleTouchStart"
+        @touchmove="handleTouchMove"
+        @touchend="handleTouchEnd"
+      >
+        <div class="slider-track">
+          <div 
+            v-for="(img, index) in heroImages" 
+            :key="img.src" 
+            class="slider-card"
+            :class="{ 
+              'active': index === currentHeroIndex, 
+              'prev': index === prevIndex, 
+              'next': index === nextIndex,
+              'hidden': index !== currentHeroIndex && index !== prevIndex && index !== nextIndex
+            }"
+            @click="goToSlide(index)"
+          >
+            <div class="card-inner">
+              <img :src="img.src" :alt="img.alt" />
+              
+              <!-- Navigation chevrons (visible only on active slide) -->
+              <button 
+                v-if="index === currentHeroIndex" 
+                class="nav-arrow arrow-left" 
+                @click.stop="prevSlide"
+                aria-label="Previous slide"
+              >
+                <ChevronLeft size="24" stroke-width="3" />
+              </button>
+              <button 
+                v-if="index === currentHeroIndex" 
+                class="nav-arrow arrow-right" 
+                @click.stop="nextSlide"
+                aria-label="Next slide"
+              >
+                <ChevronRight size="24" stroke-width="3" />
+              </button>
+            </div>
           </div>
-        </transition-group>
-        <!-- Layered overlays for depth -->
-        <div class="hero-overlay-bottom"></div>
-        <div class="hero-overlay-vignette"></div>
-        <!-- Floating decorative orbs -->
-        <div class="orb orb-1"></div>
-        <div class="orb orb-2"></div>
+        </div>
       </div>
 
-      <!-- Slide dots indicator -->
-      <div class="slide-dots">
+      <!-- Slide indicator dots -->
+      <div class="slider-indicators">
         <button
           v-for="(img, i) in heroImages"
           :key="i"
-          class="slide-dot"
+          class="indicator-dot"
           :class="{ active: currentHeroIndex === i }"
-          @click="currentHeroIndex = i"
+          @click="goToSlide(i)"
+          :aria-label="`Go to slide ${i + 1}`"
         ></button>
       </div>
-
-      <div class="hero-body">
-        <!-- Top eyebrow badge -->
-        <div class="hero-eyebrow">
-          <span class="eyebrow-dot"></span>
-          Transport Resmi Event Indonesia
-        </div>
-
-        <!-- Main headline -->
-        <h1 class="hero-title">
-          Antar Jemput.<br />
-          Anak <span class="hero-highlight">Konser.</span>
-        </h1>
-
-        <!-- Subtext -->
-        <p class="hero-subtitle">
-          Tanpa stres parkir, tanpa macet, tanpa ribet.<br class="d-pc" />
-          AJAK! mengantarmu ke event favoritmu dengan nyaman dan aman.
-        </p>
-
-        <!-- Dual CTA -->
-        <div class="hero-ctas">
-          <button class="cta-primary" @click="router.push('/events')">
-            <span>Lihat Semua Event</span>
-            <ArrowRight :size="18" />
-          </button>
-          <button class="cta-secondary" @click="document.getElementById('services').scrollIntoView({ behavior: 'smooth' })">
-            Jelajahi Layanan
-          </button>
-        </div>
-
-        <!-- Stats row -->
-        <div class="hero-stats">
-          <div class="stat-pill">
-            <span class="stat-num">50K+</span>
-            <span class="stat-lab">Penumpang</span>
-          </div>
-          <div class="stat-sep"></div>
-          <div class="stat-pill">
-            <span class="stat-num">100+</span>
-            <span class="stat-lab">Event</span>
-          </div>
-          <div class="stat-sep"></div>
-          <div class="stat-pill">
-            <span class="stat-num">24/7</span>
-            <span class="stat-lab">Layanan Customer Service</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Scroll cue -->
-      <!-- <div class="scroll-cue">
-        <div class="scroll-mouse">
-          <div class="scroll-wheel"></div>
-        </div>
-        <span>Scroll</span>
-      </div> -->
     </section>
 
     <!-- ===== MARQUEE 1 ===== -->
@@ -440,10 +467,10 @@ const tagColors = {
       <div class="logo-marquee-track">
         <div class="logo-marquee-inner">
           <div v-for="i in marqueeCount" :key="'f'+i" class="logo-marquee-item">
-            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img white-logo" />
+            <span class="marquee-text">#SiapAntarKeSetiapSudutKebahagiaan</span>
           </div>
           <div v-for="i in marqueeCount" :key="'f2'+i" class="logo-marquee-item" aria-hidden="true">
-            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img white-logo" />
+            <span class="marquee-text">#SiapAntarKeSetiapSudutKebahagiaan</span>
           </div>
         </div>
       </div>
@@ -453,8 +480,7 @@ const tagColors = {
     <section class="section vibes-section" id="vibes">
       <div class="container">
         <div class="section-title-box text-center mb-5">
-          <span class="sub-title">Curation</span>
-          <h2 class="creative-title">Upcoming <span class="text-primary">Event</span></h2>
+          <h2 class="creative-title">Event <span class="text-primary">Mendatang</span></h2>
           <div class="title-underline mx-auto"></div>
         </div>
 
@@ -471,15 +497,11 @@ const tagColors = {
               <div class="event-genre-tag" :style="{ background: tagColors[event.tag] }">
                 {{ event.tag }}
               </div>
-              <div class="event-city-tag">
-                <MapPin :size="11" />{{ event.city }}
-              </div>
             </div>
             <div class="event-card-body">
-              <div class="event-bus-header-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
-              </div>
+              <div class="event-city-text">{{ event.city }}</div>
               <h3 class="event-name">{{ event.name }}</h3>
-              <!-- <p class="event-desc">{{ event.desc }}</p> -->
+              <div class="event-organizer">Oleh {{ event.organizer }}</div>
               <div class="event-meta">
                 <div class="meta-row">
                   <Calendar :size="13" />
@@ -521,10 +543,10 @@ const tagColors = {
       <div class="logo-marquee-track">
         <div class="logo-marquee-inner">
           <div v-for="i in marqueeCount" :key="'b'+i" class="logo-marquee-item">
-            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img" />
+            <span class="marquee-text">#SiapAntarKeSetiapSudutKebahagiaan</span>
           </div>
           <div v-for="i in marqueeCount" :key="'b2'+i" class="logo-marquee-item" aria-hidden="true">
-            <img src="/loopinglogo/LOGOLOOPING.png" alt="AJAK!" class="marquee-logo-img" />
+            <span class="marquee-text">#SiapAntarKeSetiapSudutKebahagiaan</span>
           </div>
         </div>
       </div>
@@ -539,25 +561,46 @@ const tagColors = {
           <div class="title-underline mx-auto"></div>
         </div>
 
-        <div class="tiers-grid">
-          <div v-for="(bus, busIdx) in shuttleBuses" :key="bus.id" class="tier-card public">
-            <div class="tier-visual">
+        <div class="events-cards">
+          <div
+            v-for="(bus, busIdx) in shuttleBuses"
+            :key="bus.id"
+            class="event-card"
+            @click="router.push(`/shuttlebus/${bus.slug}`)"
+          >
+            <div class="event-card-img">
               <img :src="busIdx === 0 ? '/bus_parkir2.png' : (busIdx === 1 ? '/bus_parkir.png' : '/bus_parkir3.png')" :alt="bus.bus_name" />
-              <div class="tier-badge">{{ bus.bus_code }}</div>
+              <div class="event-img-overlay"></div>
+              <div class="event-genre-tag" style="background: var(--primary);">
+                {{ bus.bus_code }}
+              </div>
             </div>
-            <div class="tier-info">
-              <div class="tier-tag">{{ bus.bus_type === 'BIG_BUS' ? 'Big Bus' : (bus.bus_type === 'MEDIUM_BUS' ? 'Medium Bus' : 'Minibus') }}</div>
-              <h3>{{ bus.bus_name }}</h3>
-              <p>Fasilitas armada eksklusif dengan kapasitas {{ bus.total_seat }} kursi (Layout {{ bus.seat_layout }}). Plat Nomor: {{ bus.plate_number }}</p>
-              <ul class="tier-list">
-                <li v-for="fac in bus.facilities" :key="fac"><Zap size="16"/> {{ fac }}</li>
-              </ul>
-              <button 
-                style="margin-top: 1rem; width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;"
-                @click="router.push(`/shuttlebus/${bus.slug}`)"
-              >
-                Lihat Detail Armada →
-              </button>
+            <div class="event-card-body">
+              <div class="event-city-text">{{ bus.plate_number }}</div>
+              <h3 class="event-name">{{ bus.bus_name }}</h3>
+              <div class="event-organizer">{{ bus.bus_type === 'BIG_BUS' ? 'Big Bus' : (bus.bus_type === 'MEDIUM_BUS' ? 'Medium Bus' : 'Minibus') }}</div>
+              <div class="event-meta">
+                <div class="meta-row" style="display: flex; align-items: center; gap: 6px;">
+                  <Sofa :size="13" />
+                  <span>Layout: {{ bus.seat_layout }}</span>
+                </div>
+                <div class="meta-row" style="display: flex; align-items: center; gap: 6px;">
+                  <ShieldCheck :size="13" />
+                  <span>Fasilitas: {{ bus.facilities.slice(0, 3).join(', ') }}</span>
+                </div>
+              </div>
+              <div class="event-card-footer">
+                <div class="event-price-block">
+                  <span class="price-label">Kapasitas</span>
+                  <div style="display: flex; align-items: baseline; gap: 5px;">
+                    <span class="event-price">{{ bus.total_seat }} Kursi</span>
+                    <span style="font-size: 0.75rem; color: #aaa; font-weight: 600;">Tersedia</span>
+                  </div>
+                </div>
+                <button class="book-now-btn">
+                  Lihat Detail →
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -587,7 +630,7 @@ const tagColors = {
     <section class="section pickup-discovery bg-light" id="discovery">
       <div class="container">
         <div class="section-title-box mb-5">
-          <span class="sub-title">Jaringan</span>
+          <span class="sub-title">Denah Lokasi</span>
           <h2 class="creative-title">Temukan <span class="text-primary">Titik Jemput</span></h2>
           <div class="title-underline"></div>
         </div>
@@ -666,8 +709,8 @@ const tagColors = {
     <section class="section heart-section" id="about">
       <div class="container">
         <div class="heart-container">
-          <span class="sub-title">Fondasi Utama</span>
-          <h2 class="creative-title mb-4">Jantung dari <span class="text-primary">AJAK!</span></h2>
+          <span class="sub-title"> tentang AJAK!</span>
+          <h2 class="creative-title mb-4">Sekapur sirih dari <span class="text-primary">AJAK!</span></h2>
           <div class="title-underline mx-auto mb-5"></div>
           <p class="main-para">
             Kami memulai dengan keyakinan sederhana: <strong>perjalanan menuju tempat terselenggaranya acara harus sama serunya dengan pertunjukan itu sendiri.</strong>
@@ -685,14 +728,14 @@ const tagColors = {
     </section>
 
     <!-- Section Divider -->
-    <div class="section-divider-wrap">
+    <div v-if="false" class="section-divider-wrap">
       <div class="container">
         <div class="thin-border-divider"></div>
       </div>
     </div>
 
     <!-- ===== REVIEWS — INFINITE SCROLL MARQUEE ===== -->
-    <section class="section reviews-section" id="reviews">
+    <section v-if="false" class="section reviews-section" id="reviews">
       <div class="container">
         <div class="section-title-box text-center mb-5">
           <span class="sub-title">Testimonial</span>
@@ -731,7 +774,7 @@ const tagColors = {
         <div class="cta-banner-card">
           <div class="cta-content">
             <h2 class="cta-title">Siap untuk perjalanan berikutnya?</h2>
-            <p class="cta-desc">Temukan event favoritmu dan pesan ride kamu sekarang tanpa ribet.</p>
+            <p class="cta-desc">Temukan event favoritmu dan pesan kendaraan kamu sekarang tanpa ribet.</p>
           </div>
           <button class="btn btn-primary cta-action-btn" @click="router.push('/events')">
             Lihat Semua Event <ArrowRight size="20" />
@@ -780,278 +823,258 @@ const tagColors = {
 /* ===== HERO ===== */
 .hero-section {
   position: relative;
-  min-height: 100vh;
+  min-height: 80vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  background: var(--bg-color);
+  padding: 120px 0 60px;
 }
 
-/* Background & overlays */
-.hero-bg {
-  position: absolute; inset: 0; z-index: 0;
-  overflow: hidden; background: #0a0a0a;
+/* Slider Track & Layout */
+.slider-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 1400px;
+  height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  overflow: visible;
 }
-.slide-layer {
-  position: absolute; inset: 0;
-  transition: opacity 1.5s ease-in-out;
+
+.slider-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.fade-slideshow-enter-active,
-.fade-slideshow-leave-active {
-  transition: opacity 1.5s ease-in-out;
+
+/* Slider Card Styles */
+.slider-card {
+  position: absolute;
+  width: 70%;
+  max-width: 1000px;
+  height: 100%;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
+  transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1), 
+              opacity 0.6s ease;
+  background: #111;
+  user-select: none;
 }
-.fade-slideshow-enter-from,
-.fade-slideshow-leave-to {
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.slider-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Center / Active slide */
+.slider-card.active {
+  transform: translateX(0) scale(1);
+  z-index: 10;
+  opacity: 1;
+  cursor: default;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Side slides */
+.slider-card.prev {
+  transform: translateX(-55%) scale(0.82);
+  z-index: 5;
+  opacity: 1;
+  cursor: pointer;
+}
+
+.slider-card.next {
+  transform: translateX(55%) scale(0.82);
+  z-index: 5;
+  opacity: 1;
+  cursor: pointer;
+}
+
+/* Hidden slides */
+.slider-card.hidden {
+  transform: scale(0.6);
   opacity: 0;
-}
-.slide-layer img {
-  width: 100%; height: 100%; object-fit: cover;
-  transform: scale(1.04);
-  animation: hero-zoom 10s ease forwards;
-}
-@keyframes hero-zoom {
-  from { transform: scale(1.04); }
-  to   { transform: scale(1.00); }
-}
-.hero-overlay-bottom {
-  position: absolute; bottom: 0; left: 0; right: 0; height: 75%;
-  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 50%, transparent 100%);
   z-index: 1;
-}
-.hero-overlay-vignette {
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);
-  z-index: 1;
+  pointer-events: none;
 }
 
-/* Decorative orbs */
-.orb {
-  position: absolute; border-radius: 50%; z-index: 1;
-  filter: blur(80px); pointer-events: none;
-}
-.orb-1 {
-  width: 500px; height: 500px;
-  background: rgba(201, 76, 76, 0.18);
-  top: -100px; right: -100px;
-  animation: orb-drift 8s ease-in-out infinite alternate;
-}
-.orb-2 {
-  width: 300px; height: 300px;
-  background: rgba(201, 76, 76, 0.10);
-  bottom: 80px; left: -80px;
-  animation: orb-drift 10s ease-in-out 2s infinite alternate-reverse;
-}
-@keyframes orb-drift {
-  from { transform: translate(0, 0); }
-  to   { transform: translate(30px, 20px); }
+/* Navigation Chevrons inside Active Card */
+.nav-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: #2A2A2A;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  z-index: 20;
 }
 
-/* Slide dots */
-.slide-dots {
-  position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 8px; z-index: 10;
+.nav-arrow:hover {
+  background: #ffffff;
+  transform: translateY(-50%) scale(1.1);
+  color: var(--primary);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
 }
-.slide-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: rgba(255,255,255,0.35);
-  border: none; cursor: pointer; padding: 0;
+
+.nav-arrow.arrow-left {
+  left: 24px;
+}
+
+.nav-arrow.arrow-right {
+  right: 24px;
+}
+
+/* Indicators Dots */
+.slider-indicators {
+  display: flex;
+  gap: 10px;
+  margin-top: 36px;
+  z-index: 5;
+}
+
+.indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.2);
+  border: none;
+  cursor: pointer;
+  padding: 0;
   transition: all 0.3s ease;
 }
-.slide-dot.active {
+
+[data-theme="dark"] .indicator-dot {
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.indicator-dot.active {
   background: var(--primary);
   width: 24px;
-  border-radius: 3px;
-  box-shadow: 0 0 10px rgba(201,76,76,0.5);
-}
-
-/* Hero body */
-.hero-body {
-  position: relative; z-index: 5;
-  display: flex; flex-direction: column; align-items: center;
-  text-align: center; color: white;
-  padding: 100px 24px 100px;
-  width: 100%; max-width: 1000px; margin: 0 auto;
-}
-
-/* Eyebrow */
-.hero-eyebrow {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.15);
-  backdrop-filter: blur(12px);
-  color: rgba(255,255,255,0.8);
-  padding: 8px 18px; border-radius: 30px;
-  font-size: 0.78rem; font-weight: 700;
-  letter-spacing: 0.5px;
-  margin-bottom: 32px;
-  animation: fade-up 0.6s ease 0.1s both;
-}
-.eyebrow-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--primary);
+  border-radius: 4px;
   box-shadow: 0 0 8px var(--primary);
-  animation: pulse-dot 2s ease infinite;
-}
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.8); }
 }
 
-/* Title */
-.hero-title {
-  font-size: clamp(2.5rem, 5.5vw, 4.8rem);
-  font-weight: 900;
-  line-height: 1.0;
-  margin-bottom: 24px;
-  letter-spacing: -3px;
-  animation: fade-up 0.6s ease 0.2s both;
-}
-.hero-highlight {
-  background: linear-gradient(135deg, #ff6b6b 0%, #ff9a9a 50%, #ffb3b3 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  position: relative;
+/* Responsive adjustments for Slider */
+@media (max-width: 1200px) {
+  .slider-wrapper {
+    height: 400px;
+  }
+  .slider-card {
+    width: 75%;
+  }
 }
 
-/* Subtitle */
-.hero-subtitle {
-  font-size: 1.1rem;
-  opacity: 0.7;
-  margin-bottom: 44px;
-  max-width: 520px;
-  line-height: 1.75;
-  animation: fade-up 0.6s ease 0.3s both;
-}
-
-/* CTA buttons */
-.hero-ctas {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 56px;
-  flex-wrap: wrap;
-  justify-content: center;
-  animation: fade-up 0.6s ease 0.4s both;
-}
-.cta-primary {
-  display: inline-flex; align-items: center; gap: 10px;
-  background: var(--primary);
-  color: white;
-  border: none;
-  padding: 14px 24px;
-  border-radius: 18px;
-  font-family: inherit; font-size: 0.9rem; font-weight: 800;
-  cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
-  box-shadow: 0 8px 32px rgba(201,76,76,0.4), 0 0 0 0 rgba(201,76,76,0.3);
-  position: relative; overflow: hidden;
-}
-.cta-primary::before {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-.cta-primary:hover::before { opacity: 1; }
-.cta-primary:hover {
-  transform: translateY(-3px) scale(1.02);
-  box-shadow: 0 16px 40px rgba(201,76,76,0.5), 0 0 0 4px rgba(201,76,76,0.15);
-}
-.cta-primary:active { transform: translateY(0) scale(0.98); }
-.cta-primary svg { transition: transform 0.3s; }
-.cta-primary:hover svg { transform: translateX(4px); }
-
-.cta-secondary {
-  display: inline-flex; align-items: center; gap: 8px;
-  background: rgba(255,255,255,0.08);
-  color: white;
-  border: 1.5px solid rgba(255,255,255,0.25);
-  padding: 14px 24px;
-  border-radius: 18px;
-  font-family: inherit; font-size: 0.9rem; font-weight: 700;
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-  transition: all 0.3s ease;
-}
-.cta-secondary:hover {
-  background: rgba(255,255,255,0.15);
-  border-color: rgba(255,255,255,0.5);
-  transform: translateY(-2px);
-}
-.cta-secondary:active { transform: translateY(0); }
-
-/* Stats row */
-.hero-stats {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.12);
-  backdrop-filter: blur(16px);
-  border-radius: 16px;
-  padding: 12px 24px;
-  animation: fade-up 0.6s ease 0.5s both;
-}
-.stat-pill {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 2px;
-  padding: 0 20px;
-}
-.stat-num {
-  font-size: 1.25rem; font-weight: 900;
-  color: white; line-height: 1;
-  letter-spacing: -1px;
-}
-.stat-lab {
-  font-size: 0.65rem; font-weight: 700;
-  color: rgba(255,255,255,0.5);
-  text-transform: uppercase; letter-spacing: 1.5px;
-}
-.stat-sep {
-  width: 1px; height: 30px;
-  background: rgba(255,255,255,0.15);
-}
-
-/* Scroll cue */
-.scroll-cue {
-  position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%);
-  display: flex; flex-direction: column; align-items: center; gap: 8px;
-  z-index: 10; color: rgba(255,255,255,0.4);
-  font-size: 0.65rem; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 2px;
-  animation: fade-up 0.6s ease 0.8s both;
-}
-.scroll-mouse {
-  width: 22px; height: 34px; border: 2px solid rgba(255,255,255,0.25);
-  border-radius: 12px; display: flex; justify-content: center;
-  padding-top: 6px;
-}
-.scroll-wheel {
-  width: 3px; height: 6px; background: rgba(255,255,255,0.5);
-  border-radius: 2px;
-  animation: scroll-anim 1.8s ease infinite;
-}
-@keyframes scroll-anim {
-  0% { transform: translateY(0); opacity: 1; }
-  100% { transform: translateY(10px); opacity: 0; }
-}
-
-/* Fade-up animation */
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(24px); }
-  to   { opacity: 1; transform: translateY(0); }
+@media (max-width: 992px) {
+  .slider-wrapper {
+    height: 320px;
+  }
+  .slider-card {
+    width: 80%;
+  }
+  .slider-card.prev {
+    transform: translateX(-50%) scale(0.85);
+  }
+  .slider-card.next {
+    transform: translateX(50%) scale(0.85);
+  }
+  .creative-title {
+    font-size: 2.5rem !important;
+  }
+  .tiers-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 24px !important;
+  }
+  .amenities-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 24px !important;
+  }
 }
 
 @media (max-width: 768px) {
-  .hero-title { letter-spacing: -1.5px; }
-  .hero-stats { padding: 14px 16px; }
-  .stat-pill { padding: 0 14px; }
-  .stat-num { font-size: 1.3rem; }
-  .hero-ctas { gap: 10px; }
-  .cta-primary, .cta-secondary { padding: 12px 18px; font-size: 0.85rem; }
-  .scroll-cue { display: none; }
+  .hero-section {
+    min-height: auto;
+    padding: 20px 0 40px;
+  }
+  .slider-wrapper {
+    height: 220px;
+    padding: 0 20px;
+  }
+  .slider-card {
+    width: 85%;
+    border-radius: 16px;
+  }
+  /* Show adjacent slides on mobile exactly like desktop */
+  .slider-card.prev {
+    transform: translateX(-45%) scale(0.82);
+    opacity: 1;
+  }
+  .slider-card.next {
+    transform: translateX(45%) scale(0.82);
+    opacity: 1;
+  }
+  .nav-arrow {
+    width: 32px;
+    height: 32px;
+  }
+  .nav-arrow svg {
+    width: 16px;
+    height: 16px;
+  }
+  .nav-arrow.arrow-left {
+    left: 12px;
+  }
+  .nav-arrow.arrow-right {
+    right: 12px;
+  }
+  .slider-indicators {
+    margin-top: 24px;
+  }
+}
+
+@media (max-width: 480px) {
+  .slider-wrapper {
+    height: 160px;
+  }
+  .slider-card {
+    width: 85%;
+  }
+  .slider-card.prev {
+    transform: translateX(-45%) scale(0.82);
+    opacity: 1;
+  }
+  .slider-card.next {
+    transform: translateX(45%) scale(0.82);
+    opacity: 1;
+  }
+  .nav-arrow {
+    display: none; /* Hide arrows on small screens, rely on touch swipe and dots */
+  }
 }
 
 /* ===== BOOKING CARD ===== */
@@ -1124,7 +1147,7 @@ const tagColors = {
 
 /* ===== LOGO MARQUEE ===== */
 .logo-marquee-wrap {
-  background: var(--primary); padding: 6px 0; overflow: hidden;
+  background: var(--primary); padding: 8px 0; overflow: hidden;
   display: flex; flex-direction: column; gap: 0;
 }
 .white-marquee {
@@ -1135,13 +1158,33 @@ const tagColors = {
 .logo-marquee-track { overflow: hidden; width: 100%; }
 .logo-marquee-inner {
   display: flex; width: max-content;
-  animation: marquee-fwd 25s linear infinite;
+  animation: marquee-fwd 50s linear infinite;
+  gap: 40px;
 }
 @keyframes marquee-fwd {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
 }
-.logo-marquee-item { display: flex; align-items: center; padding: 0 44px; }
+.logo-marquee-item {
+  display: flex; align-items: center;
+  padding: 0 !important;
+  position: relative;
+}
+.logo-marquee-item::after {
+  content: "•";
+  position: absolute;
+  right: -24px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.25rem;
+}
+.marquee-text {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: white;
+  white-space: nowrap;
+  letter-spacing: 0.5px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
 .marquee-logo-img {
   height: 95px; width: auto; object-fit: contain; opacity: 0.9;
   transition: opacity 0.3s; filter: brightness(0) invert(1);
@@ -1153,27 +1196,28 @@ const tagColors = {
 .events-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  gap: 32px;
 }
 .event-card {
-  background: var(--card-bg);
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  cursor: pointer;
-  transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
-  border: 1px solid var(--border-color);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
   text-align: left;
-}
-.event-card:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--primary);
+  cursor: pointer;
+  transition: none !important;
 }
 .event-card-img {
   height: 200px;
   position: relative;
   overflow: hidden;
+  border-radius: 16px !important;
+  transform: translateY(0) scale(1);
+  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.5s cubic-bezier(0.25, 1, 0.5, 1) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 .event-card-img img {
   width: 100%;
@@ -1181,7 +1225,35 @@ const tagColors = {
   object-fit: cover;
   transition: transform 0.5s ease;
 }
+.event-card:hover .event-card-img {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.06);
+}
 .event-card:hover .event-card-img img { transform: scale(1.07); }
+
+/* Shine sweep animation (in/out) */
+.event-card-img::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  transform: skewX(-20deg);
+  transition: left 0.75s cubic-bezier(0.15, 0.85, 0.35, 1);
+  pointer-events: none;
+  z-index: 5;
+}
+.event-card:hover .event-card-img::after {
+  left: 150%;
+}
+
 .event-img-overlay {
   position: absolute;
   inset: 0;
@@ -1198,47 +1270,40 @@ const tagColors = {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  z-index: 2;
 }
-.event-city-tag {
-  position: absolute;
-  bottom: 14px;
-  left: 14px;
+
+.event-card-body {
+  padding: 16px 0 0 !important;
   display: flex;
-  align-items: center;
-  gap: 4px;
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 700;
-  background: rgba(0,0,0,0.45);
-  padding: 4px 10px;
-  border-radius: 20px;
-  backdrop-filter: blur(6px);
+  flex-direction: column;
 }
-.event-card-body { padding: 22px; }
-.event-name {
-  font-size: 1.15rem;
-  font-weight: 900;
-  color: var(--text-dark);
-  margin-bottom: 8px;
-  letter-spacing: -0.3px;
-}
-.event-desc {
-  font-size: 0.85rem;
+.event-city-text {
+  font-size: 0.9rem;
   color: var(--text-light);
-  line-height: 1.6;
-  margin-bottom: 16px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-weight: 600;
+  margin-bottom: 4px;
 }
-.event-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+.event-name {
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  color: var(--text-dark) !important;
+  margin-bottom: 4px !important;
+  letter-spacing: -0.3px;
+  line-height: 1.3;
+}
+.event-organizer {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.event-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .meta-row {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-light);
 }
@@ -1248,39 +1313,37 @@ const tagColors = {
   align-items: center;
   justify-content: space-between;
   padding-top: 16px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px dashed #d0d0d0 !important;
 }
 .price-label {
   display: block;
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #bbb;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #888;
   margin-bottom: 2px;
 }
 .event-price {
-  font-size: 1.05rem;
-  font-weight: 900;
-  color: var(--text-dark);
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+  color: var(--text-dark) !important;
 }
 .book-now-btn {
   background: var(--primary);
   color: white;
   border: none;
-  padding: 10px 18px;
+  padding: 10px 20px;
   border-radius: 12px;
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.25s;
+  transition: all 0.25s ease;
   white-space: nowrap;
 }
 .book-now-btn:hover {
   background: #b34242;
-  transform: scale(1.03);
-  box-shadow: 0 6px 18px rgba(201,76,76,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(201,76,76,0.25);
 }
 
 /* View all button */
@@ -1425,10 +1488,24 @@ const tagColors = {
 }
 
 @media (max-width: 768px) {
-  .hero-section { margin-top: 60px; min-height: auto; padding-bottom: 0; }
-  .hero-body { padding: 40px 16px 40px; }
-  .hero-title { font-size: 2.6rem; letter-spacing: -1px; }
-  .hero-subtitle { font-size: 0.9rem; margin-bottom: 32px; }
+  .hero-section { margin-top: 60px; }
+
+  .section {
+    padding: 50px 0 !important;
+  }
+  .creative-title {
+    font-size: 2rem !important;
+  }
+  .logo-marquee-wrap {
+    padding: 6px 0 !important;
+  }
+  .logo-marquee-item {
+    padding: 0 24px !important;
+  }
+  .marquee-text {
+    font-size: 0.95rem !important;
+    letter-spacing: 0.2px !important;
+  }
 
   .booking-card { border-radius: 20px; }
   .booking-row-inputs { padding: 20px 20px 16px; gap: 12px; }
@@ -1439,35 +1516,143 @@ const tagColors = {
   .route-arrow { padding: 4px 0; transform: rotate(90deg); }
   .route-line { width: 15px; }
 
-  .events-cards { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-  .card-image-box { height: 130px; }
-  .card-body { padding: 12px; }
-  .card-name { font-size: 0.95rem; margin-bottom: 8px; }
-  .card-price-tag { font-size: 0.9rem; }
-  .btn-primary-small { padding: 6px 12px; font-size: 0.75rem; border-radius: 8px; }
+  .events-cards { grid-template-columns: repeat(2, 1fr); gap: 28px; }
+  .event-card-img { height: 160px; }
+  .event-card-body { padding: 12px 0 0 !important; }
+  .event-name { font-size: 1.15rem !important; margin-bottom: 4px !important; }
+  .event-price { font-size: 1.1rem !important; }
+  .book-now-btn { padding: 8px 16px; font-size: 0.8rem; border-radius: 10px; }
 
   .tiers-grid { grid-template-columns: 1fr; gap: 20px; }
   .tier-visual { height: 180px; }
   .tier-info { padding: 20px; }
   .tier-info h3 { font-size: 1.4rem; }
 
-  .discovery-grid { grid-template-columns: 1fr; gap: 16px; }
-  .search-panel { height: 360px; padding: 16px; border-radius: 20px; }
-  .map-panel { min-height: 350px; height: 350px; border-radius: 20px; margin-bottom: 20px; }
+  .discovery-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  .search-panel {
+    height: 260px !important;
+    padding: 12px !important;
+    border-radius: 16px !important;
+  }
+  .custom-search {
+    margin-bottom: 12px !important;
+  }
+  .custom-search input {
+    padding: 10px 12px 10px 38px !important;
+    font-size: 0.85rem !important;
+    border-radius: 12px !important;
+  }
+  .srch-icon {
+    left: 12px !important;
+    width: 14px !important;
+    height: 14px !important;
+  }
+  .group-label {
+    margin: 10px 0 6px !important;
+    font-size: 0.65rem !important;
+  }
+  .loc-card {
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+    margin-bottom: 8px !important;
+  }
+  .loc-text h5 {
+    font-weight: 800 !important;
+    font-size: 0.85rem !important;
+  }
+  .loc-text p {
+    font-size: 0.72rem !important;
+  }
+  .map-panel {
+    min-height: 220px !important;
+    height: 220px !important;
+    border-radius: 16px !important;
+    margin-bottom: 0 !important;
+  }
 
-  .amenities-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
-  .amenity-icon { width: 50px; height: 50px; border-radius: 16px; }
-  .amenity-icon component { width: 24px; height: 24px; }
-  .amenity-box h4 { font-size: 0.85rem; }
-  .amenity-box p { font-size: 0.75rem; }
+  .amenities-section { padding: 45px 0 30px; }
+  .amenities-grid {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 16px !important;
+    margin-top: 28px !important;
+    padding: 10px 20px 20px !important;
+    margin-left: -20px !important;
+    margin-right: -20px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+  .amenities-grid::-webkit-scrollbar {
+    display: none !important;
+  }
+  .amenity-box {
+    flex: 0 0 220px !important;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.08) !important;
+    padding: 20px 14px !important;
+    border-radius: 18px !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  }
+  .amenity-icon {
+    width: 60px !important;
+    height: 60px !important;
+    border-radius: 18px !important;
+    margin: 0 auto 16px !important;
+  }
+  .amenity-icon svg {
+    width: 28px !important;
+    height: 28px !important;
+  }
+  .amenity-box h4 {
+    font-size: 1rem !important;
+    color: white !important;
+    font-weight: 800 !important;
+  }
+  .amenity-box p {
+    font-size: 0.82rem !important;
+    color: rgba(255, 255, 255, 0.8) !important;
+    line-height: 1.4 !important;
+  }
 
   .heart-section { padding: 20px 0 20px; }
   .main-para { font-size: 1.2rem; line-height: 1.5; }
   .sub-para { font-size: 0.95rem; line-height: 1.6; }
-  .stats-row { gap: 12px; }
-  .stat-circle { width: 95px; height: 95px; }
-  .stat-circle .val { font-size: 1.2rem; }
-  .stat-circle .lab { font-size: 0.55rem; }
+  .stats-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-top: 32px !important;
+  }
+  .stat-circle {
+    width: 105px;
+    height: 105px;
+    border: 1.5px solid rgba(201, 76, 76, 0.12);
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+  }
+  .stat-circle .val {
+    font-size: 1.3rem;
+    font-weight: 900;
+  }
+  .stat-circle .lab {
+    font-size: 0.55rem;
+    line-height: 1.2;
+    text-align: center;
+    max-width: 90%;
+    text-transform: uppercase;
+    font-weight: 800;
+  }
 
   .reviews-section { padding: 20px 0 0; }
   .review-card { width: 280px; padding: 18px; }
@@ -1560,8 +1745,8 @@ const tagColors = {
 .hub-label { font-size: 0.7rem; font-weight: 800; color: var(--text-light); text-transform: uppercase; }
 
 /* ===== AMENITIES ===== */
-.amenities-section { background: var(--primary); padding: 100px 0 40px; }
-.amenities-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 36px; margin-top: 56px; color: white; }
+.amenities-section { background: var(--primary); padding: 60px 0 40px; }
+.amenities-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 36px; margin-top: 36px; color: white; }
 .amenity-icon { width: 68px; height: 68px; background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: white; border-radius: 22px; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; transition: var(--transition); }
 .amenity-box:hover .amenity-icon { background: white; color: var(--primary); transform: translateY(-4px); }
 .amenity-box h4 { font-weight: 800; margin-bottom: 10px; font-size: 1rem; }
@@ -1627,76 +1812,46 @@ const tagColors = {
 .review-date { font-size: 0.72rem; color: #bbb; font-weight: 600; }
 .review-tag { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--primary); background: rgba(201,76,76,0.08); padding: 3px 10px; border-radius: 20px; }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 1024px) {
-  .hero-title { font-size: 3.2rem; }
-  .booking-row-inputs { flex-direction: column; gap: 20px; }
-  .route-arrow { transform: rotate(90deg); }
-  .booking-row-bottom { flex-direction: column; align-items: stretch; }
-  .b-search-btn { justify-content: center; }
-  .tiers-grid, .discovery-grid { grid-template-columns: 1fr; }
-  .amenities-grid { grid-template-columns: repeat(3, 1fr); }
-  .events-cards { grid-template-columns: repeat(2, 1fr); }
-  .marquee-logo-img { height: 72px; }
-  .map-panel { min-height: 400px; height: 400px; }
-}
-
-@media (max-width: 768px) {
-  .hero-section { margin-top: 70px; min-height: auto; padding-bottom: 0; }
-  .hero-body { padding: 40px 16px 40px; }
-  .hero-title { font-size: 2.6rem; letter-spacing: -1px; }
-  .hero-subtitle { font-size: 0.95rem; margin-bottom: 32px; }
-
-  .booking-card { border-radius: 20px; }
-  .booking-row-inputs { padding: 20px 20px 16px; gap: 16px; }
-  .booking-row-bottom { padding: 16px 20px 20px; flex-direction: column; gap: 16px; }
-  .b-search-btn { justify-content: center; width: 100%; }
-  .b-counters { width: 100%; justify-content: center; gap: 20px; }
-  .route-arrow { padding: 0 10px; transform: rotate(90deg); }
-  .route-line { width: 20px; }
-
-  .events-cards { grid-template-columns: repeat(2, 1fr); gap: 14px; }
-  .card-image-box { height: 150px; }
-  .card-body { padding: 14px; }
-  .card-name { font-size: 1rem; margin-bottom: 10px; }
-  .card-click-hint { display: none; }
-
-  .tiers-grid { grid-template-columns: 1fr; gap: 24px; }
-  .tier-visual { height: 200px; }
-  .tier-info { padding: 24px; }
-  .tier-info h3 { font-size: 1.5rem; }
-
-  .discovery-grid { grid-template-columns: 1fr; gap: 20px; }
-  .search-panel { height: 340px; padding: 20px; }
-  .map-panel { min-height: 350px; height: 350px; border-radius: 20px; }
-
-  .amenities-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
-  .amenities-section { padding: 60px 0 20px; }
-
-  .heart-section { padding: 20px 0 20px; }
-  .main-para { font-size: 1.3rem; }
-  .stats-row { gap: 16px; }
-  .stat-circle { width: 100px; height: 100px; }
-  .stat-circle .val { font-size: 1.3rem; }
-
-  .reviews-section { padding: 20px 0 0; }
-  .review-card { width: 290px; padding: 20px; }
-
-  .marquee-logo-img { height: 48px; }
-  .logo-marquee-item { padding: 0 18px; }
-
-  /* Modal mobile adjustments */
-  .modal-overlay { padding: 0; align-items: flex-end; }
-  .modal-card { border-radius: 28px 28px 0 0; max-height: 95vh; }
-  .modal-img { height: 180px; }
-  .modal-body { padding: 20px; }
-  .modal-title { font-size: 1.4rem; }
-  .modal-meta { grid-template-columns: 1fr; gap: 8px; }
-}
-
 @media (max-width: 480px) {
-  .events-cards { grid-template-columns: 1fr; gap: 16px; }
-  .hero-title { font-size: 2.1rem; }
+  .events-cards { grid-template-columns: 1fr; gap: 32px; }
+  .event-card-img { height: 200px; }
+  .event-card-body { padding: 12px 0 0 !important; }
+  .event-name { font-size: 1.25rem !important; }
+  .creative-title {
+    font-size: 1.6rem !important;
+  }
+  .logo-marquee-wrap {
+    padding: 4px 0 !important;
+  }
+  .logo-marquee-inner {
+    gap: 30px !important;
+  }
+  .logo-marquee-item {
+    padding: 0 !important;
+  }
+  .logo-marquee-item::after {
+    right: -18px !important;
+    font-size: 0.85rem;
+  }
+  .marquee-text {
+    font-size: 0.85rem !important;
+  }
+  .amenities-section { padding: 30px 0 20px; }
+  .stats-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .stat-circle {
+    width: 120px;
+    height: 120px;
+  }
+  .stat-circle .val {
+    font-size: 1.5rem;
+  }
+  .stat-circle .lab {
+    font-size: 0.65rem;
+  }
 }
 
 .text-marquee { background: var(--primary); padding: 15px 0; color: white; display: flex; align-items: center; overflow: hidden; }

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { Twitter, Linkedin, Instagram, Compass, ShieldCheck } from 'lucide-vue-next';
+import { X, Instagram, Compass, ShieldCheck } from 'lucide-vue-next';
 
 const router = useRouter();
 const route = useRoute();
@@ -48,14 +48,16 @@ const handleFooterNav = (targetId) => {
             <span class="logo-tagline">Antar Jemput Anak Konser</span>
           </div>
           <p class="brand-desc">
-            Platform perjalanan konser dan acara musik terbaik di Indonesia. Kami menyediakan solusi shuttle bus yang aman, nyaman, dan terpercaya untuk mengantar Anda ke konser impian.
+           platform perjalanan untuk seluruh acara/event di indonesia, kami menyediakan solusi shuttle bus yang aman, nyaman dan terpercaya untuk mengantar anda ke event/acara impian.
           </p>
           <div class="social-links">
-            <a href="#" class="social-btn" aria-label="Twitter">
-              <Twitter class="social-icon" />
+            <a href="#" class="social-btn" aria-label="X">
+              <X class="social-icon" />
             </a>
-            <a href="#" class="social-btn" aria-label="LinkedIn">
-              <Linkedin class="social-icon" />
+            <a href="#" class="social-btn" aria-label="TikTok">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="social-icon">
+                <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
+              </svg>
             </a>
             <a href="#" class="social-btn" aria-label="Instagram">
               <Instagram class="social-icon" />
@@ -103,7 +105,7 @@ const handleFooterNav = (targetId) => {
               <li><a href="#" @click.prevent="handleFooterNav('home')">Beranda</a></li>
               <li><a href="#" @click.prevent="handleFooterNav('events')">Event</a></li>
               <li><a href="#" @click.prevent="handleFooterNav('services')">Layanan</a></li>
-              <li><a href="#" @click.prevent="handleFooterNav('discovery')">Pick Up</a></li>
+              <li><a href="#" @click.prevent="handleFooterNav('discovery')">Penjemputan</a></li>
               <li><a href="#" @click.prevent="handleFooterNav('about')">About</a></li>
             </ul>
           </div>

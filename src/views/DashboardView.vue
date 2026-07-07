@@ -71,7 +71,7 @@ const getJenisTiket = (b) => {
   return '-';
 };
 
-const getSeats = (b) => {
+const getseats = (b) => {
   if (b.tickets && b.tickets.length > 0) {
     const seats = b.tickets.map(t => t.order_seat_number).filter(Boolean);
     if (seats.length > 0) return seats.join(', ');
@@ -205,7 +205,7 @@ const formatDate = (isoString) => {
 const exportExcel = () => {
     const headers = [
       'Tanggal Transaksi', 'Invoice No', 'Pemesan', 'Shuttle', 'Deskripsi', 
-      'Sesi', 'Jenis Tiket', 'Seat',
+      'Sesi', 'Jenis Tiket', 'seat',
       'Qty', 'Total Price', 'Status'
     ];
   
@@ -218,7 +218,7 @@ const exportExcel = () => {
         `"${b.shuttle?.description || '-'}"`,
         `"${getSesi(b)}"`,
         `"${getJenisTiket(b)}"`,
-        `"${getSeats(b)}"`,
+        `"${getseats(b)}"`,
       b.total_qty || 0,
       b.total_price || 0,
       `"${b.payment_status || '-'}"`
@@ -361,7 +361,7 @@ const closeModal = () => {
                 <th>Sesi</th>
                 <th>Trip</th>
                 <th>Jenis Tiket</th>
-                <th>Seat</th>
+                <th>seat</th>
                 <th>Qty</th>
                 <th>Total Price</th>
                 <th>Status</th>
@@ -386,7 +386,7 @@ const closeModal = () => {
                 <td style="white-space: nowrap;">{{ getSesi(b) }}</td>
                 <td style="white-space: nowrap;">{{ getTripStatus(b) }}</td>
                 <td style="white-space: nowrap;">{{ getJenisTiket(b) }}</td>
-                <td style="white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" :title="getSeats(b)">{{ getSeats(b) }}</td>
+                <td style="white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" :title="getseats(b)">{{ getseats(b) }}</td>
                 <td>{{ b.total_qty }}</td>
                 <td style="white-space: nowrap;"><strong>{{ formatRp(b.total_price) }}</strong></td>
                 <td>
@@ -454,7 +454,7 @@ const closeModal = () => {
                   <div class="t-main">
                     <strong>{{ t.ticket?.name || 'Tiket Shuttle' }}</strong>
                     <span class="t-seat">
-                      Kursi: {{ t.order_seat_number }}
+                      seat: {{ t.order_seat_number }}
                       <span v-if="t.shuttle_session"> | Sesi: {{ t.shuttle_session.name }}</span>
                       <span v-if="t.trip_status"> | Trip: {{ t.trip_status.name }}</span>
                     </span>

@@ -13,7 +13,7 @@ export const bookingStore = reactive({
   adults: 1,
   toddlers: 0,
   bookingCode: null,
-  selectedSeats: [],
+  selectedseats: [],
   selectedTripStatus: null,
   selectedRouteId: null,
   selectedSessionId: null,
@@ -28,7 +28,7 @@ export const bookingStore = reactive({
     this.adults = 1;
     this.toddlers = 0;
     this.bookingCode = null;
-    this.selectedSeats = [];
+    this.selectedseats = [];
     this.selectedTripStatus = null;
     this.selectedRouteId = null;
     this.selectedSessionId = null;
@@ -52,7 +52,7 @@ export const bookingStore = reactive({
     return this.selectedEvent.priceNum || 0;
   },
 
-  get ridePrice() {
+  get kendaraanPrice() {
     return this.basePrice * this.adults;
   },
 
@@ -62,6 +62,6 @@ export const bookingStore = reactive({
   },
 
   get totalPrice() {
-    return this.ridePrice + this.adminFee;
+    return this.kendaraanPrice + this.adminFee;
   }
 });

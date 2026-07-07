@@ -200,7 +200,7 @@ const hasIdentity = computed(() => {
               <table class="data-table">
                 <thead>
                   <tr>
-                    <th>Tiket / Kursi</th>
+                    <th>Tiket / seat</th>
                     <th class="text-right">Harga Satuan</th>
                     <th class="text-right">Subtotal</th>
                   </tr>
@@ -210,7 +210,7 @@ const hasIdentity = computed(() => {
                     <td>
                       <strong>{{ t.ticket?.name || 'Tiket Shuttle' }}</strong><br>
                       <small>
-                        Kursi: {{ t.order_seat_number }}
+                        seat: {{ t.order_seat_number }}
                         <span v-if="t.shuttle_session"> | Sesi: {{ t.shuttle_session.name }}</span>
                         <span v-if="t.trip_status"> | Trip: {{ t.trip_status.name }}</span>
                       </small>

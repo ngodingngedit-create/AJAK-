@@ -47,7 +47,8 @@ const mapBusToEvent = (item) => {
     departureTime: '',
     returnTime: '',
     location: item.description || '',
-    city: item.location_city || '',
+    city: item.location_city || 'Jakarta',
+    organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
     price: 'Lihat Detail',
     priceNum: 0,
     image: item.image_url || '',
@@ -257,14 +258,11 @@ const tagColors = {
             <div class="event-genre-tag" :style="{ background: tagColors[event.tag] }">
               {{ event.tag }}
             </div>
-            <div class="event-city-tag">
-              <MapPin :size="11" />{{ event.city }}
-            </div>
           </div>
           <div class="event-card-body">
-            <div class="event-bus-header-row">
-            </div>
+            <div class="event-city-text">{{ event.city }}</div>
             <h3 class="event-name">{{ event.name }}</h3>
+            <div class="event-organizer">Oleh {{ event.organizer }}</div>
             <div class="event-meta">
               <div class="meta-row">
                 <Calendar :size="13" />
@@ -276,11 +274,11 @@ const tagColors = {
               </div>
             </div>
 
-            <!-- Facilities and Seat layout -->
+            <!-- Facilities and seat layout -->
             <div class="bus-amenities-section">
               <div class="bus-layout-info">
-                <span class="layout-label">Layout Kursi: </span>
-                <span class="layout-value">{{ event.seat_layout.replace('_', '+') }} Seating</span>
+                <span class="layout-label">Layout seat: </span>
+                <span class="layout-value">{{ event.seat_layout.replace('_', '+') }} seating</span>
               </div>
               <div class="card-facilities-row">
                 <div 
@@ -585,28 +583,28 @@ const tagColors = {
 .events-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 28px;
+  gap: 36px;
 }
-
-.event-card {
-  background: var(--card-bg);
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: var(--shadow-sm);
+.event-card:not(.skeleton-card) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
   cursor: pointer;
-  transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
-  border: 1px solid var(--border-color);
+  transition: none !important;
 }
-.event-card:hover {
-  transform: translateY(-8px);
-  box-shadow: var(--shadow-md);
-  border-color: var(--primary);
-}
-
 .event-card-img {
   height: 200px;
   position: relative;
   overflow: hidden;
+  border-radius: 16px !important;
+  transform: translateY(0) scale(1);
+  transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.5s cubic-bezier(0.25, 1, 0.5, 1) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 .event-card-img img {
   width: 100%;
@@ -614,7 +612,34 @@ const tagColors = {
   object-fit: cover;
   transition: transform 0.5s ease;
 }
+.event-card:not(.skeleton-card):hover .event-card-img {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.06);
+}
 .event-card:hover .event-card-img img { transform: scale(1.07); }
+
+/* Shine sweep animation (in/out) */
+.event-card-img::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -150%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.4),
+    transparent
+  );
+  transform: skewX(-20deg);
+  transition: left 0.75s cubic-bezier(0.15, 0.85, 0.35, 1);
+  pointer-events: none;
+  z-index: 5;
+}
+.event-card:not(.skeleton-card):hover .event-card-img::after {
+  left: 150%;
+}
 
 .event-img-overlay {
   position: absolute;
@@ -632,92 +657,80 @@ const tagColors = {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-}
-.event-city-tag {
-  position: absolute;
-  bottom: 14px;
-  left: 14px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: white;
-  font-size: 0.75rem;
-  font-weight: 700;
-  background: rgba(0,0,0,0.45);
-  padding: 4px 10px;
-  border-radius: 20px;
-  backdrop-filter: blur(6px);
+  z-index: 2;
 }
 
-.event-card-body { padding: 22px; }
-.event-name {
-  font-size: 1.15rem;
-  font-weight: 900;
-  color: var(--text-dark);
-  margin-bottom: 8px;
-  letter-spacing: -0.3px;
+.event-card-body {
+  padding: 16px 0 0 !important;
+  display: flex;
+  flex-direction: column;
 }
-.event-desc {
-  font-size: 0.85rem;
+.event-city-text {
+  font-size: 0.9rem;
   color: var(--text-light);
-  line-height: 1.6;
-  margin-bottom: 16px;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  font-weight: 600;
+  margin-bottom: 4px;
 }
-.event-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+.event-name {
+  font-size: 1.35rem !important;
+  font-weight: 800 !important;
+  color: var(--text-dark) !important;
+  margin-bottom: 4px !important;
+  letter-spacing: -0.3px;
+  line-height: 1.3;
+}
+.event-organizer {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.event-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .meta-row {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-light);
 }
 .meta-row svg { color: var(--primary); flex-shrink: 0; }
-
 .event-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding-top: 16px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px dashed #d0d0d0 !important;
 }
 .price-label {
   display: block;
-  font-size: 0.62rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #bbb;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #888;
   margin-bottom: 2px;
 }
 .event-price {
-  font-size: 1.05rem;
-  font-weight: 900;
-  color: var(--text-dark);
+  font-size: 1.25rem !important;
+  font-weight: 800 !important;
+  color: var(--text-dark) !important;
 }
-
 .book-now-btn {
   background: var(--primary);
   color: white;
   border: none;
-  padding: 10px 18px;
+  padding: 10px 20px;
   border-radius: 12px;
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   font-weight: 800;
   cursor: pointer;
-  transition: all 0.25s;
+  transition: all 0.25s ease;
   white-space: nowrap;
 }
 .book-now-btn:hover {
   background: #b34242;
-  transform: scale(1.03);
-  box-shadow: 0 6px 18px rgba(201,76,76,0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(201,76,76,0.25);
 }
 
 /* ===== SHUTTLE SPECIFIC DETAILS ===== */
@@ -845,15 +858,21 @@ const tagColors = {
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 960px) {
-  .events-grid { grid-template-columns: repeat(2, 1fr); }
+  .events-grid { grid-template-columns: repeat(2, 1fr); gap: 28px; }
   .events-hero-title { font-size: 2.8rem; }
+  .event-card-body { padding: 12px 0 0 !important; }
+  .event-card-img { height: 160px; }
+  .event-name { font-size: 1.15rem !important; }
 }
 
 @media (max-width: 600px) {
-  .events-grid { grid-template-columns: 1fr; }
+  .events-grid { grid-template-columns: 1fr; gap: 32px; }
   .events-hero { padding: 120px 0 48px; }
   .events-hero-title { font-size: 2.2rem; }
   .filter-row { gap: 8px; }
   .sort-select { font-size: 0.8rem; }
+  .event-card-body { padding: 12px 0 0 !important; }
+  .event-card-img { height: 200px; }
+  .event-name { font-size: 1.25rem !important; }
 }
 </style>

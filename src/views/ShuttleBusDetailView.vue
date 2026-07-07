@@ -63,11 +63,11 @@ onMounted(async () => {
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem;">
               <div style="background: #f8fafc; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <span style="display: block; font-size: 0.9rem; color: #64748b; margin-bottom: 0.25rem;">Total Kursi</span>
-                <span style="font-size: 1.5rem; font-weight: 800; color: #0f172a;">{{ bus.total_seat }} Kursi</span>
+                <span style="display: block; font-size: 0.9rem; color: #64748b; margin-bottom: 0.25rem;">Total seat</span>
+                <span style="font-size: 1.5rem; font-weight: 800; color: #0f172a;">{{ bus.total_seat }} seat</span>
               </div>
               <div style="background: #f8fafc; padding: 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0;">
-                <span style="display: block; font-size: 0.9rem; color: #64748b; margin-bottom: 0.25rem;">Layout Kursi</span>
+                <span style="display: block; font-size: 0.9rem; color: #64748b; margin-bottom: 0.25rem;">Layout seat</span>
                 <span style="font-size: 1.5rem; font-weight: 800; color: #0f172a;">{{ bus.seat_layout }}</span>
               </div>
             </div>

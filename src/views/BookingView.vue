@@ -154,23 +154,23 @@ const juneDays = computed(() => {
 
 // Booking states (Quantity, selected seats, and buyer information)
 const quantity = ref(1);
-const selectedSeatsMap = ref({});
+const selectedseatsMap = ref({});
 
 const currentSelectionKey = computed(() => {
   if (!selectedTicket.value) return '';
   return `${selectedTicket.value.id}_${selectedDate.value}_${selectedSesi.value}`;
 });
 
-const selectedSeats = computed({
+const selectedseats = computed({
   get: () => {
     const key = currentSelectionKey.value;
     if (!key) return [];
-    return selectedSeatsMap.value[key] || [];
+    return selectedseatsMap.value[key] || [];
   },
   set: (val) => {
     const key = currentSelectionKey.value;
     if (key) {
-      selectedSeatsMap.value[key] = val;
+      selectedseatsMap.value[key] = val;
     }
   }
 });
@@ -179,7 +179,7 @@ const allSelectedTickets = computed(() => {
   const list = [];
   if (!event.value) return [];
   
-  for (const [key, seats] of Object.entries(selectedSeatsMap.value)) {
+  for (const [key, seats] of Object.entries(selectedseatsMap.value)) {
     if (seats && seats.length > 0) {
       const [ticketId, dayId, sesiId] = key.split('_');
       const allTickets = filteredTickets.value;
@@ -208,17 +208,17 @@ const totalSelectedTicketsPrice = computed(() => {
   return allSelectedTickets.value.reduce((sum, item) => sum + (item.price * item.seats.length), 0);
 });
 
-const mergedSelectedSeats = computed(() => {
-  return Object.values(selectedSeatsMap.value).flat();
+const mergedSelectedseats = computed(() => {
+  return Object.values(selectedseatsMap.value).flat();
 });
 
 const isPP = computed(() => selectedTripStatus.value?.id === 3);
 
 const ppPergiSelectedCount = computed(() => {
-  return selectedSeats.value.filter(s => s.endsWith('_1')).length;
+  return selectedseats.value.filter(s => s.endsWith('_1')).length;
 });
 const ppPulangSelectedCount = computed(() => {
-  return selectedSeats.value.filter(s => s.endsWith('_2')).length;
+  return selectedseats.value.filter(s => s.endsWith('_2')).length;
 });
 
 const buyer = ref({
@@ -385,7 +385,7 @@ const paymentMethods = [
 ];
 
 // Bus cabin seats configuration layout (generated dynamically from available_seat_number)
-const parsedSeatmap = computed(() => {
+const parsedseatmap = computed(() => {
   if (!event.value) return [];
 
   const shapes = [];
@@ -498,8 +498,8 @@ const parsedSeatmap = computed(() => {
     const totalCol = 5;
     const colsLeft = 2;
     const gapAisle = 20;
-    const SEAT_W = 36;
-    const SEAT_H = 36;
+    const seat_W = 36;
+    const seat_H = 36;
     const GAP = 4;
     const GRID_START_X = -80;
     const GRID_START_Y = 0;
@@ -509,11 +509,11 @@ const parsedSeatmap = computed(() => {
       const row = Math.floor(idx / totalCol);
       let x;
       if (col < colsLeft) {
-        x = GRID_START_X + col * (SEAT_W + GAP);
+        x = GRID_START_X + col * (seat_W + GAP);
       } else {
-        x = GRID_START_X + colsLeft * (SEAT_W + GAP) + gapAisle + (col - colsLeft) * (SEAT_W + GAP);
+        x = GRID_START_X + colsLeft * (seat_W + GAP) + gapAisle + (col - colsLeft) * (seat_W + GAP);
       }
-      const y = GRID_START_Y + row * (SEAT_H + GAP);
+      const y = GRID_START_Y + row * (seat_H + GAP);
       const isPP = selectedTripStatus.value?.id === 3;
       if (isPP) {
         // Show only seats for current ppStep (1=Pergi, 2=Pulang)
@@ -523,8 +523,8 @@ const parsedSeatmap = computed(() => {
             type: 'seat',
             x,
             y,
-            width: SEAT_W,
-            height: SEAT_H,
+            width: seat_W,
+            height: seat_H,
             label,
             typeId: 1
           });
@@ -534,8 +534,8 @@ const parsedSeatmap = computed(() => {
             type: 'seat',
             x: x + 6,
             y: y + 6,
-            width: SEAT_W,
-            height: SEAT_H,
+            width: seat_W,
+            height: seat_H,
             label,
             typeId: 2
           });
@@ -546,8 +546,8 @@ const parsedSeatmap = computed(() => {
           type: 'seat',
           x,
           y,
-          width: SEAT_W,
-          height: SEAT_H,
+          width: seat_W,
+          height: seat_H,
           label
         });
       }
@@ -581,8 +581,8 @@ const parsedSeatmap = computed(() => {
         }
       };
     } else {
-      const available = isSeatAvailable(shape.id);
-      const selected = selectedSeats.value.includes(shape.id);
+      const available = isseatAvailable(shape.id);
+      const selected = selectedseats.value.includes(shape.id);
       
       // Determine colors based on typeId (1=Pergi=blue, 2=Pulang=orange)
       let seatFill, seatStroke;
@@ -872,10 +872,10 @@ onMounted(async () => {
     total_seat: seats,
     facilities: (() => {
       if (!item.facilities) {
-        return ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
+        return ['Full AC', 'Charger USB', 'Reclining seat', 'Asuransi'];
       }
       if (Array.isArray(item.facilities)) {
-        return item.facilities.length > 0 ? item.facilities : ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
+        return item.facilities.length > 0 ? item.facilities : ['Full AC', 'Charger USB', 'Reclining seat', 'Asuransi'];
       }
       if (typeof item.facilities === 'string') {
         try {
@@ -886,7 +886,7 @@ onMounted(async () => {
           if (split.length > 0) return split;
         }
       }
-      return ['Full AC', 'Charger USB', 'Reclining Seat', 'Asuransi'];
+      return ['Full AC', 'Charger USB', 'Reclining seat', 'Asuransi'];
     })(),
     trip_id: item.trip_id || (item.trips && item.trips.length > 0 ? item.trips[0].id : ''),
     date: item.start_date ? item.start_date.split('T')[0] : '',
@@ -1024,7 +1024,7 @@ const maxTickets = computed(() => {
   return event.value?.max_buy_ticket || 5;
 });
 
-const formatSeatLabel = (seatId) => {
+const formatseatLabel = (seatId) => {
   if (!seatId) return '';
   const match = seatId.match(/^(.*?)_(1|2)$/);
   if (match) {
@@ -1035,7 +1035,7 @@ const formatSeatLabel = (seatId) => {
   return seatId;
 };
 
-const isSeatAvailable = (seatId) => {
+const isseatAvailable = (seatId) => {
   if (!selectedTicket.value) return false;
   const avail = (selectedTicket.value.available_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
   if (avail.length === 0) return false;
@@ -1050,7 +1050,7 @@ const isSeatAvailable = (seatId) => {
   return avail.includes(baseId) && !taken.includes(baseId) && !pending.includes(baseId) && !reserved.includes(baseId);
 };
 
-const hasAvailableSeats = (t) => {
+const hasAvailableseats = (t) => {
   if (!t) return false;
   
   if (t.ticket_start_date) {
@@ -1089,7 +1089,7 @@ const getTicketStatus = (t) => {
   }
   
   // Show route name instead of 'PENJUALAN BERLANGSUNG'
-  if (hasAvailableSeats(t)) {
+  if (hasAvailableseats(t)) {
     if (t.route) {
       return `${t.route.origin_name} → ${t.route.destination_name}`;
     }
@@ -1110,7 +1110,7 @@ const getTicketStatusClass = (t) => {
     }
   }
 
-  if (t.is_soldout || t.is_fullbook || t.is_finish || !hasAvailableSeats(t)) return 'sold-out';
+  if (t.is_soldout || t.is_fullbook || t.is_finish || !hasAvailableseats(t)) return 'sold-out';
   return '';
 };
 
@@ -1176,20 +1176,20 @@ const clearSelectedTicket = () => {
   ppStep.value = 1;
 };
 
-const clearSelectedSeats = () => {
+const clearSelectedseats = () => {
   const key = currentSelectionKey.value;
   if (key) {
-    selectedSeatsMap.value[key] = [];
+    selectedseatsMap.value[key] = [];
   }
   errors.value.seats = '';
 };
 
 const deleteTicketSelectionByKey = (key) => {
-  selectedSeatsMap.value[key] = [];
-  validateSeats();
+  selectedseatsMap.value[key] = [];
+  validateseats();
 };
 
-const handleEditSeats = () => {
+const handleEditseats = () => {
   router.push({ hash: '#seatmap' });
   setTimeout(() => {
     const el = document.querySelector('.bus-cabin-canvas-viewport');
@@ -1205,7 +1205,7 @@ const toggleEditMode = () => {
 
 const deleteTicketSelection = () => {
   selectedTicket.value = null;
-  selectedSeats.value = [];
+  selectedseats.value = [];
   isEditMode.value = false;
   errors.value.seats = '';
   showMobileDetailSheet.value = false;
@@ -1229,7 +1229,7 @@ const scrollToTickets = () => {
 
 const goToPpStep2 = () => {
   if (ppPergiSelectedCount.value === 0) {
-    errors.value.seats = 'Pilih minimal 1 kursi Pergi terlebih dahulu';
+    errors.value.seats = 'Pilih minimal 1 seat Pergi terlebih dahulu';
     return;
   }
   errors.value.seats = '';
@@ -1241,13 +1241,13 @@ const goToPpStep1 = () => {
 };
 
 const goToBuyerDetails = () => {
-  validateSeats();
+  validateseats();
   // For PP, ensure both Pergi and Pulang seats are selected
   if (isPP.value) {
-    const hasPergi = selectedSeats.value.some(s => s.endsWith('_1'));
-    const hasPulang = selectedSeats.value.some(s => s.endsWith('_2'));
+    const hasPergi = selectedseats.value.some(s => s.endsWith('_1'));
+    const hasPulang = selectedseats.value.some(s => s.endsWith('_2'));
     if (!hasPergi || !hasPulang) {
-      errors.value.seats = 'Pilih kursi Pergi dan Pulang terlebih dahulu';
+      errors.value.seats = 'Pilih seat Pergi dan Pulang terlebih dahulu';
       return;
     }
   }
@@ -1255,7 +1255,7 @@ const goToBuyerDetails = () => {
     // Populate bookingStore with event, ticket, seats, and quantity
     bookingStore.selectedEvent = event.value;
     bookingStore.selectedTicket = selectedTicket.value;
-    bookingStore.selectedSeats = [...selectedSeats.value];
+    bookingStore.selectedseats = [...selectedseats.value];
     bookingStore.adults = quantity.value;
     bookingStore.toddlers = 0;
     bookingStore.selectedTripStatus = selectedTripStatus.value;
@@ -1289,7 +1289,7 @@ const isFormValid = computed(() => {
 const increaseQuantity = () => {
   if (quantity.value < maxTickets.value) {
     quantity.value++;
-    validateSeats();
+    validateseats();
   }
 };
 
@@ -1297,43 +1297,43 @@ const decreaseQuantity = () => {
   if (quantity.value > 1) {
     quantity.value--;
     const key = currentSelectionKey.value;
-    if (key && selectedSeatsMap.value[key] && selectedSeatsMap.value[key].length > quantity.value) {
-      selectedSeatsMap.value[key] = selectedSeatsMap.value[key].slice(0, quantity.value);
+    if (key && selectedseatsMap.value[key] && selectedseatsMap.value[key].length > quantity.value) {
+      selectedseatsMap.value[key] = selectedseatsMap.value[key].slice(0, quantity.value);
     }
-    validateSeats();
+    validateseats();
   }
 };
 
-const toggleSeatSelection = (seatId) => {
-  if (!isSeatAvailable(seatId)) return;
+const toggleseatSelection = (seatId) => {
+  if (!isseatAvailable(seatId)) return;
   const key = currentSelectionKey.value;
   if (!key) return;
   
   // Ensure the key exists in the map as a reactive array
-  if (!selectedSeatsMap.value[key]) {
-    selectedSeatsMap.value[key] = [];
+  if (!selectedseatsMap.value[key]) {
+    selectedseatsMap.value[key] = [];
   }
   
-  const seats = selectedSeatsMap.value[key];
+  const seats = selectedseatsMap.value[key];
   const index = seats.indexOf(seatId);
   
   if (index !== -1) {
     // Deselect — create a new array to trigger reactivity
-    selectedSeatsMap.value[key] = seats.filter(s => s !== seatId);
+    selectedseatsMap.value[key] = seats.filter(s => s !== seatId);
   } else {
     if (seats.length >= maxTickets.value) {
       // Drop the oldest selection and add the new one
-      selectedSeatsMap.value[key] = [...seats.slice(1), seatId];
+      selectedseatsMap.value[key] = [...seats.slice(1), seatId];
     } else {
-      selectedSeatsMap.value[key] = [...seats, seatId];
+      selectedseatsMap.value[key] = [...seats, seatId];
     }
   }
   
   if (selectedTicket.value?.ticket_type_id !== 0) {
-    quantity.value = Math.max(1, selectedSeatsMap.value[key].length);
+    quantity.value = Math.max(1, selectedseatsMap.value[key].length);
   }
   
-  validateSeats();
+  validateseats();
 };
 
 const validateName = () => {
@@ -1387,7 +1387,7 @@ const validateIdentity = () => {
   }
 };
 
-const validateSeats = () => {
+const validateseats = () => {
   errors.value.seats = '';
 };
 
@@ -1417,7 +1417,7 @@ const handleProceedToCheckout = () => {
   validateEmail();
   validatePhone();
   validateIdentity();
-  validateSeats();
+  validateseats();
 
   if (isSelectionComplete.value && !errors.value.name && !errors.value.email && !errors.value.phone && !errors.value.identity && !errors.value.seats) {
     // Save to bookingStore and go directly to confirmation/transaction page
@@ -1429,7 +1429,7 @@ const handleProceedToCheckout = () => {
     };
     bookingStore.adults = totalSelectedTicketsCount.value;
     bookingStore.toddlers = 0;
-    bookingStore.selectedSeats = [...mergedSelectedSeats.value];
+    bookingStore.selectedseats = [...mergedSelectedseats.value];
     bookingStore.selectedTicket = allSelectedTickets.value[0]?.ticket || selectedTicket.value;
     bookingStore.selectedPickup = {
       name: 'Venue Acara (' + event.value.location_name + ')',
@@ -1448,7 +1448,7 @@ const handleProceedToCheckout = () => {
       pickup: bookingStore.selectedPickup,
       customer: { ...bookingStore.customer },
       adults: bookingStore.adults,
-      selectedSeats: [...bookingStore.selectedSeats],
+      selectedseats: [...bookingStore.selectedseats],
       totalPrice: totalSelectedTicketsPrice.value,
       paymentMethod: 'QRIS'
     };
@@ -1479,7 +1479,7 @@ const confirmBooking = () => {
   };
   bookingStore.adults = totalSelectedTicketsCount.value;
   bookingStore.toddlers = 0;
-  bookingStore.selectedSeats = [...mergedSelectedSeats.value];
+  bookingStore.selectedseats = [...mergedSelectedseats.value];
   bookingStore.selectedPickup = { 
     name: 'Venue Acara (' + event.value.location_name + ')', 
     address: event.value.location_address || event.value.location_name
@@ -1493,7 +1493,7 @@ const confirmBooking = () => {
     pickup: bookingStore.selectedPickup,
     customer: { ...bookingStore.customer },
     adults: bookingStore.adults,
-    selectedSeats: [...bookingStore.selectedSeats],
+    selectedseats: [...bookingStore.selectedseats],
     totalPrice: totalSelectedTicketsPrice.value,
     paymentMethod: selectedPayment.value
   };
@@ -1508,6 +1508,22 @@ const confirmBooking = () => {
 
   showPaymentModal.value = false;
   router.push('/confirmation');
+};
+
+// YouTube Music Player
+const isMuted = ref(false);
+const youtubeIframeRef = ref(null);
+
+const toggleMute = () => {
+  isMuted.value = !isMuted.value;
+  const iframe = youtubeIframeRef.value;
+  if (!iframe) return;
+  // Use YouTube IFrame API postMessage — music keeps playing, no reload
+  const command = isMuted.value ? 'mute' : 'unMute';
+  iframe.contentWindow.postMessage(
+    JSON.stringify({ event: 'command', func: command, args: [] }),
+    '*'
+  );
 };
 </script>
 
@@ -1652,12 +1668,12 @@ const confirmBooking = () => {
             <div v-html="event.description || '<p>Tidak ada deskripsi</p>'" class="rich-html-content"></div>
           </div>
           
-          <!-- Tickets Tab (Accordion + Inline Seatmap + Step Flow) -->
+          <!-- Tickets Tab (Accordion + Inline seatmap + Step Flow) -->
           <div v-else-if="activeTab === 'tiket'" class="tickets-container-list">
             
             <!-- STEP 1: Select ticket category and seats -->
             <div v-if="currentStep === 1" class="step1-grid">
-              <!-- Left column: Tickets and Seatmap List -->
+              <!-- Left column: Tickets and seatmap List -->
               <div class="step1-left-col">
                 <!-- Wrapper for Date & Session Filters -->
                 <div class="outer-section-group filters-group">
@@ -1751,7 +1767,7 @@ const confirmBooking = () => {
 
                 <!-- Wrapper for Shuttle Tickets -->
                 <div class="outer-section-group">
-                  <h3 class="outer-section-title">Seated</h3>
+                  <h3 class="outer-section-title">seated</h3>
                   <div class="tickets-list-wrapper" style="display: flex; flex-direction: column; gap: 16px;">
                     <div 
                       v-for="t in filteredTickets" 
@@ -1800,7 +1816,7 @@ const confirmBooking = () => {
 
                               <!-- White card — everything below the handle -->
                               <div class="sheet-inner-card">
-                                <!-- Mobile Seatmap Header (supports dragging too) -->
+                                <!-- Mobile seatmap Header (supports dragging too) -->
                                 <div 
                                   class="mobile-seatmap-header"
                                   @touchstart.stop="onSheetDragStart"
@@ -1811,7 +1827,7 @@ const confirmBooking = () => {
                                   @mouseup.stop="onSheetDragEnd"
                                 >
                                   <button type="button" class="btn-close-seatmap-mobile" @touchstart.stop @click.stop="clearSelectedTicket">✕</button>
-                                  <h3 class="mobile-seatmap-header-title">Pilih Kursi</h3>
+                                  <h3 class="mobile-seatmap-header-title">Pilih seat</h3>
                                 </div>
                               <div class="seatmap-canvas-header">
                                 <div class="seatmap-canvas-title-group">
@@ -1833,8 +1849,8 @@ const confirmBooking = () => {
                                     <span v-else>1</span>
                                   </div>
                                   <div class="pp-step-text">
-                                    <span class="pp-step-title">Pilih Kursi Pergi</span>
-                                    <span v-if="ppPergiSelectedCount > 0" class="pp-step-count">{{ ppPergiSelectedCount }} kursi</span>
+                                    <span class="pp-step-title">Pilih seat Pergi</span>
+                                    <span v-if="ppPergiSelectedCount > 0" class="pp-step-count">{{ ppPergiSelectedCount }} seat</span>
                                   </div>
                                 </div>
                                 <div class="pp-step-connector" :class="{ active: ppStep === 2 }"></div>
@@ -1843,8 +1859,8 @@ const confirmBooking = () => {
                                     <span>2</span>
                                   </div>
                                   <div class="pp-step-text">
-                                    <span class="pp-step-title">Pilih Kursi Pulang</span>
-                                    <span v-if="ppPulangSelectedCount > 0" class="pp-step-count">{{ ppPulangSelectedCount }} kursi</span>
+                                    <span class="pp-step-title">Pilih seat Pulang</span>
+                                    <span v-if="ppPulangSelectedCount > 0" class="pp-step-count">{{ ppPulangSelectedCount }} seat</span>
                                   </div>
                                 </div>
                               </div>
@@ -1929,19 +1945,19 @@ const confirmBooking = () => {
                                       <v-layer>
                                         <!-- Translate layer to center the layout initially -->
                                         <v-group :config="{ x: 400, y: 100 }">
-                                          <template v-for="shape in parsedSeatmap" :key="shape.id">
+                                          <template v-for="shape in parsedseatmap" :key="shape.id">
                                                     <!-- Box type (e.g. KEMUDI) -->
                                             <v-group v-if="shape.type === 'box'" :config="shape.groupConfig">
                                               <v-rect :config="shape.rectConfig" />
                                               <v-text :config="shape.textConfig" />
                                             </v-group>
 
-                                            <!-- Seat type -->
+                                            <!-- seat type -->
                                             <v-group 
                                               v-else-if="shape.type === 'seat'" 
                                               :config="shape.groupConfig"
-                                              @click="shape.available ? toggleSeatSelection(shape.id) : null"
-                                              @tap="shape.available ? toggleSeatSelection(shape.id) : null"
+                                              @click="shape.available ? toggleseatSelection(shape.id) : null"
+                                              @tap="shape.available ? toggleseatSelection(shape.id) : null"
                                             >
                                               <v-rect :config="shape.rectConfig" />
                                               <v-text :config="shape.textConfig" />
@@ -1958,13 +1974,13 @@ const confirmBooking = () => {
                                 <div v-if="isPP" class="pp-step-nav-bar">
                                   <div class="pp-nav-info">
                                     <span class="pp-nav-label" v-if="ppStep === 1">
-                                      <strong>Step 1:</strong> Pilih kursi Pergi
+                                      <strong>Step 1:</strong> Pilih seat Pergi
                                     </span>
                                     <span class="pp-nav-label" v-else>
-                                      <strong>Step 2:</strong> Pilih kursi Pulang
+                                      <strong>Step 2:</strong> Pilih seat Pulang
                                     </span>
                                     <span class="pp-nav-seat-count">
-                                      {{ ppStep === 1 ? ppPergiSelectedCount : ppPulangSelectedCount }} kursi dipilih
+                                      {{ ppStep === 1 ? ppPergiSelectedCount : ppPulangSelectedCount }} seat dipilih
                                     </span>
                                   </div>
                                   <div class="pp-nav-actions">
@@ -2113,15 +2129,15 @@ const confirmBooking = () => {
                                 
                                 <div class="ticket-footer-vertical-divider"></div>
                                 
-                                <!-- Direct Book / Select Seat Button -->
+                                <!-- Direct Book / Select seat Button -->
                                 <div class="ticket-action-select-btn-only">
                                    <button 
                                     class="select-ticket-btn"
-                                    :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen, 'sold-out': !hasAvailableSeats(t) }"
-                                    :disabled="!hasAvailableSeats(t)"
+                                    :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen, 'sold-out': !hasAvailableseats(t) }"
+                                    :disabled="!hasAvailableseats(t)"
                                     @click.stop="selectTicketCategory(t)"
                                   >
-                                    <template v-if="!hasAvailableSeats(t)">
+                                    <template v-if="!hasAvailableseats(t)">
                                       <template v-if="getTicketStatusClass(t) === 'not-started'">Belum Dimulai</template>
                                       <template v-else>Habis</template>
                                     </template>
@@ -2129,8 +2145,8 @@ const confirmBooking = () => {
                                     <template v-else>
                                       {{ (() => {
                                         const key = `${t.id}_${selectedDate}_${selectedSesi}`;
-                                        const seats = selectedSeatsMap[key];
-                                        return seats && seats.length > 0 ? `Pilih Seat (${seats.length})` : 'Pilih Seat';
+                                        const seats = selectedseatsMap[key];
+                                        return seats && seats.length > 0 ? `Pilih seat (${seats.length})` : 'Pilih seat';
                                       })() }}
                                     </template>
                                   </button>
@@ -2165,7 +2181,7 @@ const confirmBooking = () => {
                       <div class="info-circle-icon">
                         <Info :size="20" />
                       </div>
-                      <p class="info-text">Belum ada kursi yang dipilih</p>
+                      <p class="info-text">Belum ada seat yang dipilih</p>
                     </div>
 
                     <!-- Selected seats info -->
@@ -2206,7 +2222,7 @@ const confirmBooking = () => {
                           </div>
                           
                           <div class="summary-ticket-seats-row">
-                            Seat: {{ item.seats.map(s => formatSeatLabel(s)).join(', ') }}
+                            seat: {{ item.seats.map(s => formatseatLabel(s)).join(', ') }}
                           </div>
                           
                           <div class="summary-ticket-price-row">
@@ -2230,7 +2246,7 @@ const confirmBooking = () => {
             <div v-else-if="currentStep === 2 && selectedTicket" class="booking-onpage-form-section">
               <div class="onpage-form-header">
                 <button type="button" class="btn-back-to-step1" @click="goBackToStep1">
-                  ← Ganti Kursi / Tiket
+                  ← Ganti seat / Tiket
                 </button>
                 <h3 class="onpage-form-title">Data Pemesan</h3>
               </div>
@@ -2252,15 +2268,15 @@ const confirmBooking = () => {
                           <span class="sd-value">{{ item.name }} ({{ item.dayId }} &bull; {{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.name || item.sesiId }})</span>
                         </div>
                         <div class="summary-detail-row">
-                          <span class="sd-label">Kursi</span>
-                          <span class="sd-value seats-highlight">{{ item.seats.map(s => formatSeatLabel(s)).join(', ') }}</span>
+                          <span class="sd-label">seat</span>
+                          <span class="sd-value seats-highlight">{{ item.seats.map(s => formatseatLabel(s)).join(', ') }}</span>
                         </div>
                         <div class="summary-detail-row">
                           <span class="sd-label">Jumlah</span>
                           <span class="sd-value">{{ item.seats.length }} Tiket</span>
                         </div>
                         <div class="summary-detail-row">
-                          <span class="sd-label">Harga per Kursi</span>
+                          <span class="sd-label">Harga per seat</span>
                           <span class="sd-value">{{ formatRp(item.price) }}</span>
                         </div>
                         <div class="summary-detail-row sd-total-row">
@@ -2271,7 +2287,7 @@ const confirmBooking = () => {
                       
                       <!-- Grand Total display if multiple categories -->
                       <div class="grand-total-step2-box" style="margin-top: 16px; padding: 16px; border: 1.5px solid var(--border-color); border-radius: 12px; display: flex; justify-content: space-between; align-items: center; background: #fafafb;">
-                        <span style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">Total Terpilih ({{ totalSelectedTicketsCount }} Kursi)</span>
+                        <span style="font-weight: 800; font-size: 0.95rem; color: #0f172a;">Total Terpilih ({{ totalSelectedTicketsCount }} seat)</span>
                         <span style="font-weight: 950; font-size: 1.25rem; color: var(--primary);">{{ formatRp(totalSelectedTicketsPrice) }}</span>
                       </div>
                   </div>
@@ -2356,7 +2372,7 @@ const confirmBooking = () => {
       <div class="container bottom-bar-container">
         <div class="bottom-bar-left">
           <span class="bottom-bar-ticket-name font-bold" v-if="totalSelectedTicketsCount > 0">
-              Total {{ totalSelectedTicketsCount }} Seat
+              Total {{ totalSelectedTicketsCount }} seat
             </span>
             <span class="bottom-bar-ticket-name" v-else>
               Harga mulai dari
@@ -2370,14 +2386,14 @@ const confirmBooking = () => {
         <div class="bottom-bar-right">
           <!-- State 1: No seat selected yet -->
           <button 
-            v-if="!selectedTicket || selectedSeats.length === 0"
+            v-if="!selectedTicket || selectedseats.length === 0"
             class="bottom-bar-buy-btn"
             @click="scrollToTickets"
           >
-            Pilih Seat
+            Pilih seat
           </button>
           
-          <!-- State 2: Seats selected, select step 1 -->
+          <!-- State 2: seats selected, select step 1 -->
           <button 
             v-else-if="currentStep === 1"
             class="bottom-bar-buy-btn animate-pulse-once"
@@ -2423,7 +2439,7 @@ const confirmBooking = () => {
         <!-- Bottom Row: Buy Button -->
         <div class="m-bottom-bar-bottom-row">
           <button 
-            v-if="!selectedTicket || selectedSeats.length === 0"
+            v-if="!selectedTicket || selectedseats.length === 0"
             class="m-buy-btn"
             @click="scrollToTickets"
           >
@@ -2503,7 +2519,7 @@ const confirmBooking = () => {
               <h3 class="mobile-sheet-title">Detail Tiket</h3>
             </div>
             <button 
-              v-if="selectedTicket && selectedSeats.length > 0" 
+              v-if="selectedTicket && selectedseats.length > 0" 
               type="button" 
               class="btn-edit-seats-mobile" 
               :class="{ 'is-editing': isEditMode }"
@@ -2517,11 +2533,11 @@ const confirmBooking = () => {
           
           <div class="mobile-sheet-body">
             <!-- Empty state when no seat is chosen -->
-            <div v-if="!selectedTicket || selectedSeats.length === 0" class="empty-summary-state">
+            <div v-if="!selectedTicket || selectedseats.length === 0" class="empty-summary-state">
               <div class="info-circle-icon">
                 <Info :size="20" />
               </div>
-              <p class="info-text">Belum ada kursi yang dipilih</p>
+              <p class="info-text">Belum ada seat yang dipilih</p>
             </div>
 
               <!-- Selected seats info -->
@@ -2556,7 +2572,7 @@ const confirmBooking = () => {
                   </div>
                   
                   <div class="summary-ticket-seats-row">
-                    Seat No: {{ item.seats.map(s => formatSeatLabel(s)).join(', ') }}
+                    seat No: {{ item.seats.map(s => formatseatLabel(s)).join(', ') }}
                   </div>
                   
                   <div class="summary-ticket-price-row">
@@ -2575,6 +2591,37 @@ const confirmBooking = () => {
         </div>
       </div>
     </transition>
+
+    <!-- YouTube audio iframe (hidden) -->
+    <iframe
+      ref="youtubeIframeRef"
+      class="yt-music-iframe"
+      src="https://www.youtube.com/embed/TYBlfpCVHBo?autoplay=1&loop=1&playlist=TYBlfpCVHBo&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1"
+      allow="autoplay; encrypted-media"
+      allowfullscreen
+      frameborder="0"
+      title="Background Music"
+    ></iframe>
+
+    <!-- Floating Volume Toggle Button -->
+    <button
+      class="yt-vol-btn"
+      @click="toggleMute"
+      :class="{ muted: isMuted, 'hide-mobile-seatmap': isMobile && (isCanvasOpen || route.hash === '#seatmap' || showMobileDetailSheet) }"
+      :title="isMuted ? 'Putar Musik' : 'Matikan Musik'"
+      aria-label="Toggle musik"
+    >
+      <svg v-if="!isMuted" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <path d="M19.07 4.93a10 10 0 0 1 0 14.14"/>
+        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+      </svg>
+      <svg v-else xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+        <line x1="23" y1="9" x2="17" y2="15"/>
+        <line x1="17" y1="9" x2="23" y2="15"/>
+      </svg>
+    </button>
     
   </div>
 </template>
@@ -2961,7 +3008,7 @@ const confirmBooking = () => {
     background-color: var(--primary) !important;
   }
   
-  /* Mobile Bottom Checkout Bar overrides */
+  /* Mobile Bottom Checkout Bar overkendaraans */
   .desktop-bottom-bar-view {
     display: none !important;
   }
@@ -3289,7 +3336,7 @@ const confirmBooking = () => {
   color: var(--primary);
 }
 
-/* Dark theme overrides for sticky tabs button colors */
+/* Dark theme overkendaraans for sticky tabs button colors */
 [data-theme="dark"] .sticky-tabs-nav-bar.is-sticky .tab-btn {
   color: rgba(255, 255, 255, 0.6);
 }
@@ -3370,7 +3417,7 @@ const confirmBooking = () => {
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.08), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
-/* Card Ticket Layout overrides matching reference */
+/* Card Ticket Layout overkendaraans matching reference */
 .ticket-card-inner {
   display: flex;
   flex-direction: column;
@@ -3463,7 +3510,7 @@ const confirmBooking = () => {
   display: inline-block;
 }
 
-/* Green available overrides */
+/* Green available overkendaraans */
 .ticket-status-badge:not(.sold-out) {
   background: #f0fdf4; /* soft green */
   color: #22c55e;
@@ -3694,7 +3741,7 @@ const confirmBooking = () => {
   flex-shrink: 0;
 }
 
-/* Responsive Overrides */
+/* Responsive Overkendaraans */
 @media (max-width: 768px) {
   .event-details-body {
     padding: 16px 0 120px;
@@ -5601,7 +5648,7 @@ const confirmBooking = () => {
     font-size: 0.9rem;
   }
 
-  /* Responsive Ticket Category Card Overrides (Mobile) */
+  /* Responsive Ticket Category Card Overkendaraans (Mobile) */
   .ticket-top-section {
     flex-direction: column !important;
     align-items: flex-start !important;
@@ -5746,7 +5793,7 @@ const confirmBooking = () => {
   /* Inherit mobile styling from 576px */
 }
 
-/* ===== FULLSCREEN SEATMAP MODAL ===== */
+/* ===== FULLSCREEN seatMAP MODAL ===== */
 .fullscreen-seatmap-overlay {
   position: fixed;
   inset: 0;
@@ -5840,7 +5887,7 @@ const confirmBooking = () => {
 
 .fs-viewport {
   flex-grow: 1;
-  height: auto; /* override 420px limit */
+  height: auto; /* overkendaraan 420px limit */
   min-height: 0;
   background-color: #dbe1e8; /* Slate light blue-grey background */
   border-left: none;
@@ -5912,7 +5959,7 @@ const confirmBooking = () => {
   box-shadow: 0 6px 20px rgba(201, 76, 76, 0.35);
 }
 
-/* Dark theme overrides for fullscreen modal */
+/* Dark theme overkendaraans for fullscreen modal */
 [data-theme="dark"] .fullscreen-seatmap-card {
   background-color: var(--card-bg, #1a1a1a);
   border-color: rgba(255, 255, 255, 0.08);
@@ -5952,7 +5999,7 @@ const confirmBooking = () => {
   }
   
   /* ===========================================================
-   * BOTTOM SHEET - Mobile Seatmap Drawer
+   * BOTTOM SHEET - Mobile seatmap Drawer
    * =========================================================== */
 
   /* Backdrop overlay */
@@ -6097,7 +6144,7 @@ const confirmBooking = () => {
     margin-bottom: 0;
   }
   
-  /* Seatmap body (canvas area) inside the inner card */
+  /* seatmap body (canvas area) inside the inner card */
   .sheet-inner-card .seatmap-canvas-body {
     flex-grow: 1;
     display: flex;
@@ -6250,7 +6297,7 @@ const confirmBooking = () => {
   }
 }
 
-/* Dark theme overrides for mobile canvas confirm bar */
+/* Dark theme overkendaraans for mobile canvas confirm bar */
 [data-theme="dark"] .mobile-canvas-confirm-bar {
   background-color: var(--card-bg, #1a1a1a) !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
@@ -6296,7 +6343,7 @@ const confirmBooking = () => {
   background-color: rgba(255, 255, 255, 0.35) !important;
 }
 
-/* Dark theme overrides for desktop canvas overlays */
+/* Dark theme overkendaraans for desktop canvas overlays */
 [data-theme="dark"] .inline-legends,
 [data-theme="dark"] .canvas-zoom-controls {
   background-color: rgba(26, 26, 26, 0.95) !important;
@@ -6549,7 +6596,7 @@ html.lock-scroll, body.lock-scroll {
   color: #b91c1c;
 }
 
-/* Unavailable session overrides */
+/* Unavailable session overkendaraans */
 .unavailable-session {
   background: #ffffff;
   border-color: #f1f5f9;
@@ -6602,7 +6649,7 @@ html.lock-scroll, body.lock-scroll {
   }
 }
 
-/* Dark mode overrides for filters */
+/* Dark mode overkendaraans for filters */
 [data-theme="dark"] .ticket-filters-wrapper {
   background: #1e1e1e;
   border-color: rgba(255, 255, 255, 0.08);
@@ -7175,12 +7222,12 @@ html.lock-scroll, body.lock-scroll {
   background: #f87171; /* lighter red on active red background */
 }
 
-/* Reduced Spacing between Filters Outer Group and Seated Group */
+/* Reduced Spacing between Filters Outer Group and seated Group */
 .outer-section-group.filters-group {
   margin-bottom: 12px;
 }
 
-/* Responsive Overrides */
+/* Responsive Overkendaraans */
 @media (max-width: 768px) {
   .date-slider-container {
     padding: 8px 10px;
@@ -7277,7 +7324,7 @@ html.lock-scroll, body.lock-scroll {
   }
 }
 
-/* Dark theme overrides */
+/* Dark theme overkendaraans */
 [data-theme="dark"] .date-slider-container {
   background: #1e1e1e;
   border-color: rgba(255, 255, 255, 0.08);
@@ -7361,5 +7408,98 @@ html.lock-scroll, body.lock-scroll {
 [data-theme="dark"] .session-pill-status {
   background: rgba(239, 68, 68, 0.15);
   color: #f87171;
+}
+
+/* ============================================
+   YouTube Floating Volume Button
+   ============================================ */
+
+/* Hidden audio-only iframe */
+.yt-music-iframe {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  left: -9999px;
+  top: -9999px;
+  opacity: 0;
+  pointer-events: none;
+  border: none;
+}
+
+/* Floating button — sits just above the bottom checkout bar,
+   vertically aligned with the "Pilih seat" button on the right */
+.yt-vol-btn {
+  position: fixed;
+  /* Desktop: bottom bar is ~76px tall, raised higher and shifted left */
+  bottom: 96px;
+  right: 40px;
+  z-index: 9999;
+
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: var(--primary, #C94C4C);
+  color: #fff;
+  cursor: pointer;
+
+  box-shadow: 0 4px 16px rgba(201, 76, 76, 0.4);
+  transition: background 0.2s ease, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, opacity 0.35s cubic-bezier(0.25, 1, 0.5, 1), visibility 0.35s ease;
+}
+
+/* Hide on mobile when seatmap is active with smooth transition */
+.yt-vol-btn.hide-mobile-seatmap {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: scale(0.8);
+}
+
+.yt-vol-btn:hover {
+  background: #b03535;
+  box-shadow: 0 6px 22px rgba(201, 76, 76, 0.5);
+  transform: scale(1.07);
+}
+
+.yt-vol-btn:active {
+  transform: scale(0.93);
+  box-shadow: 0 2px 8px rgba(201, 76, 76, 0.35);
+}
+
+/* Muted: dimmed so user knows music is off */
+.yt-vol-btn.muted {
+  background: #c94c4c;
+  opacity: 0.4;
+  box-shadow: none;
+}
+
+.yt-vol-btn.muted:hover {
+  opacity: 0.7;
+  transform: scale(1.05);
+}
+
+/* Mobile: bottom bar is ~88px tall, raised higher and shifted left */
+@media (max-width: 768px) {
+  .yt-vol-btn {
+    bottom: 112px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 480px) {
+  .yt-vol-btn {
+    bottom: 112px;
+    right: 20px;
+    width: 38px;
+    height: 38px;
+  }
 }
 </style>
