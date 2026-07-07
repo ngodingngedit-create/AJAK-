@@ -1022,7 +1022,7 @@ const tagColors = {
     padding: 20px 0 40px;
   }
   .slider-wrapper {
-    height: 220px;
+    height: 180px;
     padding: 0 20px;
   }
   .slider-card {
@@ -1059,7 +1059,7 @@ const tagColors = {
 
 @media (max-width: 480px) {
   .slider-wrapper {
-    height: 160px;
+    height: 130px;
   }
   .slider-card {
     width: 85%;
@@ -1517,7 +1517,7 @@ const tagColors = {
   .route-line { width: 15px; }
 
   .events-cards { grid-template-columns: repeat(2, 1fr); gap: 28px; }
-  .event-card-img { height: 160px; }
+  .event-card-img { height: 130px !important; }
   .event-card-body { padding: 12px 0 0 !important; }
   .event-name { font-size: 1.15rem !important; margin-bottom: 4px !important; }
   .event-price { font-size: 1.1rem !important; }
@@ -1814,7 +1814,7 @@ const tagColors = {
 
 @media (max-width: 480px) {
   .events-cards { grid-template-columns: 1fr; gap: 32px; }
-  .event-card-img { height: 200px; }
+  .event-card-img { height: 140px !important; }
   .event-card-body { padding: 12px 0 0 !important; }
   .event-name { font-size: 1.25rem !important; }
   .creative-title {

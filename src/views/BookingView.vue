@@ -925,6 +925,9 @@ onMounted(async () => {
 
   fetchTripStatuses();
 
+  document.addEventListener('click', tryAutoplay);
+  document.addEventListener('touchstart', tryAutoplay);
+
   window.addEventListener('scroll', handleScrollTabs, { passive: true });
   window.addEventListener('resize', updateMobileStatus);
   document.addEventListener('click', handleClickOutside);
@@ -932,6 +935,8 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  document.removeEventListener('click', tryAutoplay);
+  document.removeEventListener('touchstart', tryAutoplay);
   window.removeEventListener('scroll', handleScrollTabs);
   window.removeEventListener('resize', updateMobileStatus);
   document.removeEventListener('click', handleClickOutside);
@@ -1524,6 +1529,23 @@ const toggleMute = () => {
     JSON.stringify({ event: 'command', func: command, args: [] }),
     '*'
   );
+};
+
+const tryAutoplay = () => {
+  const iframe = youtubeIframeRef.value;
+  if (iframe && iframe.contentWindow) {
+    iframe.contentWindow.postMessage(
+      JSON.stringify({ event: 'command', func: 'playVideo', args: [] }),
+      '*'
+    );
+    const command = isMuted.value ? 'mute' : 'unMute';
+    iframe.contentWindow.postMessage(
+      JSON.stringify({ event: 'command', func: command, args: [] }),
+      '*'
+    );
+  }
+  document.removeEventListener('click', tryAutoplay);
+  document.removeEventListener('touchstart', tryAutoplay);
 };
 </script>
 
