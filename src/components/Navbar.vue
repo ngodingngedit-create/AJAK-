@@ -43,7 +43,7 @@ const navLinks = [
   { id: 'events',    label: 'Event',   icon: Calendar, isRoute: true,  to: '/events' },
   { id: 'services',  label: 'Layanan', icon: Layers,   isRoute: false },
   { id: 'discovery', label: 'Penjemputan', icon: MapPin,   isRoute: false },
-  { id: 'about',     label: 'About',   icon: Info,     isRoute: false },
+  { id: 'tentang',     label: 'tentang',   icon: Info,     isRoute: false },
 ];
 
 const isOnHome = computed(() => route.path === '/');
@@ -68,7 +68,7 @@ const isLinkActive = (link) => {
 const onScroll = () => {
   scrolled.value = window.scrollY > 40;
   if (!isOnHome.value) return;
-  const sections = ['services', 'discovery', 'about', 'reviews'];
+  const sections = ['services', 'discovery', 'tentang', 'reviews'];
   let found = '';
   for (const id of sections) {
     const el = document.getElementById(id);

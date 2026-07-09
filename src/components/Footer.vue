@@ -41,11 +41,15 @@ const handleFooterNav = (targetId) => {
       <div class="footer-grid">
         <!-- Column 1: Brand -->
         <div class="footer-col brand-col">
-          <div class="footer-logo">
-            <router-link to="/">
-              <img src="/AJAKLogo/LOGO.png" alt="AJAK! Logo" class="footer-logo-img" />
-            </router-link>
-            <span class="logo-tagline">Antar Jemput Anak Konser</span>
+          <div class="footer-logo-wrapper">
+            <div class="footer-logo-container">
+              <router-link to="/">
+                <img src="/AJAKLogo/LOGO.png" alt="AJAK! Logo" class="footer-logo-img" />
+              </router-link>
+            </div>
+            <div class="footer-tagline-container">
+              <span class="logo-tagline">Antar Jemput Anak Konser</span>
+            </div>
           </div>
           <p class="brand-desc">
            platform perjalanan untuk seluruh acara/event di indonesia, kami menyediakan solusi shuttle bus yang aman, nyaman dan terpercaya untuk mengantar anda ke event/acara impian.
@@ -106,7 +110,7 @@ const handleFooterNav = (targetId) => {
               <li><a href="#" @click.prevent="handleFooterNav('events')">Event</a></li>
               <li><a href="#" @click.prevent="handleFooterNav('services')">Layanan</a></li>
               <li><a href="#" @click.prevent="handleFooterNav('discovery')">Penjemputan</a></li>
-              <li><a href="#" @click.prevent="handleFooterNav('about')">About</a></li>
+              <li><a href="#" @click.prevent="handleFooterNav('tentang')">Tentang</a></li>
             </ul>
           </div>
         </div>
@@ -161,27 +165,46 @@ const handleFooterNav = (targetId) => {
   padding-right: 40px;
 }
 
-.footer-logo {
+.footer-logo-wrapper {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
+  width: 152px;
+}
+
+.footer-logo-container {
+  display: block;
+  width: 100%;
+}
+
+.footer-logo-container a {
+  display: block;
+  width: 100%;
 }
 
 .footer-logo-img {
-  height: 42px;
-  width: auto;
+  height: 48px;
+  width: 100%;
   object-fit: contain;
-  margin-bottom: 6px;
-  align-self: flex-start;
+  object-position: left;
+  margin-left: -8px;
+  margin-bottom: 4px;
+}
+
+.footer-tagline-container {
+  display: block;
+  width: 100%;
 }
 
 .logo-tagline {
-  font-size: 0.75rem;
-  font-weight: 500;
+  font-size: 0.50rem;
+  font-weight: 700;
   color: #6b6b76;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 0.4px;
   margin-top: -2px;
+  display: block;
+  padding-left: 0;
 }
 
 .brand-desc {

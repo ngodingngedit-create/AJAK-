@@ -705,8 +705,8 @@ const tagColors = {
       </div>
     </div> -->
 
-    <!-- ===== THE HEART (ABOUT) ===== -->
-    <section class="section heart-section" id="about">
+    <!-- ===== THE HEART (tentang) ===== -->
+    <section class="section heart-section" id="tentang">
       <div class="container">
         <div class="heart-container">
           <span class="sub-title"> tentang AJAK!</span>
