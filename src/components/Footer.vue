@@ -1,12 +1,31 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { X, Instagram, Compass, ShieldCheck } from 'lucide-vue-next';
+import { X, Instagram, Compass, ShieldCheck, CreditCard } from 'lucide-vue-next';
 
 const router = useRouter();
 const route = useRoute();
 
-
+const paymentMethods = [
+  { name: 'BJB', logo: '/metodePembayaran/TFBANK/bjb.png' },
+  { name: 'BCA', logo: '/metodePembayaran/TFBANK/bca.png' },
+  { name: 'BNI', logo: '/metodePembayaran/TFBANK/bni.png' },
+  { name: 'DANA', logo: '/metodePembayaran/Ewallets/dana.png' },
+  { name: 'OVO', logo: '/metodePembayaran/Ewallets/ovo.png' },
+  { name: 'ShopeePay', logo: '/metodePembayaran/Ewallets/shopeepay.png' },
+  { name: 'LinkAja', logo: '/metodePembayaran/Ewallets/linkaja.png' },
+  { name: 'AstraPay', logo: '/metodePembayaran/Ewallets/astrapay.png' },
+  { name: 'Jenius', logo: '/metodePembayaran/Ewallets/Jenius.png' },
+  { name: 'QRIS', logo: '/metodePembayaran/qris/qris.jpg' },
+  { name: 'VISA', logo: '/metodePembayaran/CARDCREDIT/VISA.webp' },
+  { name: 'MasterCard', logo: '/metodePembayaran/CARDCREDIT/mastercard.png' },
+  { name: 'JCB', logo: '/metodePembayaran/CARDCREDIT/jcb.png' },
+  { name: 'American Express', logo: '/metodePembayaran/CARDCREDIT/americanexpress.png' },
+  { name: 'BRI Direct Debit', logo: '/metodePembayaran/debit/bridirectdebit.png' },
+  { name: 'Mandiri', logo: '/metodePembayaran/debit/mandiri.png' },
+  { name: 'Alfamart', logo: '/metodePembayaran/retail/alfamart.jpg' },
+  { name: 'Indomaret', logo: '/metodePembayaran/retail/indomaret.jpg' }
+];
 
 const isOnHome = computed(() => route.path === '/');
 
@@ -33,6 +52,39 @@ const handleFooterNav = (targetId) => {
   const el = document.getElementById(targetId);
   if (el) el.scrollIntoView({ behavior: 'smooth' });
 };
+
+const paymentScrollContainer = ref(null);
+let scrollInterval = null;
+
+onMounted(() => {
+  const container = paymentScrollContainer.value;
+  if (!container) return;
+
+  let speed = 0.8; // Smooth, slow speed
+  let isHovered = false;
+
+  const handleMouseEnter = () => { isHovered = true; };
+  const handleMouseLeave = () => { isHovered = false; };
+
+  container.addEventListener('mouseenter', handleMouseEnter);
+  container.addEventListener('mouseleave', handleMouseLeave);
+
+  scrollInterval = setInterval(() => {
+    if (isHovered) return;
+    
+    container.scrollTop += speed;
+    
+    // Half height wrap-around for seamless loop since list is duplicated
+    const halfHeight = container.scrollHeight / 2;
+    if (container.scrollTop >= halfHeight - 1) {
+      container.scrollTop = 0;
+    }
+  }, 25);
+});
+
+onBeforeUnmount(() => {
+  if (scrollInterval) clearInterval(scrollInterval);
+});
 </script>
 
 <template>
@@ -110,8 +162,41 @@ const handleFooterNav = (targetId) => {
               <li><a href="#" @click.prevent="handleFooterNav('events')">Event</a></li>
               <li><a href="#" @click.prevent="handleFooterNav('services')">Layanan</a></li>
               <li><a href="#" @click.prevent="handleFooterNav('discovery')">Penjemputan</a></li>
-              <li><a href="#" @click.prevent="handleFooterNav('tentang')">Tentang</a></li>
+              <li><a href="#" @click.prevent="handleFooterNav('Tentang')">Tentang</a></li>
             </ul>
+          </div>
+        </div>
+
+        <!-- Column 3: Payment Methods -->
+        <div class="footer-col payment-col">
+          <h4 class="footer-col-title">
+            <CreditCard class="title-icon" />
+            Metode Pembayaran
+          </h4>
+          <div class="payment-scroll-wrapper">
+            <div class="payment-scroll-container" ref="paymentScrollContainer">
+              <div class="payment-grid">
+                <!-- First set -->
+                <div 
+                  v-for="(pay, idx) in paymentMethods" 
+                  :key="'a-' + idx" 
+                  class="payment-card"
+                  :title="pay.name"
+                >
+                  <img :src="pay.logo" :alt="pay.name" />
+                </div>
+                <!-- Second set for seamless looping -->
+                <div 
+                  v-for="(pay, idx) in paymentMethods" 
+                  :key="'b-' + idx" 
+                  class="payment-card"
+                  :title="pay.name"
+                  aria-hidden="true"
+                >
+                  <img :src="pay.logo" :alt="pay.name" />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -128,7 +213,7 @@ const handleFooterNav = (targetId) => {
 
 <style scoped>
 .footer {
-  background-color: #ffffff;
+  background-color: var(--bg-color);
   color: var(--text-light);
   padding: 60px 0 30px;
   border-top: 1.5px solid rgba(201, 76, 76, 0.19); /* Low opacity border */
@@ -144,8 +229,71 @@ const handleFooterNav = (targetId) => {
 
 .footer-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr; /* 2 main columns on desktop */
+  grid-template-columns: 1.5fr 1fr 1fr; /* 3 main columns on desktop */
   gap: 60px; /* Generous gap between Brand and Nav columns */
+}
+
+.payment-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.payment-scroll-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.payment-scroll-container {
+  width: 100%;
+  max-width: 200px; /* Slightly wider boundary */
+  height: 180px; /* Longer vertical boundary */
+  overflow-y: auto;
+  cursor: grab;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+.payment-scroll-container::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
+.payment-scroll-container:active {
+  cursor: grabbing;
+}
+
+.payment-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 50px); /* Fixed columns to bring cards close */
+  justify-content: flex-start; /* Shift grid slightly to the left */
+  gap: 4px;
+  width: 100%;
+}
+
+.payment-card {
+  width: 50px; /* Slightly enlarged */
+  height: 50px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s ease;
+}
+
+.payment-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(201, 76, 76, 0.1);
+  border-color: rgba(201, 76, 76, 0.2);
+}
+
+.payment-card img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .footer-nav-columns {
@@ -333,6 +481,7 @@ const handleFooterNav = (targetId) => {
 
 .copyright {
   margin: 0;
+  font-size: 0.75rem;
 }
 
 /* Responsive Rules */

@@ -444,21 +444,21 @@ const tagColors = {
               >
                 <ChevronRight size="24" stroke-width="3" />
               </button>
+
+              <!-- Slide indicator dots inside the active hero image -->
+              <div v-if="index === currentHeroIndex" class="slider-indicators-inside">
+                <button
+                  v-for="(img, i) in heroImages"
+                  :key="i"
+                  class="indicator-dot"
+                  :class="{ active: currentHeroIndex === i }"
+                  @click.stop="goToSlide(i)"
+                  :aria-label="`Go to slide ${i + 1}`"
+                ></button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-
-      <!-- Slide indicator dots -->
-      <div class="slider-indicators">
-        <button
-          v-for="(img, i) in heroImages"
-          :key="i"
-          class="indicator-dot"
-          :class="{ active: currentHeroIndex === i }"
-          @click="goToSlide(i)"
-          :aria-label="`Go to slide ${i + 1}`"
-        ></button>
       </div>
     </section>
 
@@ -517,7 +517,7 @@ const tagColors = {
                   <span class="price-label">Mulai dari</span>
                   <div style="display: flex; flex-direction: column;">
                     <span class="event-price">{{ event.price }}</span>
-                    <span style="font-size: 0.75rem; color: #aaa;">pulang - pergi</span>
+                    <span style="font-size: 0.75rem; color: #000000; font-weight: 600;">pulang - pergi</span>
                   </div>
                 </div>
                 <button class="book-now-btn">
@@ -594,7 +594,7 @@ const tagColors = {
                   <span class="price-label">Kapasitas</span>
                   <div style="display: flex; align-items: baseline; gap: 5px;">
                     <span class="event-price">{{ bus.total_seat }} Kursi</span>
-                    <span style="font-size: 0.75rem; color: #aaa; font-weight: 600;">Tersedia</span>
+                    <span style="font-size: 0.75rem; color: #000000; font-weight: 600;">Tersedia</span>
                   </div>
                 </div>
                 <button class="book-now-btn">
@@ -705,12 +705,12 @@ const tagColors = {
       </div>
     </div> -->
 
-    <!-- ===== THE HEART (tentang) ===== -->
-    <section class="section heart-section" id="tentang">
+    <!-- ===== THE HEART (Tentang) ===== -->
+    <section class="section heart-section" id="Tentang">
       <div class="container">
         <div class="heart-container">
-          <span class="sub-title"> tentang AJAK!</span>
-          <h2 class="creative-title mb-4">Sekapur sirih dari <span class="text-primary">AJAK!</span></h2>
+          <span class="sub-title"> Tentang AJAK!</span>
+          <h2 class="creative-title mb-4">Sekapur Sirih dari <span class="text-primary">AJAK!</span></h2>
           <div class="title-underline mx-auto mb-5"></div>
           <p class="main-para">
             Kami memulai dengan keyakinan sederhana: <strong>perjalanan menuju tempat terselenggaranya acara harus sama serunya dengan pertunjukan itu sendiri.</strong>
@@ -808,7 +808,7 @@ const tagColors = {
   margin-bottom: 12px;
 }
 .creative-title {
-  font-size: 3rem;
+  font-size: 2.25rem;
   font-weight: 900;
   letter-spacing: -1px;
 }
@@ -823,14 +823,17 @@ const tagColors = {
 /* ===== HERO ===== */
 .hero-section {
   position: relative;
-  min-height: 80vh;
+  min-height: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: var(--bg-color);
-  padding: 120px 0 60px;
+  /* background-image: url('/herobanner.png'); */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  padding: 110px 0 0px;
 }
 
 /* Slider Track & Layout */
@@ -838,12 +841,13 @@ const tagColors = {
   position: relative;
   width: 100%;
   max-width: 1400px;
-  height: 420px;
+  height: 380px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5;
   overflow: visible;
+  margin-top: -65px;
 }
 
 .slider-track {
@@ -858,16 +862,17 @@ const tagColors = {
 /* Slider Card Styles */
 .slider-card {
   position: absolute;
-  width: 70%;
-  max-width: 1000px;
-  height: 100%;
-  border-radius: 24px;
+  width: 890px;
+  height: 290.91px;
+  border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
   transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1), 
-              opacity 0.6s ease;
-  background: #111;
+              opacity 0.6s ease,
+              filter 0.6s ease;
+  background: transparent;
   user-select: none;
+  filter: brightness(0.6);
 }
 
 .card-inner {
@@ -879,7 +884,7 @@ const tagColors = {
 .slider-card img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
@@ -888,20 +893,21 @@ const tagColors = {
   transform: translateX(0) scale(1);
   z-index: 10;
   opacity: 1;
+  filter: brightness(1);
   cursor: default;
   border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 /* Side slides */
 .slider-card.prev {
-  transform: translateX(-55%) scale(0.82);
+  transform: translateX(-44%) scale(0.82);
   z-index: 5;
   opacity: 1;
   cursor: pointer;
 }
 
 .slider-card.next {
-  transform: translateX(55%) scale(0.82);
+  transform: translateX(44%) scale(0.82);
   z-index: 5;
   opacity: 1;
   cursor: pointer;
@@ -950,30 +956,29 @@ const tagColors = {
   right: 24px;
 }
 
-/* Indicators Dots */
-.slider-indicators {
+/* Indicators Dots Inside active card */
+.slider-indicators-inside {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   gap: 10px;
-  margin-top: 36px;
-  z-index: 5;
+  z-index: 15;
 }
 
-.indicator-dot {
+.slider-indicators-inside .indicator-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.4);
   border: none;
   cursor: pointer;
   padding: 0;
   transition: all 0.3s ease;
 }
 
-[data-theme="dark"] .indicator-dot {
-  background: rgba(255, 255, 255, 0.35);
-}
-
-.indicator-dot.active {
+.slider-indicators-inside .indicator-dot.active {
   background: var(--primary);
   width: 24px;
   border-radius: 4px;
@@ -983,28 +988,40 @@ const tagColors = {
 /* Responsive adjustments for Slider */
 @media (max-width: 1200px) {
   .slider-wrapper {
-    height: 400px;
+    height: 310px;
   }
   .slider-card {
-    width: 75%;
+    width: 720px;
+    height: 236px;
+  }
+  .slider-card.prev {
+    transform: translateX(-42%) scale(0.82);
+  }
+  .slider-card.next {
+    transform: translateX(42%) scale(0.82);
   }
 }
 
 @media (max-width: 992px) {
   .slider-wrapper {
-    height: 320px;
+    height: 260px;
   }
   .slider-card {
-    width: 80%;
+    width: 600px;
+    height: 196.8px;
   }
   .slider-card.prev {
-    transform: translateX(-50%) scale(0.85);
+    transform: translateX(-42%) scale(0.82);
   }
   .slider-card.next {
-    transform: translateX(50%) scale(0.85);
+    transform: translateX(42%) scale(0.82);
   }
   .creative-title {
-    font-size: 2.5rem !important;
+    font-size: 1.85rem !important;
+  }
+  .events-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 24px !important;
   }
   .tiers-grid {
     grid-template-columns: repeat(2, 1fr) !important;
@@ -1019,24 +1036,27 @@ const tagColors = {
 @media (max-width: 768px) {
   .hero-section {
     min-height: auto;
-    padding: 20px 0 40px;
+    padding: 20px 0 0px;
   }
   .slider-wrapper {
-    height: 180px;
-    padding: 0 20px;
+    height: 210px !important;
+    padding: 0 20px !important;
+    margin-top: -35px;
+    overflow: visible !important;
   }
   .slider-card {
-    width: 85%;
-    border-radius: 16px;
+    position: absolute !important;
+    width: 440px !important;
+    height: 144px !important;
+    border-radius: 4px;
   }
-  /* Show adjacent slides on mobile exactly like desktop */
   .slider-card.prev {
-    transform: translateX(-45%) scale(0.82);
-    opacity: 1;
+    transform: translateX(-42%) scale(0.82) !important;
+    opacity: 1 !important;
   }
   .slider-card.next {
-    transform: translateX(45%) scale(0.82);
-    opacity: 1;
+    transform: translateX(42%) scale(0.82) !important;
+    opacity: 1 !important;
   }
   .nav-arrow {
     width: 32px;
@@ -1052,25 +1072,36 @@ const tagColors = {
   .nav-arrow.arrow-right {
     right: 12px;
   }
-  .slider-indicators {
-    margin-top: 24px;
+  .slider-indicators-inside {
+    bottom: 10px;
+  }
+  .slider-indicators-inside .indicator-dot {
+    width: 6px;
+    height: 6px;
+  }
+  .slider-indicators-inside .indicator-dot.active {
+    width: 18px;
   }
 }
 
 @media (max-width: 480px) {
   .slider-wrapper {
-    height: 130px;
+    height: 160px !important;
+    margin-top: -25px;
+    overflow: visible !important;
   }
   .slider-card {
-    width: 85%;
+    position: absolute !important;
+    width: 300px !important;
+    height: 98px !important;
   }
   .slider-card.prev {
-    transform: translateX(-45%) scale(0.82);
-    opacity: 1;
+    transform: translateX(-40%) scale(0.82) !important;
+    opacity: 1 !important;
   }
   .slider-card.next {
-    transform: translateX(45%) scale(0.82);
-    opacity: 1;
+    transform: translateX(40%) scale(0.82) !important;
+    opacity: 1 !important;
   }
   .nav-arrow {
     display: none; /* Hide arrows on small screens, rely on touch swipe and dots */
@@ -1192,7 +1223,18 @@ const tagColors = {
 .marquee-logo-color { filter: none; opacity: 0.8; height: 44px; }
 
 /* ===== EVENTS ===== */
-.vibes-section { padding-top: 80px; }
+.vibes-section { padding-top: 25px; }
+
+/* ===== TIERS (Armada Kami) ===== */
+.tiers-section {
+  padding-top: 35px;
+}
+.tiers-section .section-title-box {
+  margin-bottom: 2rem !important;
+}
+.tiers-section .events-cards {
+  gap: 20px;
+}
 .events-cards {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1211,10 +1253,10 @@ const tagColors = {
   transition: none !important;
 }
 .event-card-img {
-  height: 200px;
+  height: 160px;
   position: relative;
   overflow: hidden;
-  border-radius: 16px !important;
+  border-radius: 8px !important;
   transform: translateY(0) scale(1);
   transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.5s cubic-bezier(0.25, 1, 0.5, 1) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -1279,13 +1321,13 @@ const tagColors = {
   flex-direction: column;
 }
 .event-city-text {
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   color: var(--text-light);
   font-weight: 600;
   margin-bottom: 4px;
 }
 .event-name {
-  font-size: 1.35rem !important;
+  font-size: 1.15rem !important;
   font-weight: 800 !important;
   color: var(--text-dark) !important;
   margin-bottom: 4px !important;
@@ -1294,8 +1336,8 @@ const tagColors = {
 }
 .event-organizer {
   font-size: 0.9rem;
-  color: var(--text-light);
-  font-weight: 500;
+  color: #000000 !important;
+  font-weight: 400 !important;
   margin-bottom: 12px;
 }
 .event-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
@@ -1303,9 +1345,9 @@ const tagColors = {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-light);
+  font-size: 0.78rem;
+  font-weight: 400 !important;
+  color: #000000 !important;
 }
 .meta-row svg { color: var(--primary); flex-shrink: 0; }
 .event-card-footer {
@@ -1318,14 +1360,14 @@ const tagColors = {
 .price-label {
   display: block;
   font-size: 0.8rem;
-  font-weight: 500;
-  color: #888;
+  font-weight: 600 !important;
+  color: #000000 !important;
   margin-bottom: 2px;
 }
 .event-price {
   font-size: 1.25rem !important;
-  font-weight: 800 !important;
-  color: var(--text-dark) !important;
+  font-weight: 600 !important;
+  color: #000000 !important;
 }
 .book-now-btn {
   background: var(--primary);
@@ -1335,7 +1377,7 @@ const tagColors = {
   border-radius: 12px;
   font-family: inherit;
   font-size: 0.85rem;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.25s ease;
   white-space: nowrap;
@@ -1494,7 +1536,7 @@ const tagColors = {
     padding: 50px 0 !important;
   }
   .creative-title {
-    font-size: 2rem !important;
+    font-size: 1.5rem !important;
   }
   .logo-marquee-wrap {
     padding: 6px 0 !important;
@@ -1516,17 +1558,35 @@ const tagColors = {
   .route-arrow { padding: 4px 0; transform: rotate(90deg); }
   .route-line { width: 15px; }
 
-  .events-cards { grid-template-columns: repeat(2, 1fr); gap: 28px; }
-  .event-card-img { height: 130px !important; }
+  .events-cards { grid-template-columns: 1fr !important; gap: 28px; }
+  .event-card-img { height: 180px !important; }
   .event-card-body { padding: 12px 0 0 !important; }
   .event-name { font-size: 1.15rem !important; margin-bottom: 4px !important; }
+  .event-city-text { font-size: 0.85rem !important; }
+  .vibes-section { padding-top: 18px !important; }
   .event-price { font-size: 1.1rem !important; }
-  .book-now-btn { padding: 8px 16px; font-size: 0.8rem; border-radius: 10px; }
+  .event-card-footer {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 10px;
+    padding-top: 12px !important;
+  }
+  .book-now-btn {
+    width: 100%;
+    text-align: center;
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    border-radius: 10px;
+  }
 
   .tiers-grid { grid-template-columns: 1fr; gap: 20px; }
   .tier-visual { height: 180px; }
   .tier-info { padding: 20px; }
   .tier-info h3 { font-size: 1.4rem; }
+  .tiers-section { padding-top: 15px !important; }
+  .tiers-section .section-title-box { margin-bottom: 1rem !important; }
+  .tiers-section .events-cards { gap: 16px !important; }
+  .pickup-discovery { padding-top: 15px !important; }
 
   .discovery-grid {
     display: flex !important;
@@ -1814,11 +1874,11 @@ const tagColors = {
 
 @media (max-width: 480px) {
   .events-cards { grid-template-columns: 1fr; gap: 32px; }
-  .event-card-img { height: 140px !important; }
+  .event-card-img { height: 150px !important; }
   .event-card-body { padding: 12px 0 0 !important; }
-  .event-name { font-size: 1.25rem !important; }
+  .event-name { font-size: 1.1rem !important; }
   .creative-title {
-    font-size: 1.6rem !important;
+    font-size: 1.3rem !important;
   }
   .logo-marquee-wrap {
     padding: 4px 0 !important;

@@ -43,7 +43,7 @@ const navLinks = [
   { id: 'events',    label: 'Event',   icon: Calendar, isRoute: true,  to: '/events' },
   { id: 'services',  label: 'Layanan', icon: Layers,   isRoute: false },
   { id: 'discovery', label: 'Penjemputan', icon: MapPin,   isRoute: false },
-  { id: 'tentang',     label: 'tentang',   icon: Info,     isRoute: false },
+  { id: 'Tentang',     label: 'Tentang',   icon: Info,     isRoute: false },
 ];
 
 const isOnHome = computed(() => route.path === '/');
@@ -68,7 +68,7 @@ const isLinkActive = (link) => {
 const onScroll = () => {
   scrolled.value = window.scrollY > 40;
   if (!isOnHome.value) return;
-  const sections = ['services', 'discovery', 'tentang', 'reviews'];
+  const sections = ['services', 'discovery', 'Tentang', 'reviews'];
   let found = '';
   for (const id of sections) {
     const el = document.getElementById(id);
@@ -120,7 +120,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 
 
 <template>
-  <header class="navbar" :class="{ 'scrolled': scrolled }">
+  <header class="navbar" :class="{ 'scrolled': scrolled, 'no-shadow': route.name === 'help' }">
     <div class="container navbar-content">
       <!-- Logo -->
       <router-link to="/" class="logo">
@@ -320,18 +320,20 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 <style scoped>
 .navbar {
   background-color: var(--navbar-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 1000;
   transition: background-color 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
   border-bottom: 1px solid var(--border-color);
+  box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.12);
 }
 .navbar.scrolled {
   background-color: var(--navbar-scrolled-bg);
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 6px 0 rgba(0, 0, 0, 0.12);
   border-bottom-color: var(--border-color);
+}
+.navbar.no-shadow {
+  box-shadow: none !important;
 }
 
 /* Theme toggle */
@@ -341,7 +343,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 .theme-icon-leave-to   { opacity: 0; transform: rotate(90deg) scale(0.5); }
 .navbar-content {
   display: flex; justify-content: space-between; align-items: center;
-  height: 80px; gap: 20px;
+  height: 60px; gap: 20px;
 }
 
 /* Logo */
@@ -424,8 +426,8 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 
 
 /* Sidebar Styles */
-.hamburger-btn { display: flex; }
-.desktop-auth-area, .search-wrap { display: none; }
+.hamburger-btn { display: none; }
+.desktop-auth-area, .search-wrap { display: flex; }
 .lang-switcher { display: block; }
 .mobile-sidebar-overlay {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -479,6 +481,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
   
   .nav-links { display: none; }
   .hamburger-btn { display: flex; margin-left: auto; }
+  .desktop-auth-area, .search-wrap { display: none; }
   .mobile-search-bar { display: none; } /* keep hidden to simplify */
   .lang-switcher, .theme-toggle-btn { display: none; }
 }

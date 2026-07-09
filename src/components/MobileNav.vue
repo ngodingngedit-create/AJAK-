@@ -19,7 +19,7 @@ const isOnHome = computed(() => route.path === '/');
 
 const onScroll = () => {
   if (!isOnHome.value) return;
-  const sections = ['vibes', 'services', 'discovery', 'tentang', 'reviews'];
+  const sections = ['vibes', 'services', 'discovery', 'Tentang', 'reviews'];
   let current = 'home';
   for (const id of sections) {
     const el = document.getElementById(id);

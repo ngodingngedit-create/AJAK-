@@ -262,7 +262,6 @@ const tagColors = {
           <div class="event-card-body">
             <div class="event-city-text">{{ event.city }}</div>
             <h3 class="event-name">{{ event.name }}</h3>
-            <div class="event-organizer">Oleh {{ event.organizer }}</div>
             <div class="event-meta">
               <div class="meta-row">
                 <Calendar :size="13" />
@@ -298,7 +297,7 @@ const tagColors = {
                 <span class="price-label">Mulai dari</span>
                 <div style="display: flex; flex-direction: column;">
                   <span class="event-price">{{ event.price }}</span>
-                  <span style="font-size: 0.72rem; color: #888;">pulang - pergi</span>
+                  <span style="font-size: 0.72rem; color: #000000; font-weight: 600;">pulang - pergi</span>
                 </div>
               </div>
               <button class="book-now-btn">
@@ -601,7 +600,7 @@ const tagColors = {
   height: 200px;
   position: relative;
   overflow: hidden;
-  border-radius: 16px !important;
+  border-radius: 8px !important;
   transform: translateY(0) scale(1);
   transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.5s cubic-bezier(0.25, 1, 0.5, 1) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -679,20 +678,14 @@ const tagColors = {
   letter-spacing: -0.3px;
   line-height: 1.3;
 }
-.event-organizer {
-  font-size: 0.9rem;
-  color: var(--text-light);
-  font-weight: 500;
-  margin-bottom: 12px;
-}
 .event-meta { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .meta-row {
   display: flex;
   align-items: center;
   gap: 7px;
   font-size: 0.82rem;
-  font-weight: 600;
-  color: var(--text-light);
+  font-weight: 400 !important;
+  color: #000000 !important;
 }
 .meta-row svg { color: var(--primary); flex-shrink: 0; }
 .event-card-footer {
@@ -705,14 +698,14 @@ const tagColors = {
 .price-label {
   display: block;
   font-size: 0.8rem;
-  font-weight: 500;
-  color: #888;
+  font-weight: 600 !important;
+  color: #000000 !important;
   margin-bottom: 2px;
 }
 .event-price {
   font-size: 1.25rem !important;
-  font-weight: 800 !important;
-  color: var(--text-dark) !important;
+  font-weight: 600 !important;
+  color: #000000 !important;
 }
 .book-now-btn {
   background: var(--primary);
@@ -722,7 +715,7 @@ const tagColors = {
   border-radius: 12px;
   font-family: inherit;
   font-size: 0.85rem;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.25s ease;
   white-space: nowrap;
@@ -865,7 +858,7 @@ const tagColors = {
   .event-name { font-size: 1.15rem !important; }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .events-grid { grid-template-columns: 1fr; gap: 32px; }
   .events-hero { padding: 120px 0 48px; }
   .events-hero-title { font-size: 2.2rem; }

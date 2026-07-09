@@ -43,7 +43,7 @@ const menuData = ref([
         isOpen: true,
         children: [
           { id: 'sk-umum-daftar', label: 'Pendaftaran Akun & Keanggotaan' },
-          { id: 'sk-umum-tanggung', label: 'Batasan Tanggung Jawab platform perjalanan untuk seluruh acara/event di indonesia, kami menyediakan solusi shuttle bus yang aman, nyaman dan terpercaya untuk mengantar anda ke event/acara impian' }
+          { id: 'sk-umum-tanggung', label: 'Batasan Tanggung Jawab ' }
         ]
       },
       {
@@ -541,11 +541,10 @@ watch(() => route.query.tab, () => {
               Terakhir diperbarui: 30 Juni 2026
             </div>
 
-            <!-- Document Rendered Body Sections (All sub-sections rendered together) -->
+            <!-- Document Rendered Body Sections -->
             <div class="doc-body">
               <div v-for="l2 in activeCategoryData.children" :key="l2.id" class="doc-category-group">
-                <!-- Level 2 Sub-category Divider Header -->
-                <h2 class="doc-group-heading">{{ l2.label }}</h2>
+                <!-- Level 2 Sub-category Divider Header removed to leave only doc-section-heading (l3) -->
                 
                 <!-- Level 3 Document Section (Has individual target ID for smooth scrolling) -->
                 <div v-for="l3 in l2.children" :key="l3.id" :id="l3.id" class="doc-body-section">
@@ -573,20 +572,20 @@ watch(() => route.query.tab, () => {
 
 <style scoped>
 .help-page-wrapper {
-  background-color: #f8f9fa;
+  background-color: var(--bg-color);
   min-height: 100vh;
   padding-bottom: 80px;
-  padding-top: 80px; /* Offset the 80px fixed header navbar */
+  padding-top: 60px; /* Offset the 60px fixed header navbar */
 }
 
 /* Top Navigation Category Header - Sticky below Navbar */
 .help-top-header {
-  background-color: #ffffff;
+  background-color: var(--bg-color);
   border-bottom: 1px solid rgba(201, 76, 76, 0.08);
   position: sticky;
-  top: 80px; /* Sits perfectly below the 80px fixed header navbar */
+  top: 60px; /* Sits perfectly below the 60px fixed header navbar */
   z-index: 20;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
 }
 
 .help-top-header-inner {
@@ -726,9 +725,9 @@ watch(() => route.query.tab, () => {
   border-radius: 0;
   padding: 30px 24px;
   position: sticky;
-  top: 156px; /* Sits perfectly below navbar (80px) and top category bar (56px) plus spacing */
-  height: calc(100vh - 180px);
-  max-height: calc(100vh - 180px);
+  top: 136px; /* Sits perfectly below navbar (60px) and top category bar (56px) plus spacing */
+  height: calc(100vh - 160px);
+  max-height: calc(100vh - 160px);
   overflow-y: auto;
   overflow-x: hidden; /* Scroll vertically only, no horizontal scroll */
   transition: all 0.35s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -1068,7 +1067,7 @@ watch(() => route.query.tab, () => {
 }
 
 .doc-body-section {
-  scroll-margin-top: 156px; /* offset for sticky navbar (80px) and top category bar (56px) + spacing */
+  scroll-margin-top: 136px; /* offset for sticky navbar (60px) and top category bar (56px) + spacing */
   padding: 4px 0;
 }
 
@@ -1122,11 +1121,11 @@ watch(() => route.query.tab, () => {
 /* Responsive Rules */
 @media (max-width: 991px) {
   .help-page-wrapper {
-    padding-top: 80px;
+    padding-top: 60px;
   }
 
   .help-top-header {
-    top: 80px;
+    top: 60px;
   }
 
   @media (max-width: 768px) {
