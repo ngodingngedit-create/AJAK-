@@ -18,6 +18,7 @@ export const bookingStore = reactive({
   selectedRouteId: null,
   selectedSessionId: null,
   selectedDate: null,
+  selectedPrice: null,
 
   reset() {
     this.selectedEvent = null;
@@ -33,6 +34,7 @@ export const bookingStore = reactive({
     this.selectedRouteId = null;
     this.selectedSessionId = null;
     this.selectedDate = null;
+    this.selectedPrice = null;
   },
 
   generateBookingCode() {

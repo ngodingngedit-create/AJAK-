@@ -152,13 +152,14 @@ const applyVoucher = (index) => {
 };
 
 // Calculation computed properties
-const baseTicketPrice = computed(() => (ticket.value?.price || 0) * quantity.value);
+const effectivePrice = computed(() => bookingStore.selectedPrice || ticket.value?.price || 0);
+const baseTicketPrice = computed(() => effectivePrice.value * quantity.value);
 const totalDiscount = computed(() => {
   return vouchers.value.reduce((total, v) => total + (v.applied ? v.discount : 0), 0);
 });
 const adminFee = computed(() => {
-  // Admin fee 8000 per ticket
-  return 8000 * quantity.value;
+  // Admin fee 8000 per transaction (flat, not per ticket)
+  return 8000;
 });
 const totalPayment = computed(() => {
   return Math.max(0, baseTicketPrice.value + adminFee.value - totalDiscount.value);
@@ -303,8 +304,11 @@ const validateOwners = () => {
 
 // Confirmation Modal State
 const showConfirmModal = ref(false);
-
 const isSubmitting = ref(false);
+
+// Seat conflict modal
+const showSeatConflictModal = ref(false);
+const seatConflictData = ref(null);
 
 const executeCheckout = async () => {
   showConfirmModal.value = false;
@@ -333,10 +337,19 @@ const executeCheckout = async () => {
     ppn: 0,
     payment_status: "PENDING",
     tickets: selectedseats.value.map(seat => {
-      // Parse type_id from seat ID suffix (_1 = Pergi, _2 = Pulang)
+      // Parse type_id: PP seats have _1/_2 suffix, non-PP uses trip_status_id
       const seatMatch = seat.match(/^(.*?)_(1|2)$/);
-      const typeId = seatMatch ? parseInt(seatMatch[2], 10) : 1;
-      const baseseat = seatMatch ? seatMatch[1] : seat;
+      let typeId;
+      let baseseat;
+      if (seatMatch) {
+        // PP type: _1 = Pergi, _2 = Pulang
+        typeId = parseInt(seatMatch[2], 10);
+        baseseat = seatMatch[1];
+      } else {
+        // Non-PP: use selectedTripStatus.id (1=Pergi, 2=Pulang)
+        typeId = bookingStore.selectedTripStatus?.id || 1;
+        baseseat = seat;
+      }
       return {
         shuttle_ticket_id: ticket.value?.id || "",
         shuttle_session_id: parseInt(bookingStore.selectedSessionId) || 0,
@@ -344,11 +357,11 @@ const executeCheckout = async () => {
         type_id: typeId, // 1 = pergi, 2 = pulang
         order_seat_number: baseseat,
         qty_ticket: 1,
-        price: ticket.value.price || 0,
-        ticket_fee: adminFee.value / quantity.value,
+        price: effectivePrice.value,
+        ticket_fee: 0,
         is_promo: totalDiscount.value > 0 ? 1 : 0,
         promo_price: totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0,
-        subtotal_price: (ticket.value.price || 0) + (adminFee.value / quantity.value) - (totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0)
+        subtotal_price: effectivePrice.value
       };
     }),
     passengers: [
@@ -384,7 +397,12 @@ const executeCheckout = async () => {
     });
 
     if (!res.ok) {
-      throw new Error('Gagal memproses pesanan.');
+      // Try to read error response body for conflict info
+      let errData = null;
+      try { errData = await res.json(); } catch (_) { /* ignore */ }
+      const err = new Error('Gagal memproses pesanan.');
+      err.responseData = errData;
+      throw err;
     }
 
     const result = await res.json();
@@ -399,7 +417,13 @@ const executeCheckout = async () => {
     }
   } catch (error) {
     console.error('Checkout error:', error);
-    alert('Terjadi kesalahan saat memproses pesanan. Silakan coba lagi.');
+    // Check if error response has SEAT_CONFLICT data
+    if (error.responseData && error.responseData.conflict?.error_type === 'SEAT_CONFLICT') {
+      seatConflictData.value = error.responseData.conflict;
+      showSeatConflictModal.value = true;
+    } else {
+      alert('Terjadi kesalahan saat memproses pesanan. Silakan coba lagi.');
+    }
   } finally {
     isSubmitting.value = false;
   }
@@ -556,7 +580,7 @@ const isLongText = (str, limit = 20) => {
                   <h3 class="ticket-owner-title">
                     {{ idx + 1 }}. Pemilik Tiket {{ tripTypeName }} {{ selectedseats[idx] ? `(seat ${formatseatLabel(selectedseats[idx])})` : '' }}
                   </h3>
-                  <span class="ticket-owner-subtitle">1 Tiket x {{ formatRp(ticket.price) }}</span>
+                  <span class="ticket-owner-subtitle">1 Tiket x {{ formatRp(effectivePrice) }}</span>
                 </div>
               </div>
               <button type="button" class="btn-toggle-accordion">
@@ -782,7 +806,7 @@ const isLongText = (str, limit = 20) => {
                     </div>
                   </div>
                   <span class="s-category-calc">
-                    {{ quantity }} Tiket x {{ formatRp(ticket.price) }}
+                    {{ quantity }} Tiket x {{ formatRp(effectivePrice) }}
                   </span>
                 </div>
               </div>
@@ -925,7 +949,7 @@ const isLongText = (str, limit = 20) => {
                   </div>
                 </div>
                 <span class="s-category-calc">
-                  {{ quantity }} Tiket x {{ formatRp(ticket.price) }}
+                  {{ quantity }} Tiket x {{ formatRp(effectivePrice) }}
                 </span>
               </div>
             </div>
@@ -1060,6 +1084,55 @@ const isLongText = (str, limit = 20) => {
             Saya Mengerti
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================== SEAT CONFLICT MODAL ================== -->
+  <div class="confirm-modal-overlay" v-if="showSeatConflictModal" @click="showSeatConflictModal = false">
+    <div class="confirm-modal-card" @click.stop>
+      <!-- Modal Header -->
+      <div class="modal-header-row">
+        <div class="modal-header-left">
+          <span class="warning-icon-wrap">⚠️</span>
+          <h3 class="modal-title-text">Seat Tidak Tersedia</h3>
+        </div>
+        <button type="button" class="btn-close-modal" @click="showSeatConflictModal = false">✕</button>
+      </div>
+
+      <!-- Subheading -->
+      <p class="modal-subheading-text">Maaf, seat yang kamu pilih sedang dipesan oleh pengguna lain.</p>
+
+      <!-- Details Box -->
+      <div class="modal-details-box">
+        <div class="modal-detail-item">
+          <div class="modal-detail-lbl">Nomor seat</div>
+          <div class="modal-detail-val" style="font-weight: 700; color: var(--primary, #C94C4C); font-size: 1.1rem;">
+            {{ seatConflictData?.seat || '-' }}
+          </div>
+        </div>
+        <div class="modal-detail-item" v-if="seatConflictData?.ticket_type">
+          <div class="modal-detail-lbl">Jenis Tiket</div>
+          <div class="modal-detail-val">{{ seatConflictData.ticket_type.name }}</div>
+        </div>
+        <div class="modal-detail-item">
+          <div class="modal-detail-lbl">Status</div>
+          <div class="modal-detail-val" style="text-transform: uppercase; font-weight: 600; color: #f59e0b;">{{ seatConflictData?.status || 'PENDING' }}</div>
+        </div>
+      </div>
+
+      <!-- Info -->
+      <div class="modal-info-box" style="margin-top: 12px;">
+        <p style="margin: 0; font-size: 0.85rem; color: #64748b; line-height: 1.6;">
+          Silakan pilih seat lain atau tunggu beberapa saat dan coba lagi.
+        </p>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="modal-footer-actions-row">
+        <button type="button" class="btn-modal-action btn-modal-submit" @click="showSeatConflictModal = false">
+          Mengerti
+        </button>
       </div>
     </div>
   </div>

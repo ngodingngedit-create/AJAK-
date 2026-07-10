@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { MapPin, Clock, Calendar, ChevronLeft, ChevronDown, Check, Info, User, Mail, Phone, Wind, Zap, Music, ShieldCheck, Wifi, Sofa } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
@@ -14,6 +14,7 @@ const activeTab = ref('tiket'); // 'deskripsi', 'tiket', 'terms'
 const selectedTicket = ref(null);
 const expandedTicketId = ref(null);
 const currentStep = ref(1); // 1 = Select seat, 2 = Buyer details form
+const tripTypeError = ref('');
 const ppStep = ref(1); // 1 = Pergi, 2 = Pulang (only for PP / trip_status_id === 3)
 const isEditMode = ref(false);
 const isFilterWrapperExpanded = ref(true);
@@ -191,7 +192,7 @@ const allSelectedTickets = computed(() => {
           dayId,
           sesiId,
           seats,
-          price: ticket.price,
+          price: getEffectivePrice(ticket),
           name: ticket.name
         });
       }
@@ -213,6 +214,15 @@ const mergedSelectedseats = computed(() => {
 });
 
 const isPP = computed(() => selectedTripStatus.value?.id === 3);
+
+// Helper: get price from ticket.prices array based on selected trip status
+const getEffectivePrice = (ticket) => {
+  if (!ticket || !selectedTripStatus.value || !ticket.prices || !ticket.prices.length) {
+    return ticket?.price || 0;
+  }
+  const matchingPrice = ticket.prices.find(p => String(p.ticket_type_id) === String(selectedTripStatus.value.id));
+  return matchingPrice ? parseInt(matchingPrice.price) : (ticket.price || 0);
+};
 
 const ppPergiSelectedCount = computed(() => {
   return selectedseats.value.filter(s => s.endsWith('_1')).length;
@@ -389,8 +399,16 @@ const parsedseatmap = computed(() => {
   if (!event.value) return [];
 
   const shapes = [];
+  const availableSeats = new Set();
+  
+  if (selectedTicket.value?.available_seat_number) {
+    const raw = selectedTicket.value.available_seat_number;
+    if (typeof raw === 'string' && raw.trim()) {
+      raw.split(',').map(s => s.trim().toUpperCase()).filter(Boolean).forEach(s => availableSeats.add(s));
+    }
+  }
 
-  // Parse seatmap JSON to get the driver box
+  // Parse seatmap JSON to use as the absolute source of truth for layout
   let config = [];
   try {
     if (event.value.seatmap) {
@@ -400,70 +418,167 @@ const parsedseatmap = computed(() => {
     console.error('Error parsing seatmap JSON:', e);
   }
 
-  // Add driver box (first box type in config)
-  const driverBox = config.find(item => item.type === 'box');
-  if (driverBox) {
+  const is59Layout = event.value?.total_seat === 59;
+
+  // Define layout constants for 59-seat layout
+  const seatW = 36;
+  const seatH = 36;
+  const gapX = 4;
+  const gapAisle = 20;
+  const areaX = -80;
+  const areaY = 0;
+
+  // Render static boxes ONLY for 59-seat layout
+  if (is59Layout) {
     shapes.push({
-      id: 'box-driver',
+      id: 'box-pintu-depan',
       type: 'box',
-      x: driverBox.position[0],
-      y: driverBox.position[1],
-      width: driverBox.size[0],
-      height: driverBox.size[1],
-      text: driverBox.text,
-      background: driverBox.background || '#fff',
-      radius: driverBox.radius || [0, 0, 0, 0]
+      x: areaX - 20,
+      y: areaY - 45,
+      width: seatW * 2 + gapX + 20,
+      height: 30,
+      text: 'PINTU DEPAN',
+      background: 'transparent',
+      stroke: 'transparent',
+      strokeWidth: 0
+    });
+    shapes.push({
+      id: 'box-kemudi',
+      type: 'box',
+      x: areaX + seatW * 2 + gapX + gapAisle,
+      y: areaY - 50,
+      width: seatW * 3 + gapX * 2,
+      height: 40,
+      text: 'KEMUDI',
+      background: '#ffffff',
+      stroke: '#cbd5e1',
+      strokeWidth: 1
+    });
+    shapes.push({
+      id: 'box-pintu-belakang',
+      type: 'box',
+      x: areaX - 40,
+      y: areaY + 10 * (seatH + gapX),
+      width: seatW * 2 + gapX + 40,
+      height: seatH,
+      text: 'PINTU BELAKANG',
+      background: 'transparent',
+      stroke: 'transparent',
+      strokeWidth: 0
     });
   }
 
-  // Get seat labels from available_seat_number
-  const seatLabels = [];
-  if (selectedTicket.value?.available_seat_number) {
-    const raw = selectedTicket.value.available_seat_number;
-    if (typeof raw === 'string' && raw.trim()) {
-      seatLabels.push(...raw.split(',').map(s => s.trim()).filter(Boolean));
-    }
-  }
-
-  if (seatLabels.length === 0) return shapes;
-
-  // Try to get seat config (type: 'seat') from parsed seatmap JSON
-  const seatConfig = config.find(item => item.type === 'seat');
-
-  if (seatConfig) {
-    // Use seat config with left/right column split (cls_left + gap)
-    const totalCol = seatConfig.col ?? 5;
-    const colsLeft = seatConfig.cols_left ?? Math.floor(totalCol / 2);
-    const gapAisle = seatConfig.gap ?? 20;
-    const areaX = seatConfig.position?.[0] ?? -80;
-    const areaY = seatConfig.position?.[1] ?? 0;
-    const seatW = 36;
-    const seatH = 36;
-    const gapX = 4;
-
-    seatLabels.forEach((label, idx) => {
-      const col = idx % totalCol;
-      const row = Math.floor(idx / totalCol);
-      
-      let x;
-      if (col < colsLeft) {
-        // Left side group
-        x = areaX + col * (seatW + gapX);
-      } else {
-        // Right side group (after the aisle gap)
-        x = areaX + colsLeft * (seatW + gapX) + gapAisle + (col - colsLeft) * (seatW + gapX);
+  // Render boxes from backend config if they exist
+  config.forEach(item => {
+    if (item.type === 'box' && item.position && item.size) {
+      // If we're using our custom 59-seat layout, skip backend boxes to avoid duplicates
+      if (is59Layout) {
+        const textUpper = (item.text || '').toUpperCase();
+        if (textUpper === 'KEMUDI' || textUpper.includes('PINTU')) return;
       }
-      const y = areaY + row * (seatH + gapX);
+      
+      shapes.push({
+        id: `box-${item.text || shapes.length}`,
+        type: 'box',
+        x: item.position[0],
+        y: item.position[1],
+        width: item.size[0],
+        height: item.size[1],
+        text: item.text,
+        background: item.background || '#fff',
+        radius: item.radius || [0, 0, 0, 0]
+      });
+    }
+  });
+
+  const seatZones = config.filter(item => !item.type && item.col !== undefined && item.row !== undefined);
+  seatZones.sort((a, b) => (b.starting_seat || 1) - (a.starting_seat || 1));
+
+  if (is59Layout) {
+    let seatLabels = [];
+    if (seatZones.length > 0) {
+      // Extract what seats SHOULD exist according to backend seatmap
+      seatZones.forEach(zone => {
+        const prefixTrimmed = (zone.prefix || '').trim();
+        const startSeat = zone.starting_seat || 1;
+        const totalCol = zone.col || 5;
+        const totalRow = zone.row || 1;
+        let seatIndex = 0;
+        for (let r = 0; r < totalRow; r++) {
+          for (let c = 0; c < totalCol; c++) {
+            const seatNum = startSeat + seatIndex;
+            seatLabels.push(`${prefixTrimmed}${seatNum}`);
+            seatIndex++;
+          }
+        }
+      });
+    } else {
+      // Fallback: Use total_seat
+      const total = event.value?.total_seat || 59;
+      for (let i = 1; i <= total; i++) {
+        seatLabels.push(`A${i}`);
+      }
+    }
+
+    // Remove duplicates and explicitly filter out A60
+    seatLabels = [...new Set(seatLabels)].filter(label => label.toUpperCase() !== 'A60');
+
+    // Generate seats using our custom standard grid layout for 59 seats
+    seatLabels.forEach((label, idx) => {
+      let x, y;
+      let isStandard = true;
+      const match = label.match(/^[A-Za-z]*(\d+)$/);
+      
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num <= 50) {
+          const sIdx = num - 1;
+          const col = sIdx % 5;
+          const row = Math.floor(sIdx / 5);
+          if (col < 2) {
+            x = areaX + col * (seatW + gapX);
+          } else {
+            x = areaX + 2 * (seatW + gapX) + gapAisle + (col - 2) * (seatW + gapX);
+          }
+          y = areaY + row * (seatH + gapX);
+        } else if (num >= 51 && num <= 53) {
+          const col = 2 + (num - 51);
+          const row = 10;
+          x = areaX + 2 * (seatW + gapX) + gapAisle + (col - 2) * (seatW + gapX);
+          y = areaY + row * (seatH + gapX);
+        } else if (num >= 54 && num <= 59) {
+          const col = num - 54;
+          const row = 11;
+          const startX = areaX - 8;
+          x = startX + col * (seatW + gapX);
+          y = areaY + row * (seatH + gapX);
+        } else {
+          isStandard = false;
+        }
+      } else {
+        isStandard = false;
+      }
+
+      if (!isStandard) {
+        const totalCol = 5;
+        const colsLeft = 2;
+        const col = idx % totalCol;
+        const row = Math.floor(idx / totalCol);
+        if (col < colsLeft) {
+          x = areaX + col * (seatW + gapX);
+        } else {
+          x = areaX + colsLeft * (seatW + gapX) + gapAisle + (col - colsLeft) * (seatW + gapX);
+        }
+        y = areaY + row * (seatH + gapX);
+      }
 
       const isPP = selectedTripStatus.value?.id === 3;
       if (isPP) {
-        // Show only seats for current ppStep (1=Pergi, 2=Pulang)
         if (ppStep.value === 1) {
           shapes.push({
             id: `${label}_1`,
             type: 'seat',
-            x,
-            y,
+            x, y,
             width: seatW,
             height: seatH,
             label,
@@ -485,75 +600,160 @@ const parsedseatmap = computed(() => {
         shapes.push({
           id: label,
           type: 'seat',
-          x,
-          y,
+          x, y,
           width: seatW,
           height: seatH,
           label
         });
       }
     });
-  } else {
-    // Fallback: 5 columns split 2-3 with aisle gap when no seat config
-    const totalCol = 5;
-    const colsLeft = 2;
-    const gapAisle = 20;
-    const seat_W = 36;
-    const seat_H = 36;
-    const GAP = 4;
-    const GRID_START_X = -80;
-    const GRID_START_Y = 0;
 
-    seatLabels.forEach((label, idx) => {
-      const col = idx % totalCol;
-      const row = Math.floor(idx / totalCol);
-      let x;
-      if (col < colsLeft) {
-        x = GRID_START_X + col * (seat_W + GAP);
-      } else {
-        x = GRID_START_X + colsLeft * (seat_W + GAP) + gapAisle + (col - colsLeft) * (seat_W + GAP);
-      }
-      const y = GRID_START_Y + row * (seat_H + GAP);
-      const isPP = selectedTripStatus.value?.id === 3;
-      if (isPP) {
-        // Show only seats for current ppStep (1=Pergi, 2=Pulang)
-        if (ppStep.value === 1) {
-          shapes.push({
-            id: `${label}_1`,
-            type: 'seat',
-            x,
-            y,
-            width: seat_W,
-            height: seat_H,
-            label,
-            typeId: 1
-          });
+  } else {
+    // Normal generation for non-59 seat buses based on backend config
+    if (seatZones.length > 0) {
+      const placedLabels = new Set();
+      
+      seatZones.forEach(zone => {
+        const prefixTrimmed = (zone.prefix || '').trim();
+        const startSeat = zone.starting_seat || 1;
+        const totalCol = zone.col || 5;
+        const totalRow = zone.row || 1;
+        const colsLeft = zone.cols_left ?? Math.floor(totalCol / 2);
+        const zoneGapAisle = zone.gap ?? gapAisle;
+        const zoneAreaX = zone.position?.[0] ?? areaX;
+        const zoneAreaY = zone.position?.[1] ?? areaY;
+
+        let calcW = seatW;
+        let calcH = seatH;
+        if (totalRow === 1) {
+          const zoneW = zone.size?.[0];
+          const zoneH = zone.size?.[1];
+          if (zoneW && zoneW > 0 && totalCol > 0) {
+            const neededW = totalCol * seatW + (totalCol - 1) * gapX;
+            if (neededW > zoneW) {
+              calcW = Math.max(16, Math.floor((zoneW - (totalCol - 1) * gapX) / totalCol));
+            }
+          }
+          if (zoneH && zoneH > 0) {
+            const neededH = totalRow * seatH + (totalRow - 1) * gapX;
+            if (neededH > zoneH) {
+              calcH = Math.max(16, Math.floor((zoneH - (totalRow - 1) * gapX) / totalRow));
+            }
+          }
+          if (calcW < seatW || calcH < seatH) {
+            const minDim = Math.min(calcW, calcH);
+            calcW = minDim;
+            calcH = minDim;
+          }
+        }
+
+        let seatIndex = 0;
+        for (let r = 0; r < totalRow; r++) {
+          for (let c = 0; c < totalCol; c++) {
+            const seatNum = startSeat + seatIndex;
+            const label = `${prefixTrimmed}${seatNum}`;
+            seatIndex++;
+
+            if (placedLabels.has(label.toUpperCase())) continue;
+            placedLabels.add(label.toUpperCase());
+
+            let x;
+            if (c < colsLeft) {
+              x = zoneAreaX + c * (calcW + gapX);
+            } else {
+              x = zoneAreaX + colsLeft * (calcW + gapX) + zoneGapAisle + (c - colsLeft) * (calcW + gapX);
+            }
+            const y = zoneAreaY + r * (calcH + gapX);
+
+            const isPP = selectedTripStatus.value?.id === 3;
+            if (isPP) {
+              if (ppStep.value === 1) {
+                shapes.push({
+                  id: `${label}_1`,
+                  type: 'seat',
+                  x, y,
+                  width: calcW,
+                  height: calcH,
+                  label,
+                  typeId: 1
+                });
+              } else {
+                shapes.push({
+                  id: `${label}_2`,
+                  type: 'seat',
+                  x: x + 6,
+                  y: y + 6,
+                  width: calcW,
+                  height: calcH,
+                  label,
+                  typeId: 2
+                });
+              }
+            } else {
+              shapes.push({
+                id: label,
+                type: 'seat',
+                x, y,
+                width: calcW,
+                height: calcH,
+                label
+              });
+            }
+          }
+        }
+      });
+    } else {
+      // Fallback: Generate exactly total_seat seats using a basic standard layout
+      const total = event.value?.total_seat || 14;
+      for (let i = 1; i <= total; i++) {
+        const label = `A${i}`;
+        const col = (i - 1) % 5;
+        const row = Math.floor((i - 1) / 5);
+        let x;
+        if (col < 2) {
+          x = areaX + col * (seatW + gapX);
+        } else {
+          x = areaX + 2 * (seatW + gapX) + gapAisle + (col - 2) * (seatW + gapX);
+        }
+        const y = areaY + row * (seatH + gapX);
+
+        const isPP = selectedTripStatus.value?.id === 3;
+        if (isPP) {
+          if (ppStep.value === 1) {
+            shapes.push({
+              id: `${label}_1`,
+              type: 'seat',
+              x, y,
+              width: seatW,
+              height: seatH,
+              label,
+              typeId: 1
+            });
+          } else {
+            shapes.push({
+              id: `${label}_2`,
+              type: 'seat',
+              x: x + 6,
+              y: y + 6,
+              width: seatW,
+              height: seatH,
+              label,
+              typeId: 2
+            });
+          }
         } else {
           shapes.push({
-            id: `${label}_2`,
+            id: label,
             type: 'seat',
-            x: x + 6,
-            y: y + 6,
-            width: seat_W,
-            height: seat_H,
-            label,
-            typeId: 2
+            x, y,
+            width: seatW,
+            height: seatH,
+            label
           });
         }
-      } else {
-        shapes.push({
-          id: label,
-          type: 'seat',
-          x,
-          y,
-          width: seat_W,
-          height: seat_H,
-          label
-        });
       }
-    });
+    }
   }
-
 
   // Pre-calculate full Konva configs to prevent massive Vue re-renders on every zoom/drag event
   return shapes.map(shape => {
@@ -566,8 +766,8 @@ const parsedseatmap = computed(() => {
           height: shape.height,
           fill: shape.background,
           cornerRadius: 6,
-          stroke: '#cbd5e1',
-          strokeWidth: 1
+          stroke: shape.stroke !== undefined ? shape.stroke : '#cbd5e1',
+          strokeWidth: shape.strokeWidth !== undefined ? shape.strokeWidth : 1
         },
         textConfig: {
           text: shape.text,
@@ -656,18 +856,16 @@ const getFacilityIcon = (facility) => {
 const tripStatusOptions = ref([]);
 const selectedTripStatus = ref(null);
 
-const fetchTripStatuses = async () => {
+const fetchTicketTypes = async () => {
   try {
-    const res = await fetch(import.meta.env.VITE_API_URL + '/api/shuttle-tripstatus');
+    const res = await fetch(import.meta.env.VITE_API_URL + '/api/shuttle-ticket-type');
     const result = await res.json();
     if (result.success && Array.isArray(result.data)) {
       tripStatusOptions.value = result.data;
-      if (result.data.length > 0) {
-        selectedTripStatus.value = result.data[0];
-      }
+      // Don't auto-select; user chooses trip type
     }
   } catch (e) {
-    console.error('Gagal fetch trip statuses:', e);
+    console.error('Gagal fetch ticket types:', e);
   }
 };
 
@@ -683,6 +881,11 @@ watch(() => route.hash, (newHash) => {
     }
   }
 }, { immediate: true });
+
+// Clear trip type error when user selects a trip type
+watch(selectedTripStatus, (val) => {
+  if (val) tripTypeError.value = '';
+});
 
 watch(dateOptions, (newDates) => {
   if (newDates && newDates.length > 0) {
@@ -738,6 +941,7 @@ const filteredTickets = computed(() => {
         route_id: t.route?.id || t.route_id || '',
         route: t.route,
         trip_status: t.trip_status,
+        prices: t.prices || [],
         is_soldout: isSold,
         is_fullbook: isFull,
         is_finish: isFin
@@ -923,7 +1127,7 @@ onMounted(async () => {
     expandedTicketId.value = fetchedEvent.has_event_ticket[0].id;
   }
 
-  fetchTripStatuses();
+  fetchTicketTypes();
 
   document.addEventListener('click', tryAutoplay);
   document.addEventListener('touchstart', tryAutoplay);
@@ -1045,14 +1249,50 @@ const isseatAvailable = (seatId) => {
   const avail = (selectedTicket.value.available_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
   if (avail.length === 0) return false;
   
-  const taken = (selectedTicket.value.taken_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-  const pending = (selectedTicket.value.pending_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-  const reserved = (selectedTicket.value.reserved_seat_number || '').split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
-  
   const id = seatId.toUpperCase();
   // Strip _1 or _2 suffix used for PP type differentiation
   const baseId = id.replace(/_(1|2)$/, '');
-  return avail.includes(baseId) && !taken.includes(baseId) && !pending.includes(baseId) && !reserved.includes(baseId);
+  
+  // Check available_seat_number (plain seat names)
+  if (!avail.includes(baseId)) return false;
+  
+  // Helper to check entries with prefix format: typeId:Seat
+  const getRelevantPrefixes = (seatIdStr) => {
+    if (seatIdStr.endsWith('_1')) {
+      // PP step 1 (Pergi leg): entries with 1: or 3: block the seat
+      return ['1', '3'];
+    } else if (seatIdStr.endsWith('_2')) {
+      // PP step 2 (Pulang leg): entries with 2: or 3: block the seat
+      return ['2', '3'];
+    } else {
+      // Non-PP: use selectedTripStatus id
+      if (!selectedTripStatus.value) return [];
+      return [String(selectedTripStatus.value.id)];
+    }
+  };
+  
+  const relevantPrefixes = getRelevantPrefixes(id);
+  
+  // Check prefixed entries (taken/pending/reserved)
+  const isBlocked = (entries) => {
+    return entries.some(entry => {
+      if (!entry) return false;
+      const colonIdx = entry.indexOf(':');
+      if (colonIdx === -1) {
+        // Old format (just seat name) — block if matches
+        return entry.toUpperCase() === baseId;
+      }
+      const prefix = entry.substring(0, colonIdx).trim();
+      const seat = entry.substring(colonIdx + 1).trim().toUpperCase();
+      return seat === baseId && relevantPrefixes.includes(prefix);
+    });
+  };
+  
+  const taken = (selectedTicket.value.taken_seat_number || '').split(',').map(s => s.trim()).filter(Boolean);
+  const pending = (selectedTicket.value.pending_seat_number || '').split(',').map(s => s.trim()).filter(Boolean);
+  const reserved = (selectedTicket.value.reserved_seat_number || '').split(',').map(s => s.trim()).filter(Boolean);
+  
+  return !isBlocked(taken) && !isBlocked(pending) && !isBlocked(reserved);
 };
 
 const hasAvailableseats = (t) => {
@@ -1120,6 +1360,19 @@ const getTicketStatusClass = (t) => {
 };
 
 const selectTicketCategory = (t) => {
+  // Jika belum pilih jenis trip, tampilkan notif dan expand accordion
+  if (!selectedTripStatus.value) {
+    tripTypeError.value = 'Silakan pilih jenis trip terlebih dahulu';
+    selectedTicket.value = t;
+    expandedTicketId.value = t.id;
+    // Scroll ke elemen dropdown trip status
+    nextTick(() => {
+      const el = document.querySelector('.trip-status-section');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return;
+  }
+  tripTypeError.value = '';
   selectedTicket.value = t;
   errors.value.seats = '';
   isEditMode.value = false;
@@ -1267,6 +1520,7 @@ const goToBuyerDetails = () => {
     bookingStore.selectedDate = selectedDate.value;
     bookingStore.selectedSessionId = selectedSesi.value;
     bookingStore.selectedRouteId = selectedTicket.value?.route_id || null;
+    bookingStore.selectedPrice = getEffectivePrice(selectedTicket.value);
     
     // Direct user to transaction page
     router.push('/transaksi');
@@ -1995,15 +2249,22 @@ const tryAutoplay = () => {
                                 <!-- PP Step Navigation Bar -->
                                 <div v-if="isPP" class="pp-step-nav-bar">
                                   <div class="pp-nav-info">
-                                    <span class="pp-nav-label" v-if="ppStep === 1">
-                                      <strong>Step 1:</strong> Pilih seat Pergi
-                                    </span>
-                                    <span class="pp-nav-label" v-else>
-                                      <strong>Step 2:</strong> Pilih seat Pulang
-                                    </span>
-                                    <span class="pp-nav-seat-count">
-                                      {{ ppStep === 1 ? ppPergiSelectedCount : ppPulangSelectedCount }} seat dipilih
-                                    </span>
+                                    <div class="pp-steps-indicator">
+                                      <span class="pp-step-dot" :class="ppStep === 1 ? 'active' : 'completed'">1</span>
+                                      <span class="pp-step-line" :class="ppStep === 2 ? 'completed' : ''"></span>
+                                      <span class="pp-step-dot" :class="ppStep === 2 ? 'active' : 'inactive'">2</span>
+                                    </div>
+                                    <div>
+                                      <span class="pp-nav-label-text" v-if="ppStep === 1">
+                                        Pilih seat Pergi
+                                      </span>
+                                      <span class="pp-nav-label-text" v-else>
+                                        Pilih seat Pulang
+                                      </span>
+                                      <span class="pp-nav-seat-count">
+                                        {{ ppStep === 1 ? ppPergiSelectedCount : ppPulangSelectedCount }} seat
+                                      </span>
+                                    </div>
                                   </div>
                                   <div class="pp-nav-actions">
                                     <button 
@@ -2023,7 +2284,36 @@ const tryAutoplay = () => {
                                     >
                                       Lanjut ke Pulang →
                                     </button>
-                                    <span v-else-if="ppStep === 2 && errors.seats" class="pp-nav-error">{{ errors.seats }}</span>
+                                    <button
+                                      v-if="ppStep === 2"
+                                      type="button"
+                                      class="pp-nav-btn pp-nav-next"
+                                      :disabled="ppPulangSelectedCount === 0"
+                                      @click="goToBuyerDetails()"
+                                    >
+                                      Lanjut Pembayaran →
+                                    </button>
+                                    <span v-if="ppStep === 2 && errors.seats" class="pp-nav-error">{{ errors.seats }}</span>
+                                  </div>
+                                </div>
+
+                                <!-- Mobile Canvas Bottom Action Bar (non-PP only, PP uses step nav bar) -->
+                                <div v-if="isMobile && !isPP" class="canvas-bottom-action-bar">
+                                  <div class="canvas-bottom-left">
+                                    <span class="canvas-bottom-seat-count">
+                                      <template v-if="selectedseats.length === 0">Pilih seat</template>
+                                      <template v-else>{{ selectedseats.length }} seat dipilih</template>
+                                    </span>
+                                    <span class="canvas-bottom-total-price">{{ formatRp(getEffectivePrice(t) * (selectedseats.length || 1)) }}</span>
+                                  </div>
+                                  <div class="canvas-bottom-right">
+                                    <button
+                                      class="canvas-bottom-btn"
+                                      :disabled="selectedseats.length === 0"
+                                      @click="goToBuyerDetails()"
+                                    >
+                                      Selanjutnya
+                                    </button>
                                   </div>
                                 </div>
                               </div>
@@ -2048,9 +2338,12 @@ const tryAutoplay = () => {
                               <div class="ticket-top-right">
                                 <div class="ticket-vertical-divider"></div>
                                 <div class="ticket-price-box">
-                                  <span class="ticket-price-label">Harga</span>
+                                  <span class="ticket-price-label">{{ !selectedTripStatus ? 'Harga Mulai' : 'Harga' }}</span>
                                   <div class="ticket-price-value-wrapper">
-                                    <span class="ticket-price-value">{{ formatRp(t.price) }}</span>
+                                    <span class="ticket-price-value">
+                                      <template v-if="!selectedTripStatus">{{ formatRp(t.price) }}</template>
+                                      <template v-else>{{ formatRp(getEffectivePrice(t)) }}</template>
+                                    </span>
                                     <ChevronDown 
                                       :size="18" 
                                       class="accordion-chevron-toggle"
@@ -2091,21 +2384,25 @@ const tryAutoplay = () => {
                               <!-- Pilih Jenis Trip Dropdown -->
                               <div class="accordion-section-divider"></div>
                               <div class="trip-status-section">
-                                <span class="detail-col-label">Pilih Jenis Trip</span>
+                                <span class="detail-col-label">Pilih Jenis Seat</span>
                                 <div class="trip-status-dropdown-wrapper">
                                   <select 
                                     v-model="selectedTripStatus" 
                                     class="trip-status-select"
                                     @change="bookingStore.selectedTripStatus = selectedTripStatus"
                                   >
-                                    <option 
-                                      v-for="ts in tripStatusOptions" 
-                                      :key="ts.id" 
+                                    <option :value="null" disabled>Pilih jenis seat</option>
+                                    <option
+                                      v-for="ts in tripStatusOptions"
+                                      :key="ts.id"
                                       :value="ts"
                                     >
                                       {{ ts.name }}
                                     </option>
                                   </select>
+                                </div>
+                                <div v-if="tripTypeError" class="trip-type-error-msg">
+                                  <span>{{ tripTypeError }}</span>
                                 </div>
                               </div>
 
@@ -3601,6 +3898,26 @@ const tryAutoplay = () => {
   box-shadow: 0 0 0 3px rgba(201, 76, 76, 0.15);
 }
 
+.trip-type-error-msg {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #dc2626;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+[data-theme="dark"] .trip-type-error-msg {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #fca5a5;
+}
+
 .ticket-details-row {
   display: flex;
   flex-wrap: wrap;
@@ -4536,72 +4853,176 @@ const tryAutoplay = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  background: #fff;
-  border-top: 1px solid #e2e8f0;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
   gap: 12px;
+  position: sticky;
+  bottom: 0;
+  z-index: 15;
+  box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.04);
 }
+
+/* Step indicator dots + label */
 .pp-nav-info {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 10px;
 }
-.pp-nav-label {
-  font-size: 0.85rem;
-  color: #334155;
+
+.pp-steps-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
-.pp-nav-seat-count {
-  font-size: 0.75rem;
-  color: var(--primary, #2563eb);
+
+.pp-step-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.pp-step-dot.active {
+  background: linear-gradient(135deg, var(--primary, #C94C4C), #b73d3d);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(201, 76, 76, 0.3);
+}
+
+.pp-step-dot.inactive {
+  background: #e2e8f0;
+  color: #94a3b8;
+}
+
+.pp-step-dot.completed {
+  background: #10b981;
+  color: #fff;
+}
+
+.pp-step-line {
+  width: 20px;
+  height: 2px;
+  background: #e2e8f0;
+  border-radius: 2px;
+}
+
+.pp-step-line.completed {
+  background: #10b981;
+}
+
+.pp-nav-label-text {
+  font-size: 0.82rem;
   font-weight: 600;
+  color: #334155;
+  letter-spacing: -0.01em;
 }
+
+.pp-nav-seat-count {
+  font-size: 0.72rem;
+  background: rgba(201, 76, 76, 0.08);
+  color: var(--primary, #C94C4C);
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
 .pp-nav-actions {
   display: flex;
   align-items: center;
   gap: 8px;
 }
+
 .pp-nav-btn {
-  padding: 8px 20px;
-  border-radius: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
   border: none;
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
+
 .pp-nav-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
+  transform: none !important;
 }
+
 .pp-nav-next {
-  background: var(--primary, #2563eb);
+  background: linear-gradient(135deg, var(--primary, #C94C4C), #b73d3d);
   color: #fff;
+  box-shadow: 0 2px 8px rgba(201, 76, 76, 0.2);
 }
+
 .pp-nav-next:hover:not(:disabled) {
-  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(201, 76, 76, 0.3);
 }
+
 .pp-nav-back {
   background: #f1f5f9;
   color: #475569;
+  border: 1px solid rgba(0, 0, 0, 0.04);
 }
+
 .pp-nav-back:hover {
   background: #e2e8f0;
 }
+
 .pp-nav-error {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #ef4444;
-  font-weight: 500;
+  font-weight: 600;
+  max-width: 120px;
+  text-align: right;
+  line-height: 1.3;
 }
-/* Mobile PP Nav */
-.mobile-pp-nav-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px;
-  background: #fff;
-  border-top: 1px solid #e2e8f0;
-  gap: 8px;
+
+/* Dark mode PP nav */
+[data-theme="dark"] .pp-step-nav-bar {
+  background: linear-gradient(135deg, #1e293b 0%, #1a2234 100%);
+  border-top-color: rgba(255, 255, 255, 0.06);
+  border-bottom-color: rgba(255, 255, 255, 0.04);
+  box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .pp-nav-label-text {
+  color: #e2e8f0;
+}
+
+[data-theme="dark"] .pp-nav-seat-count {
+  background: rgba(201, 76, 76, 0.15);
+}
+
+[data-theme="dark"] .pp-nav-back {
+  background: #334155;
+  color: #cbd5e1;
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .pp-nav-back:hover {
+  background: #475569;
+}
+
+[data-theme="dark"] .pp-step-dot.inactive {
+  background: #334155;
+  color: #64748b;
+}
+
+[data-theme="dark"] .pp-step-line {
+  background: #334155;
 }
 
 .seatmap-canvas-body {
@@ -4718,6 +5139,82 @@ const tryAutoplay = () => {
   border-radius: 12px;
   padding: 6px 10px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+
+/* Mobile Canvas Bottom Action Bar */
+.canvas-bottom-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.04);
+  min-height: 60px;
+}
+
+.canvas-bottom-left {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.canvas-bottom-seat-count {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.canvas-bottom-total-price {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--primary, #C94C4C);
+  letter-spacing: -0.02em;
+}
+
+.canvas-bottom-btn {
+  padding: 11px 26px;
+  background: linear-gradient(135deg, var(--primary, #C94C4C), #b73d3d);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  box-shadow: 0 2px 8px rgba(201, 76, 76, 0.2);
+}
+
+.canvas-bottom-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.canvas-bottom-btn:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(201, 76, 76, 0.35);
+}
+
+.canvas-bottom-btn:not(:disabled):active {
+  transform: translateY(0px);
+}
+
+[data-theme="dark"] .canvas-bottom-action-bar {
+  background: linear-gradient(135deg, #1e293b 0%, #1a2234 100%);
+  border-top-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .canvas-bottom-seat-count {
+  color: #94a3b8;
 }
 
 .zoom-control-btn {
