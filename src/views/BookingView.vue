@@ -1724,7 +1724,8 @@ const handleProceedToCheckout = () => {
       adults: bookingStore.adults,
       selectedseats: [...bookingStore.selectedseats],
       totalPrice: totalSelectedTicketsPrice.value,
-      paymentMethod: 'QRIS'
+      paymentMethod: 'QRIS',
+      shuttle_route_id: bookingStore.selectedTicket?.shuttle_route_id || null
     };
 
     let existing = [];
@@ -1769,7 +1770,8 @@ const confirmBooking = () => {
     adults: bookingStore.adults,
     selectedseats: [...bookingStore.selectedseats],
     totalPrice: totalSelectedTicketsPrice.value,
-    paymentMethod: selectedPayment.value
+    paymentMethod: selectedPayment.value,
+    shuttle_route_id: bookingStore.selectedTicket?.shuttle_route_id || null
   };
 
   let existing = [];

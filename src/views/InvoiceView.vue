@@ -104,7 +104,8 @@ const tickets = computed(() => {
         ticket: ticketObj.ticket || {},
         shuttle_session: et.shuttle_session || ticketObj.shuttle_session || null,
         trip_status: ticketObj.trip_status || null,
-        passenger_name: et.passenger?.passenger_name || et.passenger?.name || '-'
+        passenger_name: et.passenger?.passenger_name || et.passenger?.name || '-',
+        journey_type: et.journey_type || null
       };
     });
   }
@@ -159,15 +160,17 @@ const tickets = computed(() => {
 
       <div class="invoice-card" v-else-if="invoice">
         <div class="invoice-header">
-          <div class="header-left">
-            <h1 class="invoice-title">INVOICE</h1>
+          <div class="header-left" style="width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+              <h1 class="invoice-title">INVOICE</h1>
+              <div class="status-badge" :style="{ backgroundColor: statusConfig.bg, color: statusConfig.color }">
+                <component :is="statusConfig.icon" :size="14" />
+                <span>{{ statusConfig.label }}</span>
+              </div>
+            </div>
             <p class="invoice-no">{{ invoice.invoice_no }}</p>
           </div>
           <div class="header-right text-right">
-            <div class="status-badge" :style="{ backgroundColor: statusConfig.bg, color: statusConfig.color }">
-              <component :is="statusConfig.icon" :size="16" />
-              <span>{{ statusConfig.label }}</span>
-            </div>
             <p class="invoice-date">Tanggal: {{ formatDate(invoice.created_at) }}</p>
           </div>
         </div>
@@ -255,7 +258,7 @@ const tickets = computed(() => {
                       <small>
                         seat: {{ t.order_seat_number }}
                         <span v-if="t.shuttle_session"> | Sesi: {{ t.shuttle_session.name }}</span>
-                        <span v-if="t.trip_status"> | Trip: {{ t.trip_status.name }}</span>
+                        <span v-if="t.trip_status || t.journey_type"> | Trip: {{ t.journey_type || t.trip_status.name }}</span>
                       </small>
                     </td>
                     <td class="text-right">{{ formatRp(t.price + (t.ticket_fee || 0)) }}</td>
@@ -569,5 +572,24 @@ const tickets = computed(() => {
 }
 
 @media (max-width: 768px) {
+  .detail-grid {
+    grid-template-columns: 1fr;
+  }
+  .invoice-header {
+    padding: 20px;
+  }
+  .invoice-body {
+    padding: 16px 20px 40px;
+  }
+  .btn-action {
+    width: 100%;
+    justify-content: center;
+  }
+  .invoice-title {
+    font-size: 1.5rem;
+  }
+  .invoice-no {
+    font-size: 0.9rem;
+  }
 }
 </style>

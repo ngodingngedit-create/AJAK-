@@ -370,6 +370,7 @@ const executeCheckout = async () => {
     shuttle_id: event.value?.id || "",
     trip_id: event.value?.trip_id || 1,
     route_id: bookingStore.selectedRouteId || bookingStore.selectedPickup?.id || ticket.value?.route_id || "",
+    shuttle_route_id: bookingStore.selectedTicket?.route_id || null,
     operational_date: bookingStore.selectedDate || "",
     total_qty: effectiveTicketCount.value,
     total_price: baseTicketPrice.value,
@@ -403,7 +404,8 @@ const executeCheckout = async () => {
         ticket_fee: 0,
         is_promo: totalDiscount.value > 0 ? 1 : 0,
         promo_price: totalDiscount.value > 0 ? (totalDiscount.value / effectiveTicketCount.value) : 0,
-        subtotal_price: effectivePrice.value
+        subtotal_price: effectivePrice.value,
+        shuttle_route_id: ticket.value?.route_id || null
       };
     }),
     passengers: (() => {

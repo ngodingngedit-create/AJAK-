@@ -257,7 +257,8 @@ const selectedInvoiceTickets = computed(() => {
         ticket: ticketObj.ticket || {},
         shuttle_session: et.shuttle_session || ticketObj.shuttle_session || null,
         trip_status: ticketObj.trip_status || null,
-        passenger_name: et.passenger?.passenger_name || et.passenger?.name || '-'
+        passenger_name: et.passenger?.passenger_name || et.passenger?.name || '-',
+        journey_type: et.journey_type || null
       };
     });
   }
@@ -496,7 +497,7 @@ const closeModal = () => {
                     <span class="t-seat">
                       seat: {{ t.order_seat_number }}
                       <span v-if="t.shuttle_session"> | Sesi: {{ t.shuttle_session.name }}</span>
-                      <span v-if="t.trip_status"> | Trip: {{ t.trip_status.name }}</span>
+                      <span v-if="t.journey_type || t.trip_status"> | Trip: {{ t.journey_type || t.trip_status.name }}</span>
                     </span>
                   </div>
                   <div class="t-price">
