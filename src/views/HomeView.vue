@@ -171,7 +171,7 @@ const fetchUpcomingEvents = async () => {
           location: item.description || 'TBA',
           city: 'Jakarta',
           organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
-          price: 'Lihat Detail',
+          price: 'Rp75.000',
           priceNum: 0,
           tag: 'Shuttle Bersama',
           bus_type: 'MINIBUS',

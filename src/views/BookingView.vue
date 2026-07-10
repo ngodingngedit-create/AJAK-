@@ -2381,6 +2381,13 @@ const tryAutoplay = () => {
                                 </div>
                               </div>
                               
+                              <!-- Deskripsi Tiket -->
+                              <div v-if="t.description" class="accordion-section-divider"></div>
+                              <div v-if="t.description" class="ticket-description-section">
+                                <span class="detail-col-label">Deskripsi Tiket</span>
+                                <p class="ticket-description-text">{{ t.description }}</p>
+                              </div>
+                              
                               <!-- Pilih Jenis Trip Dropdown -->
                               <div class="accordion-section-divider"></div>
                               <div class="trip-status-section">
@@ -3712,6 +3719,28 @@ const tryAutoplay = () => {
   font-size: 0.8rem;
   font-weight: 800;
   color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.ticket-description-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.ticket-description-text {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #334155;
+  margin: 0;
+}
+
+.detail-col-label {
+  font-size: 0.75rem;
+  color: #8a99ad;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 1px;
 }
