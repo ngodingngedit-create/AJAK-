@@ -123,7 +123,9 @@ const isPP = computed(() => {
 });
 
 const effectiveTicketCount = computed(() => {
-  return selectedseats.value.length;
+  return isPP.value
+    ? selectedseats.value.filter(s => s.endsWith('_1')).length
+    : selectedseats.value.length;
 });
 
 const getTicketOwnerLength = () => {

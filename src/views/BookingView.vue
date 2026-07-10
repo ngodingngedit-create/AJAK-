@@ -7929,29 +7929,42 @@ html.lock-scroll, body.lock-scroll {
   
   .session-pill-btn {
     flex: none;
-    width: 105px;
-    border-radius: 6px;
+    width: 160px;
+    border-radius: 8px;
   }
   
   .session-pill-inner {
-    padding: 6px 8px;
+    padding: 8px 10px;
   }
 
   .session-pill-name {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
+    margin-bottom: 3px;
   }
-  
+
+  .sp-col {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    line-height: 1.2;
+  }
   .sp-col-label-top {
+    display: block;
     font-size: 0.44rem;
+    margin-bottom: 1px;
   }
   .sp-col-label-bot {
-    font-size: 0.38rem;
+    font-size: 0.48rem;
+    margin-bottom: 1px;
+    white-space: nowrap;
   }
   .sp-col-time {
     font-size: 0.62rem;
+    white-space: nowrap;
   }
   .sp-col-divider {
-    margin: 2px 2px;
+    margin: 2px 4px;
   }
   
   .session-status-dot {
