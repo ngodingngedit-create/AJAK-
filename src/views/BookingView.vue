@@ -1130,7 +1130,10 @@ onMounted(async () => {
     is_noidentity: item.is_noidentity,
     tag: 'Shuttle Bersama',
     operation_days: item.operation_days || [],
-    has_event_ticket: mappedTickets
+    has_event_ticket: mappedTickets,
+    venue_name: item.venue_name,
+    venue_address: item.venue_address,
+    venue_map: item.venue_map
   };
 
   event.value = fetchedEvent;
@@ -1844,15 +1847,32 @@ const tryAutoplay = () => {
           <!-- Right: Floating Event Info Card -->
           <div class="details-card-floating">
             <div class="detail-row">
-              <Calendar :size="18" class="detail-icon" />
+              <Calendar :size="22" class="detail-icon" />
               <div class="detail-text">
-                <span>{{ formatEventDates(event) }}</span>
+                <span class="detail-label">Tanggal Event</span>
+                <span class="detail-value">{{ formatEventDates(event) }}</span>
               </div>
             </div>
             <div class="detail-row">
-              <Clock :size="18" class="detail-icon" />
+              <Clock :size="22" class="detail-icon" />
               <div class="detail-text">
-                <span>{{ event.start_time }} - {{ event.end_time }} {{ event.zone_time }}</span>
+                <span class="detail-label">Waktu Event</span>
+                <span class="detail-value">{{ event.start_time }} - {{ event.end_time }} {{ event.zone_time }}</span>
+              </div>
+            </div>
+            <div class="detail-row">
+              <MapPin :size="22" class="detail-icon" />
+              <div class="detail-text">
+                <span class="detail-label">Venue Event</span>
+                <a 
+                  v-if="event.venue_map"
+                  :href="event.venue_map" 
+                  target="_blank" 
+                  rel="noopener" 
+                  class="detail-value venue-link"
+                >{{ event.venue_name }}</a>
+                <span v-else class="detail-value">{{ event.venue_name }}</span>
+                <span v-if="event.venue_address" class="venue-address">{{ event.venue_address }}</span>
               </div>
             </div>
 
@@ -1862,8 +1882,11 @@ const tryAutoplay = () => {
               <div class="org-profile-new">
                 <img 
                   :src="event.has_creator?.image_url || '/AJAKLogo/LOGO.png'" 
-                  :alt="event.has_creator?.name || 'AJAK!'" 
                   class="org-logo-new" 
+                />
+                <svg class="org-verified-badge" viewBox="0 0 24 24" fill="currentColor" aria-label="Verified">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
               </div>
             </div>
           </div>
@@ -1890,6 +1913,20 @@ const tryAutoplay = () => {
             <Clock :size="20" class="mobile-meta-icon" />
             <span class="mobile-meta-text">{{ event.start_time }} - {{ event.end_time }} {{ event.zone_time }}</span>
           </div>
+          <div class="mobile-meta-row alignment-top">
+            <MapPin :size="20" class="mobile-meta-icon flex-shrink-0" />
+            <div class="mobile-venue-text-wrapper">
+              <a 
+                v-if="event.venue_map"
+                :href="event.venue_map" 
+                target="_blank" 
+                rel="noopener" 
+                class="mobile-meta-text mobile-venue-link"
+              >{{ event.venue_name }}</a>
+              <span v-else class="mobile-meta-text">{{ event.venue_name }}</span>
+              <span v-if="event.venue_address" class="mobile-venue-address">{{ event.venue_address }}</span>
+            </div>
+          </div>
 
         </div>
         
@@ -1908,6 +1945,9 @@ const tryAutoplay = () => {
               <span class="mobile-org-label">Diselenggarakan Oleh</span>
               <div class="mobile-org-name-row">
                 <span class="mobile-org-name">{{ event.has_creator?.name || 'AJAK!' }}</span>
+                <svg class="org-verified-badge" viewBox="0 0 24 24" fill="currentColor" aria-label="Verified">
+                  <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                </svg>
               </div>
             </div>
           </div>
@@ -2378,7 +2418,7 @@ const tryAutoplay = () => {
                                   <span class="detail-col-label">Hari Konser</span>
                                   <div class="calendar-detail-wrapper-simple">
                                     <Calendar :size="18" class="detail-icon-red" />
-                                    <span class="info-bold-text">Masa berlaku: {{ dateOptions.find(d => String(d.id) === String(selectedDate))?.date || selectedDate }}</span>
+                                    <span class="info-bold-text">{{ dateOptions.find(d => String(d.id) === String(selectedDate))?.date || selectedDate }}</span>
                                   </div>
                                 </div>
                                 <div class="detail-col">
@@ -3122,8 +3162,9 @@ const tryAutoplay = () => {
 
 .detail-row {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 4px 0;
 }
 
 .detail-icon {
@@ -3132,9 +3173,43 @@ const tryAutoplay = () => {
 }
 
 .detail-text {
-  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-label {
+  font-size: 0.68rem;
   font-weight: 700;
-  color: #334155;
+  color: var(--primary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+.detail-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.2;
+}
+
+.venue-link {
+  text-decoration: none;
+  color: #1e293b;
+  transition: color 0.2s;
+}
+
+.venue-link:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+.venue-address {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #64748b;
+  line-height: 1.3;
+  margin-top: 2px;
 }
 
 .organizer-section-new {
@@ -3154,11 +3229,19 @@ const tryAutoplay = () => {
 
 .org-profile-new {
   display: flex;
+  flex-direction: row;
   align-items: center;
+  gap: 8px;
   background: transparent;
   padding: 4px 0;
-  position: relative;
-  width: fit-content;
+}
+
+.org-name-text {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 4px;
+  display: block;
 }
 
 .desktop-verified-icon {
@@ -3188,6 +3271,33 @@ const tryAutoplay = () => {
   object-fit: contain;
   border-radius: 12px;
   transition: all 0.3s ease;
+}
+
+.org-name-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+}
+
+.org-name-text {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.org-verified-badge {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  padding: 3px;
+  background-color: #1d4ed8;
+  color: #ffffff;
+  border-radius: 50%;
+  display: inline-flex;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(29, 78, 216, 0.35);
 }
 
 @media (max-width: 768px) {
@@ -3284,6 +3394,37 @@ const tryAutoplay = () => {
     font-size: 1.05rem;
     font-weight: 600;
     color: #0f172a;
+  }
+
+  .mobile-meta-row.alignment-top {
+    align-items: flex-start;
+  }
+
+  .flex-shrink-0 {
+    flex-shrink: 0;
+  }
+
+  .mobile-venue-text-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .mobile-venue-link {
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .mobile-venue-link:active, .mobile-venue-link:hover {
+    color: var(--primary);
+  }
+
+  .mobile-venue-address {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #64748b;
+    line-height: 1.3;
+    margin-top: 2px;
   }
   
   .mobile-header-divider-dashed {

@@ -66,28 +66,81 @@ const continuePayment = () => {
 };
 
 const pemesan = computed(() => {
-  if (!invoice.value?.passengers) return null;
-  return invoice.value.passengers.find(p => String(p.is_pemesan) === '1' || p.is_pemesan === true) || invoice.value.passengers[0];
+  if (!invoice.value) return null;
+  if (invoice.value.pemesan) {
+    return invoice.value.pemesan;
+  }
+  if (invoice.value.passengers && invoice.value.passengers.length > 0) {
+    return invoice.value.passengers.find(p => String(p.is_pemesan) === '1' || p.is_pemesan === true) || invoice.value.passengers[0];
+  }
+  if (invoice.value.etickets && Array.isArray(invoice.value.etickets)) {
+    const found = invoice.value.etickets.find(et => et.passenger && (String(et.passenger.is_pemesan) === '1' || et.passenger.is_pemesan === true));
+    if (found) return found.passenger;
+    if (invoice.value.etickets[0]?.passenger) return invoice.value.etickets[0].passenger;
+  }
+  return null;
 });
 
 const penumpangList = computed(() => {
   if (!invoice.value?.passengers) return [];
   return invoice.value.passengers.filter(p => p !== pemesan.value);
 });
-
 const hasIdentity = computed(() => {
   return penumpangList.value.some(p => p.identity_number && p.identity_number.trim() !== '' && p.identity_number.trim() !== '-');
 });
 
+const tickets = computed(() => {
+  if (!invoice.value) return [];
+  
+  if (invoice.value.etickets && Array.isArray(invoice.value.etickets) && invoice.value.etickets.length > 0) {
+    return invoice.value.etickets.map(et => {
+      const ticketObj = et.ticket || {};
+      return {
+        id: et.id,
+        order_seat_number: ticketObj.order_seat_number || '-',
+        price: Number(ticketObj.price || 0),
+        ticket_fee: Number(ticketObj.ticket_fee || 0),
+        subtotal_price: Number(ticketObj.subtotal_price || 0),
+        ticket: ticketObj.ticket || {},
+        shuttle_session: et.shuttle_session || ticketObj.shuttle_session || null,
+        trip_status: ticketObj.trip_status || null,
+        passenger_name: et.passenger?.passenger_name || et.passenger?.name || '-'
+      };
+    });
+  }
+  
+  if (invoice.value.tickets && Array.isArray(invoice.value.tickets)) {
+    return invoice.value.tickets.map((t, idx) => {
+      let name = '-';
+      if (invoice.value.passengers && invoice.value.passengers.length > 0) {
+        if (invoice.value.passengers.length === 1) {
+          name = invoice.value.passengers[0].passenger_name || invoice.value.passengers[0].name || '-';
+        } else if (invoice.value.tickets.length === invoice.value.passengers.length) {
+          name = invoice.value.passengers[idx]?.passenger_name || invoice.value.passengers[idx]?.name || '-';
+        } else {
+          name = invoice.value.passengers[idx % invoice.value.passengers.length]?.passenger_name || '-';
+        }
+      }
+      return {
+        ...t,
+        passenger_name: name
+      };
+    });
+  }
+  
+  return [];
+});
 </script>
 
 <template>
   <div class="invoice-page">
     <div class="container invoice-container">
-      <div class="top-actions print-hidden">
+      <div class="top-actions print-hidden" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
         <button class="btn-back" @click="router.push('/')">
           <ArrowLeft :size="20" /> Kembali ke Beranda
         </button>
+        <div v-if="invoice" style="display: flex; gap: 12px;">
+        </div>
       </div>
 
       <div class="invoice-card" v-if="isLoading">
@@ -118,26 +171,39 @@ const hasIdentity = computed(() => {
             <p class="invoice-date">Tanggal: {{ formatDate(invoice.created_at) }}</p>
           </div>
         </div>
-
+        <div class="action-area" v-if="invoice.payment_status === 'PENDING' && invoice.xendit_url" style="padding: 16px 40px 0;">
+          <button 
+            class="btn-action btn-primary" 
+            @click="continuePayment"
+            style="width: 100%; justify-content: center;"
+          >
+            Lanjutkan Pembayaran <ExternalLink :size="18" />
+          </button>
+        </div>
         <div class="invoice-body">
+          <div class="invoice-body-actions print-hidden" v-if="invoice.payment_status?.toUpperCase() === 'PAID' || invoice.payment_status?.toUpperCase() === 'SUCCESS'">
+            <button class="btn-action btn-outline" @click="downloadPdf">
+              <Download :size="18" /> Unduh PDF
+            </button>
+          </div>
           <div class="section-block">
             <h3 class="section-title">Detail Pemesanan</h3>
             <div class="detail-grid">
               <div class="detail-item">
                 <span class="label">Event / Shuttle</span>
-                <span class="value">{{ invoice.tickets?.[0]?.ticket?.name || 'Shuttle Reguler' }}</span>
+                <span class="value">{{ tickets?.[0]?.ticket?.name || 'Shuttle Reguler' }}</span>
               </div>
-              <div class="detail-item" v-if="invoice.tickets?.[0]?.shuttle_session">
+              <div class="detail-item" v-if="tickets?.[0]?.shuttle_session">
                 <span class="label">Sesi Keberangkatan</span>
-                <span class="value">{{ invoice.tickets[0].shuttle_session.name }} ({{ invoice.tickets[0].shuttle_session.departure_time }})</span>
+                <span class="value">{{ tickets[0].shuttle_session.name }} ({{ tickets[0].shuttle_session.departure_time }})</span>
               </div>
-              <div class="detail-item" v-if="invoice.tickets?.[0]?.trip_status">
+              <div class="detail-item" v-if="tickets?.[0]?.trip_status">
                 <span class="label">Jenis Trip</span>
-                <span class="value">{{ invoice.tickets[0].trip_status.name }}</span>
+                <span class="value">{{ tickets[0].trip_status.name }}</span>
               </div>
               <div class="detail-item">
                 <span class="label">Total Tiket</span>
-                <span class="value">{{ invoice.total_qty }} Tiket</span>
+                <span class="value">{{ tickets.length }} Tiket</span>
               </div>
               <div class="detail-item" v-if="invoice.xendit_expiry_date && invoice.payment_status === 'PENDING'">
                 <span class="label">Batas Pembayaran</span>
@@ -165,48 +231,25 @@ const hasIdentity = computed(() => {
             </div>
           </div>
 
-          <!-- Daftar Penumpang -->
-          <div class="section-block" v-if="penumpangList && penumpangList.length > 0">
-            <h3 class="section-title">Daftar Penumpang</h3>
-            <div class="table-responsive">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>No</th>
-                    <th>Nama Penumpang</th>
-                    <th>Kontak</th>
-                    <th v-if="hasIdentity">Identitas</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(p, idx) in penumpangList" :key="p.id || idx">
-                    <td>{{ idx + 1 }}</td>
-                    <td>
-                      <strong>{{ p.passenger_name }}</strong>
-                    </td>
-                    <td>{{ p.phone }}<br><small>{{ p.email }}</small></td>
-                    <td v-if="hasIdentity">
-                      {{ p.identity_number && p.identity_number.trim() !== '' && p.identity_number.trim() !== '-' ? (p.identity_type + ' - ' + p.identity_number) : '-' }}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
           <div class="section-block">
             <h3 class="section-title">Rincian Tiket</h3>
             <div class="table-responsive">
               <table class="data-table">
                 <thead>
                   <tr>
+                    <th>No</th>
+                    <th>Nama Penumpang</th>
                     <th>Tiket / seat</th>
                     <th class="text-right">Harga Satuan</th>
                     <th class="text-right">Subtotal</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="t in invoice.tickets" :key="t.id">
+                  <tr v-for="(t, idx) in tickets" :key="t.id">
+                    <td>{{ idx + 1 }}</td>
+                    <td>
+                      <strong>{{ t.passenger_name }}</strong>
+                    </td>
                     <td>
                       <strong>{{ t.ticket?.name || 'Tiket Shuttle' }}</strong><br>
                       <small>
@@ -225,7 +268,7 @@ const hasIdentity = computed(() => {
 
           <div class="invoice-summary-box">
             <div class="summary-row">
-              <span>Total Harga Tiket ({{ invoice.total_qty }}x)</span>
+              <span>Total Harga Tiket ({{ tickets.length }}x)</span>
               <span>{{ formatRp(invoice.total_price) }}</span>
             </div>
             <div class="summary-row" v-if="invoice.total_voucher > 0">
@@ -244,19 +287,7 @@ const hasIdentity = computed(() => {
           </div>
         </div>
 
-        <div class="invoice-footer print-hidden">
-          <button class="btn-action btn-outline" @click="downloadPdf">
-            <Download :size="18" /> Unduh PDF
-          </button>
-          
-          <button 
-            v-if="invoice.payment_status === 'PENDING' && invoice.xendit_url" 
-            class="btn-action btn-primary" 
-            @click="continuePayment"
-          >
-            Lanjutkan Pembayaran <ExternalLink :size="18" />
-          </button>
-        </div>
+
       </div>
     </div>
   </div>
@@ -323,7 +354,7 @@ const hasIdentity = computed(() => {
 }
 
 .invoice-header {
-  padding: 32px 40px;
+  padding: 20px 40px 16px;
   border-bottom: 2px dashed var(--border-color, #eaeaea);
   display: flex;
   justify-content: space-between;
@@ -361,9 +392,15 @@ const hasIdentity = computed(() => {
 }
 
 .invoice-body {
-  padding: 40px;
+  padding: 16px 40px 40px;
+}
+.invoice-body-actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 0px;
 }
 .section-block {
+  margin-top: 24px;
   margin-bottom: 32px;
 }
 .section-title {
@@ -411,6 +448,7 @@ const hasIdentity = computed(() => {
   padding: 12px 16px;
   border-bottom: 1px solid var(--border-color, #eaeaea);
   text-align: left;
+  white-space: nowrap;
 }
 .data-table th {
   background: var(--input-bg, #f4f6f8);
@@ -531,27 +569,5 @@ const hasIdentity = computed(() => {
 }
 
 @media (max-width: 768px) {
-  .invoice-header {
-    flex-direction: column;
-    padding: 24px;
-  }
-  .header-right {
-    text-align: left;
-  }
-  .invoice-body {
-    padding: 24px;
-  }
-  .invoice-footer {
-    padding: 24px;
-    flex-direction: column;
-  }
-  .btn-action {
-    width: 100%;
-    justify-content: center;
-  }
-  .invoice-summary-box {
-    margin-left: 0;
-    max-width: 100%;
-  }
 }
 </style>

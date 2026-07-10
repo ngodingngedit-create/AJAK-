@@ -242,6 +242,33 @@ const isModalOpen = ref(false);
 const invoiceLoading = ref(false);
 const selectedInvoice = ref(null);
 
+const selectedInvoiceTickets = computed(() => {
+  if (!selectedInvoice.value) return [];
+  
+  if (selectedInvoice.value.etickets && Array.isArray(selectedInvoice.value.etickets) && selectedInvoice.value.etickets.length > 0) {
+    return selectedInvoice.value.etickets.map(et => {
+      const ticketObj = et.ticket || {};
+      return {
+        id: et.id,
+        order_seat_number: ticketObj.order_seat_number || '-',
+        price: Number(ticketObj.price || 0),
+        ticket_fee: Number(ticketObj.ticket_fee || 0),
+        subtotal_price: Number(ticketObj.subtotal_price || 0),
+        ticket: ticketObj.ticket || {},
+        shuttle_session: et.shuttle_session || ticketObj.shuttle_session || null,
+        trip_status: ticketObj.trip_status || null,
+        passenger_name: et.passenger?.passenger_name || et.passenger?.name || '-'
+      };
+    });
+  }
+  
+  if (selectedInvoice.value.tickets && Array.isArray(selectedInvoice.value.tickets)) {
+    return selectedInvoice.value.tickets;
+  }
+  
+  return [];
+});
+
 const viewInvoice = async (invoiceNo) => {
   isModalOpen.value = true;
   invoiceLoading.value = true;
@@ -250,7 +277,20 @@ const viewInvoice = async (invoiceNo) => {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle-order/${invoiceNo}`);
     const result = await response.json();
     if (result.success && result.data) {
-      selectedInvoice.value = result.data;
+      const detail = result.data;
+      const listItem = bookings.value.find(b => b.invoice_no === invoiceNo);
+      if (listItem) {
+        if ((!detail.tickets || detail.tickets.length === 0) && (!detail.etickets || detail.etickets.length === 0)) {
+          detail.tickets = listItem.tickets || [];
+        }
+        if (!detail.passengers || detail.passengers.length === 0) {
+          detail.passengers = listItem.passengers || (listItem.pemesan ? [listItem.pemesan] : []);
+        }
+        if (!detail.pemesan) {
+          detail.pemesan = listItem.pemesan || null;
+        }
+      }
+      selectedInvoice.value = detail;
     }
   } catch (err) {
     console.error('Failed to fetch invoice detail', err);
@@ -450,7 +490,7 @@ const closeModal = () => {
             <div class="invoice-section">
               <h4>Detail Tiket</h4>
               <div class="ticket-list">
-                <div v-for="t in selectedInvoice.tickets" :key="t.id" class="ticket-item">
+                <div v-for="t in selectedInvoiceTickets" :key="t.id" class="ticket-item">
                   <div class="t-main">
                     <strong>{{ t.ticket?.name || 'Tiket Shuttle' }}</strong>
                     <span class="t-seat">
@@ -468,7 +508,7 @@ const closeModal = () => {
 
             <div class="invoice-summary">
               <div class="summary-row">
-                <span>Total Tiket ({{ selectedInvoice.total_qty }}x)</span>
+                <span>Total Tiket ({{ selectedInvoiceTickets.length }}x)</span>
                 <span>{{ formatRp(selectedInvoice.total_price) }}</span>
               </div>
               <div class="summary-row">
