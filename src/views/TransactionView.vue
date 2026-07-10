@@ -39,6 +39,13 @@ const formatseatLabel = (seatId) => {
   return seatId;
 };
 
+// Only return seat base without pergi/pulang suffix
+const formatseatBase = (seatId) => {
+  if (!seatId) return '';
+  const match = seatId.match(/^(.*?)_(1|2)$/);
+  return match ? match[1] : seatId;
+};
+
 // Fetch extra detail
 const shuttleDetail = ref(null);
 
@@ -110,9 +117,22 @@ const registrant = ref({
   phoneNumber: ''
 });
 
+// PP detection and helpers (MUST be before ticketOwners)
+const isPP = computed(() => {
+  return selectedseats.value.some(s => s.endsWith('_1')) && selectedseats.value.some(s => s.endsWith('_2'));
+});
+
+const effectiveTicketCount = computed(() => {
+  return selectedseats.value.length;
+});
+
+const getTicketOwnerLength = () => {
+  return isPP.value ? selectedseats.value.length : quantity.value;
+};
+
 // Ticket Owners
 const ticketOwners = ref(
-  Array.from({ length: quantity.value }, () => ({
+  Array.from({ length: getTicketOwnerLength() }, () => ({
     useRegistrant: false,
     fullName: '',
     email: '',
@@ -153,7 +173,21 @@ const applyVoucher = (index) => {
 
 // Calculation computed properties
 const effectivePrice = computed(() => bookingStore.selectedPrice || ticket.value?.price || 0);
-const baseTicketPrice = computed(() => effectivePrice.value * quantity.value);
+
+const baseTicketPrice = computed(() => effectivePrice.value * (isPP.value ? effectiveTicketCount.value : quantity.value));
+
+// Helper: get seat labels for owner at given index
+const getOwnerLabel = (idx) => {
+  if (!isPP.value) {
+    const seat = selectedseats.value[idx];
+    return `${tripTypeName.value} ${formatseatBase(seat || '')}`;
+  }
+  const seat = selectedseats.value[idx];
+  if (!seat) return '';
+  const dir = seat.endsWith('_1') ? 'Pergi' : 'Pulang';
+  return `${dir} ${formatseatBase(seat)}`;
+};
+
 const totalDiscount = computed(() => {
   return vouchers.value.reduce((total, v) => total + (v.applied ? v.discount : 0), 0);
 });
@@ -167,13 +201,19 @@ const totalPayment = computed(() => {
 
 // Handle Gunakan Data Pemesan toggle
 const handleUseRegistrantChange = (index) => {
-  const owner = ticketOwners.value[index];
-  if (owner.useRegistrant) {
-    owner.fullName = registrant.value.fullName;
-    owner.email = registrant.value.email;
-    owner.phonePrefix = registrant.value.phonePrefix;
-    owner.phoneNumber = registrant.value.phoneNumber;
-  }
+  // For PP, fill both entries (pergi & pulang) for this passenger
+  const indices = [index];
+  
+  indices.forEach(idx => {
+    if (idx < 0 || idx >= ticketOwners.value.length) return;
+    const owner = ticketOwners.value[idx];
+    if (owner.useRegistrant) {
+      owner.fullName = registrant.value.fullName;
+      owner.email = registrant.value.email;
+      owner.phonePrefix = registrant.value.phonePrefix;
+      owner.phoneNumber = registrant.value.phoneNumber;
+    }
+  });
 };
 
 // Sync ticket owners when registrant info changes if toggled
@@ -195,7 +235,7 @@ watch(
 // Errors validation
 const errors = ref({
   registrant: { fullName: '', email: '', phoneNumber: '' },
-  owners: Array.from({ length: quantity.value }, () => ({
+  owners: Array.from({ length: getTicketOwnerLength() }, () => ({
     fullName: '',
     email: '',
     phoneNumber: '',
@@ -329,7 +369,7 @@ const executeCheckout = async () => {
     trip_id: event.value?.trip_id || 1,
     route_id: bookingStore.selectedRouteId || bookingStore.selectedPickup?.id || ticket.value?.route_id || "",
     operational_date: bookingStore.selectedDate || "",
-    total_qty: quantity.value,
+    total_qty: effectiveTicketCount.value,
     total_price: baseTicketPrice.value,
     total_voucher: totalDiscount.value,
     grandtotal: totalPayment.value,
@@ -360,12 +400,13 @@ const executeCheckout = async () => {
         price: effectivePrice.value,
         ticket_fee: 0,
         is_promo: totalDiscount.value > 0 ? 1 : 0,
-        promo_price: totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0,
+        promo_price: totalDiscount.value > 0 ? (totalDiscount.value / effectiveTicketCount.value) : 0,
         subtotal_price: effectivePrice.value
       };
     }),
-    passengers: [
-      {
+    passengers: (() => {
+      const allOwners = ticketOwners.value;
+      const registrantEntry = {
         is_pemesan: 1,
         passenger_name: registrant.value.fullName,
         phone: registrant.value.phoneNumber,
@@ -373,17 +414,18 @@ const executeCheckout = async () => {
         identity_type: "KTP",
         identity_number: "",
         emergency_contact: registrant.value.phoneNumber
-      },
-      ...ticketOwners.value.map((owner, index) => ({
+      };
+      
+      return [registrantEntry, ...allOwners.map(o => ({
         is_pemesan: 0,
-        passenger_name: owner.fullName,
-        phone: owner.phoneNumber,
-        email: owner.email,
+        passenger_name: o.fullName,
+        phone: o.phoneNumber,
+        email: o.email,
         identity_type: "KTP",
-        identity_number: owner.ktpNumber || "",
-        emergency_contact: owner.phoneNumber
-      }))
-    ]
+        identity_number: o.ktpNumber || "",
+        emergency_contact: o.phoneNumber
+      }))];
+    })(),
   };
 
   try {
@@ -578,7 +620,7 @@ const isLongText = (str, limit = 20) => {
                 </div>
                 <div>
                   <h3 class="ticket-owner-title">
-                    {{ idx + 1 }}. Pemilik Tiket {{ tripTypeName }} {{ selectedseats[idx] ? `(seat ${formatseatLabel(selectedseats[idx])})` : '' }}
+                    {{ idx + 1 }}. Pemilik Tiket {{ getOwnerLabel(idx) }}
                   </h3>
                   <span class="ticket-owner-subtitle">1 Tiket x {{ formatRp(effectivePrice) }}</span>
                 </div>
@@ -806,7 +848,7 @@ const isLongText = (str, limit = 20) => {
                     </div>
                   </div>
                   <span class="s-category-calc">
-                    {{ quantity }} Tiket x {{ formatRp(effectivePrice) }}
+                    {{ isPP ? effectiveTicketCount : quantity }} Tiket x {{ formatRp(effectivePrice) }}
                   </span>
                 </div>
               </div>
@@ -834,16 +876,31 @@ const isLongText = (str, limit = 20) => {
               </div>
 
               <!-- Nomor seat -->
-              <div class="summary-route-section">
-                <div class="summary-route-label">NOMOR seat</div>
-                <div class="summary-route-value">{{ selectedseats && selectedseats.length > 0 ? selectedseats.map(s => formatseatLabel(s)).join(', ') : '-' }}</div>
+              <div class="summary-route-section" v-if="selectedseats && selectedseats.length > 0">
+                <template v-if="isPP">
+                  <div class="summary-route-label">NOMOR seat</div>
+                  <div class="summary-route-value pp-seat-group">
+                    <div class="pp-seat-line">
+                      <span class="pp-leg-label">PERGI:</span>
+                      <span>{{ selectedseats.filter(s => s.endsWith('_1')).map(s => formatseatBase(s)).join(', ') }}</span>
+                    </div>
+                    <div class="pp-seat-line">
+                      <span class="pp-leg-label">PULANG:</span>
+                      <span>{{ selectedseats.filter(s => s.endsWith('_2')).map(s => formatseatBase(s)).join(', ') }}</span>
+                    </div>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="summary-route-label">NOMOR seat</div>
+                  <div class="summary-route-value">{{ selectedseats.map(s => formatseatLabel(s)).join(', ') }}</div>
+                </template>
               </div>
 
               <div class="summary-divider-dashed" style="margin-top: 20px;"></div>
 
               <div class="calculation-rows-list">
                 <div class="calc-row-item">
-                  <span class="calc-label">Jumlah ({{ quantity }} Tiket)</span>
+                  <span class="calc-label">Jumlah ({{ isPP ? effectiveTicketCount : quantity }} Tiket)</span>
                   <span class="calc-value">{{ formatRp(baseTicketPrice) }}</span>
                 </div>
                 <div class="calc-row-item" v-if="totalDiscount > 0">
@@ -907,7 +964,7 @@ const isLongText = (str, limit = 20) => {
             <span class="price-val">{{ formatRp(totalPayment) }}</span>
           </div>
           <button type="button" class="btn-toggle-mobile-detail" @click="isMobileSummaryOpen = !isMobileSummaryOpen">
-            <span class="detail-text">({{ quantity }}) Detail</span>
+            <span class="detail-text">({{ isPP ? effectiveTicketCount : quantity }}) Detail</span>
             <ChevronUp v-if="!isMobileSummaryOpen" :size="16" />
             <ChevronDown v-else :size="16" />
           </button>
@@ -949,7 +1006,7 @@ const isLongText = (str, limit = 20) => {
                   </div>
                 </div>
                 <span class="s-category-calc">
-                  {{ quantity }} Tiket x {{ formatRp(effectivePrice) }}
+                  {{ isPP ? effectiveTicketCount : quantity }} Tiket x {{ formatRp(effectivePrice) }}
                 </span>
               </div>
             </div>
@@ -977,16 +1034,31 @@ const isLongText = (str, limit = 20) => {
             </div>
 
             <!-- Nomor seat -->
-            <div class="summary-route-section">
-              <div class="summary-route-label">NOMOR seat</div>
-              <div class="summary-route-value">{{ selectedseats && selectedseats.length > 0 ? selectedseats.map(s => formatseatLabel(s)).join(', ') : '-' }}</div>
+            <div class="summary-route-section" v-if="selectedseats && selectedseats.length > 0">
+              <template v-if="isPP">
+                <div class="summary-route-label">NOMOR seat</div>
+                <div class="summary-route-value pp-seat-group">
+                  <div class="pp-seat-line">
+                    <span class="pp-leg-label">PERGI:</span>
+                    <span>{{ selectedseats.filter(s => s.endsWith('_1')).map(s => formatseatBase(s)).join(', ') }}</span>
+                  </div>
+                  <div class="pp-seat-line">
+                    <span class="pp-leg-label">PULANG:</span>
+                    <span>{{ selectedseats.filter(s => s.endsWith('_2')).map(s => formatseatBase(s)).join(', ') }}</span>
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div class="summary-route-label">NOMOR seat</div>
+                <div class="summary-route-value">{{ selectedseats.map(s => formatseatLabel(s)).join(', ') }}</div>
+              </template>
             </div>
 
             <div class="summary-divider-dashed" style="margin-top: 20px;"></div>
 
             <div class="calculation-rows-list">
               <div class="calc-row-item">
-                <span class="calc-label">Jumlah ({{ quantity }} Tiket)</span>
+                <span class="calc-label">Jumlah ({{ isPP ? effectiveTicketCount : quantity }} Tiket)</span>
                 <span class="calc-value">{{ formatRp(baseTicketPrice) }}</span>
               </div>
               <div class="calc-row-item" v-if="totalDiscount > 0">
@@ -2129,6 +2201,35 @@ const isLongText = (str, limit = 20) => {
   color: #64748b;
   margin-top: 2px;
   line-height: 1.3;
+}
+
+/* PP seat group display */
+.pp-seat-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pp-seat-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+[data-theme="dark"] .pp-seat-line {
+  color: #f1f5f9;
+}
+
+.pp-leg-label {
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: var(--primary, #C94C4C);
+  letter-spacing: 0.5px;
+  min-width: 60px;
 }
 
 [data-theme="dark"] .summary-route-sub {

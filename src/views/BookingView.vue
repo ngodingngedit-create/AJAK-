@@ -68,21 +68,27 @@ const sessionOptions = computed(() => {
   const currentOp = event.value.operation_days.find(op => String(op.operation_date) === String(selectedDate.value));
   if (!currentOp || !currentOp.sessions || !Array.isArray(currentOp.sessions)) return [];
   
-  return currentOp.sessions.map(s => {
-    let timeStr = '';
-    if (s.departure_time && typeof s.departure_time === 'string') {
-      if (s.departure_time.includes('T')) {
-        const tPart = s.departure_time.split('T')[1];
-        if (tPart) timeStr = tPart.slice(0, 5) + ' WIB';
-      } else {
-        timeStr = s.departure_time.slice(0, 5) + ' WIB';
-      }
+  const formatTimeOnly = (val) => {
+    if (!val) return '';
+    if (val.includes('T')) {
+      const tPart = val.split('T')[1];
+      return tPart ? tPart.slice(0, 5) : '';
     }
+    return val.slice(0, 5);
+  };
+
+  return currentOp.sessions.map(s => {
+    const depTime = formatTimeOnly(s.departure_time);
+    const arrTime = formatTimeOnly(s.arrival_time);
+    let timeStr = depTime ? depTime + ' WIB' : 'Jam Berangkat';
+    if (arrTime) timeStr = depTime + ' - ' + arrTime + ' WIB';
     const hasTickets = s.tickets && Array.isArray(s.tickets) && s.tickets.length > 0;
     return {
       id: String(s.id),
       name: s.name || 'Sesi',
       time: timeStr || 'Jam Berangkat',
+      departureTime: depTime ? depTime + ' WIB' : '',
+      arrivalTime: arrTime ? arrTime + ' WIB' : '',
       available: hasTickets,
       tickets: s.tickets || []
     };
@@ -202,11 +208,17 @@ const allSelectedTickets = computed(() => {
 });
 
 const totalSelectedTicketsCount = computed(() => {
-  return allSelectedTickets.value.reduce((sum, item) => sum + item.seats.length, 0);
+  return allSelectedTickets.value.reduce((sum, item) => {
+    const count = isPP.value ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length;
+    return sum + count;
+  }, 0);
 });
 
 const totalSelectedTicketsPrice = computed(() => {
-  return allSelectedTickets.value.reduce((sum, item) => sum + (item.price * item.seats.length), 0);
+  return allSelectedTickets.value.reduce((sum, item) => {
+    const count = isPP.value ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length;
+    return sum + (item.price * count);
+  }, 0);
 });
 
 const mergedSelectedseats = computed(() => {
@@ -1513,8 +1525,8 @@ const goToBuyerDetails = () => {
     // Populate bookingStore with event, ticket, seats, and quantity
     bookingStore.selectedEvent = event.value;
     bookingStore.selectedTicket = selectedTicket.value;
-    bookingStore.selectedseats = [...selectedseats.value];
-    bookingStore.adults = quantity.value;
+    bookingStore.selectedseats = [...mergedSelectedseats.value];
+    bookingStore.adults = totalSelectedTicketsCount.value;
     bookingStore.toddlers = 0;
     bookingStore.selectedTripStatus = selectedTripStatus.value;
     bookingStore.selectedDate = selectedDate.value;
@@ -2030,12 +2042,23 @@ const tryAutoplay = () => {
                         :disabled="!s.available"
                         @click="s.available ? selectedSesi = s.id : null"
                       >
-                        <span class="session-pill-name">
-                          <span class="session-status-dot" :class="s.available ? 'available' : 'unavailable'"></span>
-                          {{ s.name }}
-                        </span>
-                        <span class="session-pill-time">{{ s.time }}</span>
-                        <span v-if="!s.available" class="session-pill-status">TIDAK TERSEDIA</span>
+                        <div class="session-pill-inner">
+                          <span class="session-pill-name">{{ s.name }}</span>
+                          <div class="session-pill-cols">
+                            <div class="sp-col">
+                              <span class="sp-col-label-top">sesi</span>
+                              <span class="sp-col-label-bot">keberangkatan</span>
+                              <span class="sp-col-time">{{ s.departureTime }}</span>
+                            </div>
+                            <span class="sp-col-divider"></span>
+                            <div class="sp-col">
+                              <span class="sp-col-label-top">sesi</span>
+                              <span class="sp-col-label-bot">kepulangan</span>
+                              <span class="sp-col-time">{{ s.arrivalTime }}</span>
+                            </div>
+                          </div>
+                          <span v-if="!s.available" class="session-pill-status">TIDAK TERSEDIA</span>
+                        </div>
                       </button>
                     </div>
                   </div>
@@ -2248,7 +2271,7 @@ const tryAutoplay = () => {
 
                                 <!-- PP Step Navigation Bar -->
                                 <div v-if="isPP" class="pp-step-nav-bar">
-                                  <div class="pp-nav-info">
+                                  <div v-if="!isMobile" class="pp-nav-info">
                                     <div class="pp-steps-indicator">
                                       <span class="pp-step-dot" :class="ppStep === 1 ? 'active' : 'completed'">1</span>
                                       <span class="pp-step-line" :class="ppStep === 2 ? 'completed' : ''"></span>
@@ -2338,7 +2361,7 @@ const tryAutoplay = () => {
                               <div class="ticket-top-right">
                                 <div class="ticket-vertical-divider"></div>
                                 <div class="ticket-price-box">
-                                  <span class="ticket-price-label">{{ !selectedTripStatus ? 'Harga Mulai' : 'Harga' }}</span>
+                                  <span class="ticket-price-label">{{ !selectedTripStatus ? 'Mulai dari' : 'Harga' }}</span>
                                   <div class="ticket-price-value-wrapper">
                                     <span class="ticket-price-value">
                                       <template v-if="!selectedTripStatus">{{ formatRp(t.price) }}</template>
@@ -2396,6 +2419,7 @@ const tryAutoplay = () => {
                                   <select 
                                     v-model="selectedTripStatus" 
                                     class="trip-status-select"
+                                    :class="{ 'trip-status-select-error': tripTypeError }"
                                     @change="bookingStore.selectedTripStatus = selectedTripStatus"
                                   >
                                     <option :value="null" disabled>Pilih jenis seat</option>
@@ -2407,9 +2431,7 @@ const tryAutoplay = () => {
                                       {{ ts.name }}
                                     </option>
                                   </select>
-                                </div>
-                                <div v-if="tripTypeError" class="trip-type-error-msg">
-                                  <span>{{ tripTypeError }}</span>
+                                  <span v-if="tripTypeError" class="trip-type-error-text">{{ tripTypeError }}</span>
                                 </div>
                               </div>
 
@@ -2528,7 +2550,7 @@ const tryAutoplay = () => {
                             <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
                             
                             <span class="summary-ticket-name">{{ item.name }}</span>
-                            <span class="summary-ticket-badge-count">{{ item.seats.length }}X</span>
+                            <span class="summary-ticket-badge-count">{{ isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length }}X</span>
                           </div>
                           
                           <!-- Day and Session Info -->
@@ -2552,7 +2574,7 @@ const tryAutoplay = () => {
                           </div>
                           
                           <div class="summary-ticket-price-row">
-                            {{ formatRp(item.price * item.seats.length) }}
+                            {{ formatRp(item.price * (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length)) }}
                           </div>
                         </div>
                       </div>
@@ -2599,7 +2621,7 @@ const tryAutoplay = () => {
                         </div>
                         <div class="summary-detail-row">
                           <span class="sd-label">Jumlah</span>
-                          <span class="sd-value">{{ item.seats.length }} Tiket</span>
+                          <span class="sd-value">{{ isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length }} Tiket</span>
                         </div>
                         <div class="summary-detail-row">
                           <span class="sd-label">Harga per seat</span>
@@ -2607,7 +2629,7 @@ const tryAutoplay = () => {
                         </div>
                         <div class="summary-detail-row sd-total-row">
                           <span class="sd-label font-bold">Subtotal</span>
-                          <span class="sd-value font-black text-primary">{{ formatRp(item.price * item.seats.length) }}</span>
+                          <span class="sd-value font-black text-primary">{{ formatRp(item.price * (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length)) }}</span>
                         </div>
                       </div>
                       
@@ -2878,7 +2900,7 @@ const tryAutoplay = () => {
                     <!-- Ticket Icon -->
                     <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
                     <span class="summary-ticket-name">Tiket {{ item.name }}</span>
-                    <span class="summary-ticket-badge-count">{{ item.seats.length }}X</span>
+                    <span class="summary-ticket-badge-count">{{ isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length }}X</span>
                   </div>
                   
                   <!-- Day and Session Info -->
@@ -2902,7 +2924,7 @@ const tryAutoplay = () => {
                   </div>
                   
                   <div class="summary-ticket-price-row">
-                    {{ formatRp(item.price * item.seats.length) }}
+                    {{ formatRp(item.price * (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length)) }}
                   </div>
                 </div>
                 
@@ -3735,6 +3757,7 @@ const tryAutoplay = () => {
   line-height: 1.6;
   color: #334155;
   margin: 0;
+  white-space: pre-line;
 }
 
 .detail-col-label {
@@ -3927,24 +3950,31 @@ const tryAutoplay = () => {
   box-shadow: 0 0 0 3px rgba(201, 76, 76, 0.15);
 }
 
-.trip-type-error-msg {
-  margin-top: 8px;
-  padding: 8px 12px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
-  color: #dc2626;
-  font-size: 0.8rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.trip-status-select-error {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
 }
 
-[data-theme="dark"] .trip-type-error-msg {
-  background: rgba(220, 38, 38, 0.1);
-  border-color: rgba(220, 38, 38, 0.3);
+.trip-status-select-error:focus {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15) !important;
+}
+
+.trip-type-error-text {
+  margin-top: 6px;
+  color: #dc2626;
+  font-size: 0.78rem;
+  font-weight: 500;
+  display: block;
+}
+
+[data-theme="dark"] .trip-type-error-text {
   color: #fca5a5;
+}
+
+[data-theme="dark"] .trip-status-select-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
 }
 
 .ticket-details-row {
@@ -4966,6 +4996,13 @@ const tryAutoplay = () => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+@media (max-width: 768px) {
+  .pp-nav-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 
 .pp-nav-btn {
@@ -7686,12 +7723,8 @@ html.lock-scroll, body.lock-scroll {
 .session-pill-btn {
   flex: 1;
   min-width: 130px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 16px; /* Smaller button padding */
-  border-radius: 10px; /* Uniform rounded (no longer circular pill) */
+  padding: 0;
+  border-radius: 10px;
   border: 1.5px solid #e2e8f0;
   background: #ffffff;
   color: #475569;
@@ -7699,6 +7732,17 @@ html.lock-scroll, body.lock-scroll {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   text-align: center;
   position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.session-pill-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  width: 100%;
   box-sizing: border-box;
 }
 
@@ -7770,6 +7814,51 @@ html.lock-scroll, body.lock-scroll {
   background: #f87171; /* lighter red on active red background */
 }
 
+/* Session pill 2-column layout */
+.session-pill-cols {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin-top: 2px;
+  width: 100%;
+}
+.sp-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  line-height: 1.15;
+}
+.sp-col-label-top {
+  font-size: 0.5rem;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.5;
+}
+.sp-col-label-bot {
+  font-size: 0.42rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+  margin-bottom: 1px;
+}
+.sp-col-time {
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+.sp-col-divider {
+  width: 1px;
+  background: currentColor;
+  opacity: 0.2;
+  margin: 2px 4px;
+  flex-shrink: 0;
+}
+.session-pill-btn.active .sp-col-label-top,
+.session-pill-btn.active .sp-col-label-bot {
+  opacity: 0.75;
+}
 /* Reduced Spacing between Filters Outer Group and seated Group */
 .outer-section-group.filters-group {
   margin-bottom: 12px;
@@ -7840,13 +7929,29 @@ html.lock-scroll, body.lock-scroll {
   
   .session-pill-btn {
     flex: none;
-    padding: 6px 8px;
     width: 105px;
     border-radius: 6px;
   }
   
+  .session-pill-inner {
+    padding: 6px 8px;
+  }
+
   .session-pill-name {
     font-size: 0.72rem;
+  }
+  
+  .sp-col-label-top {
+    font-size: 0.44rem;
+  }
+  .sp-col-label-bot {
+    font-size: 0.38rem;
+  }
+  .sp-col-time {
+    font-size: 0.62rem;
+  }
+  .sp-col-divider {
+    margin: 2px 2px;
   }
   
   .session-status-dot {

@@ -31,6 +31,10 @@ const mapBusToEvent = (item) => {
     console.warn('Invalid seatmap JSON', e);
   }
 
+  // Static minimum price (like homepage)
+  const priceStr = 'Rp75.000';
+  const priceNum = 75000;
+
   return {
     id: item.id,
     name: item.name || item.bus_name || 'Unknown',
@@ -49,8 +53,8 @@ const mapBusToEvent = (item) => {
     location: item.description || '',
     city: item.location_city || 'Jakarta',
     organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
-    price: 'Lihat Detail',
-    priceNum: 0,
+    price: priceStr,
+    priceNum: priceNum,
     image: item.image_url || '',
     desc: item.description || '',
     seats: seats,

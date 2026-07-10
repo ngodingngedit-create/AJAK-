@@ -1039,15 +1039,15 @@ const tagColors = {
     padding: 20px 0 0px;
   }
   .slider-wrapper {
-    height: 210px !important;
+    height: 320px !important;
     padding: 0 20px !important;
     margin-top: -35px;
     overflow: visible !important;
   }
   .slider-card {
     position: absolute !important;
-    width: 440px !important;
-    height: 144px !important;
+    width: 560px !important;
+    height: 183px !important;
     border-radius: 4px;
   }
   .slider-card.prev {
@@ -1086,14 +1086,14 @@ const tagColors = {
 
 @media (max-width: 480px) {
   .slider-wrapper {
-    height: 160px !important;
+    height: 240px !important;
     margin-top: -25px;
     overflow: visible !important;
   }
   .slider-card {
     position: absolute !important;
-    width: 300px !important;
-    height: 98px !important;
+    width: 380px !important;
+    height: 124px !important;
   }
   .slider-card.prev {
     transform: translateX(-40%) scale(0.82) !important;
