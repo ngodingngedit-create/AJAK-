@@ -5210,7 +5210,7 @@ const tryAutoplay = () => {
 @media (max-width: 768px) {
   .pp-nav-actions {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-end;
   }
 }
 
