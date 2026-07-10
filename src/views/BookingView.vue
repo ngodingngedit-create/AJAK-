@@ -80,13 +80,11 @@ const sessionOptions = computed(() => {
   return currentOp.sessions.map(s => {
     const depTime = formatTimeOnly(s.departure_time);
     const arrTime = formatTimeOnly(s.arrival_time);
-    let timeStr = depTime ? depTime + ' WIB' : 'Jam Berangkat';
-    if (arrTime) timeStr = depTime + ' - ' + arrTime + ' WIB';
     const hasTickets = s.tickets && Array.isArray(s.tickets) && s.tickets.length > 0;
     return {
       id: String(s.id),
       name: s.name || 'Sesi',
-      time: timeStr || 'Jam Berangkat',
+      time: depTime ? depTime + ' WIB' : 'Jam Berangkat',
       departureTime: depTime ? depTime + ' WIB' : '',
       arrivalTime: arrTime ? arrTime + ' WIB' : '',
       available: hasTickets,
@@ -340,16 +338,18 @@ const getDistance = (t1, t2) => {
 };
 
 const handleTouchStart = (e) => {
-  if (e.evt && e.evt.touches && e.evt.touches.length === 2) {
-    e.evt.preventDefault();
-    lastDist = getDistance(e.evt.touches[0], e.evt.touches[1]);
+  const touches = (e.evt && e.evt.touches) || (e.touches) || (e.targetTouches);
+  if (touches && touches.length === 2) {
+    if (e.evt) e.evt.preventDefault();
+    lastDist = getDistance(touches[0], touches[1]);
   }
 };
 
 const handleTouchMove = (e) => {
-  if (e.evt && e.evt.touches && e.evt.touches.length === 2) {
-    e.evt.preventDefault();
-    const dist = getDistance(e.evt.touches[0], e.evt.touches[1]);
+  const touches = (e.evt && e.evt.touches) || (e.touches) || (e.targetTouches);
+  if (touches && touches.length === 2) {
+    if (e.evt) e.evt.preventDefault();
+    const dist = getDistance(touches[0], touches[1]);
     
     if (!lastDist) {
       lastDist = dist;
@@ -1864,7 +1864,6 @@ const tryAutoplay = () => {
                   :src="event.has_creator?.image_url || '/AJAKLogo/LOGO.png'" 
                   :alt="event.has_creator?.name || 'AJAK!'" 
                   class="org-logo-new" 
-                />
               </div>
             </div>
           </div>
@@ -1907,7 +1906,9 @@ const tryAutoplay = () => {
             </div>
             <div class="mobile-organizer-text">
               <span class="mobile-org-label">Diselenggarakan Oleh</span>
-              <span class="mobile-org-name">{{ event.has_creator?.name || 'AJAK!' }}</span>
+              <div class="mobile-org-name-row">
+                <span class="mobile-org-name">{{ event.has_creator?.name || 'AJAK!' }}</span>
+              </div>
             </div>
           </div>
 
@@ -2044,19 +2045,7 @@ const tryAutoplay = () => {
                       >
                         <div class="session-pill-inner">
                           <span class="session-pill-name">{{ s.name }}</span>
-                          <div class="session-pill-cols">
-                            <div class="sp-col">
-                              <span class="sp-col-label-top">sesi</span>
-                              <span class="sp-col-label-bot">keberangkatan</span>
-                              <span class="sp-col-time">{{ s.departureTime }}</span>
-                            </div>
-                            <span class="sp-col-divider"></span>
-                            <div class="sp-col">
-                              <span class="sp-col-label-top">sesi</span>
-                              <span class="sp-col-label-bot">kepulangan</span>
-                              <span class="sp-col-time">{{ s.arrivalTime }}</span>
-                            </div>
-                          </div>
+                          <span class="session-pill-time">{{ s.departureTime }}</span>
                           <span v-if="!s.available" class="session-pill-status">TIDAK TERSEDIA</span>
                         </div>
                       </button>
@@ -2066,7 +2055,7 @@ const tryAutoplay = () => {
 
                 <!-- Wrapper for Shuttle Tickets -->
                 <div class="outer-section-group">
-                  <h3 class="outer-section-title">seated</h3>
+                  <h3 class="outer-section-title">pilih kursi</h3>
                   <div class="tickets-list-wrapper" style="display: flex; flex-direction: column; gap: 16px;">
                     <div 
                       v-for="t in filteredTickets" 
@@ -2383,23 +2372,27 @@ const tryAutoplay = () => {
                               <!-- Horizontal line separator -->
                               <div class="accordion-section-divider"></div>
                               
-                              <!-- Details Row: Hari Konser & Sesi Keberangkatan -->
+                              <!-- Details Row: Hari Konser, Sesi Keberangkatan & Sesi Kepulangan -->
                               <div class="ticket-details-row">
-                                <!-- Hari Konser Column -->
-                                <div class="detail-col">
+                                <div class="detail-col hari-konser-col">
                                   <span class="detail-col-label">Hari Konser</span>
                                   <div class="calendar-detail-wrapper-simple">
                                     <Calendar :size="18" class="detail-icon-red" />
                                     <span class="info-bold-text">Masa berlaku: {{ dateOptions.find(d => String(d.id) === String(selectedDate))?.date || selectedDate }}</span>
                                   </div>
                                 </div>
-                                
-                                <!-- Sesi Keberangkatan Column -->
                                 <div class="detail-col">
-                                  <span class="detail-col-label">Sesi Keberangkatan</span>
+                                  <span class="detail-col-label">Sesi Berangkat</span>
                                   <div class="session-detail-wrapper-simple">
                                     <Clock :size="18" class="detail-icon-red" />
-                                    <span class="info-bold-text">{{ sessionOptions.find(s => String(s.id) === String(selectedSesi))?.time || '' }}</span>
+                                    <span class="info-bold-text">{{ sessionOptions.find(s => String(s.id) === String(selectedSesi))?.departureTime || sessionOptions.find(s => String(s.id) === String(selectedSesi))?.time || '' }}</span>
+                                  </div>
+                                </div>
+                                <div class="detail-col">
+                                  <span class="detail-col-label">Sesi Pulang</span>
+                                  <div class="session-detail-wrapper-simple">
+                                    <Clock :size="18" class="detail-icon-red" />
+                                    <span class="info-bold-text">{{ sessionOptions.find(s => String(s.id) === String(selectedSesi))?.arrivalTime || '-' }}</span>
                                   </div>
                                 </div>
                               </div>
@@ -3164,11 +3157,34 @@ const tryAutoplay = () => {
   align-items: center;
   background: transparent;
   padding: 4px 0;
+  position: relative;
+  width: fit-content;
+}
+
+.desktop-verified-icon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(30%, -30%);
+  color: #ffffff;
+  background-color: #1d4ed8;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  padding: 3px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  z-index: 2;
+  box-sizing: border-box;
 }
 
 .org-logo-new {
   width: 100px;
-  height: 100px;
+  height: auto;
+  max-height: 80px;
   object-fit: contain;
   border-radius: 12px;
   transition: all 0.3s ease;
@@ -3293,17 +3309,20 @@ const tryAutoplay = () => {
     height: 50px;
     border-radius: 50%;
     border: 1px solid #e2e8f0;
-    overflow: hidden;
+    overflow: visible;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #ffffff;
+    position: relative;
+    flex-shrink: 0;
   }
-  
+
   .mobile-organizer-logo-img {
-    width: 80%;
-    height: 80%;
-    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
   }
   
   .mobile-organizer-text {
@@ -3323,6 +3342,25 @@ const tryAutoplay = () => {
     color: #0f172a;
     font-weight: 800;
   }
+
+  .mobile-org-name-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mobile-verified-icon {
+    color: #ffffff;
+    background-color: #1d4ed8;
+    border-radius: 50%;
+    width: 14px;
+    height: 14px;
+    padding: 2px;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
   
   .mobile-organizer-chat-btn {
     background: none;
@@ -3337,7 +3375,12 @@ const tryAutoplay = () => {
   }
   
   .mobile-organizer-chat-btn:active {
-    transform: scale(0.95);
+      transform: scale(0.95);
+  }
+  
+  /* legacy badge class - no longer used */
+  .mobile-verified-badge {
+    display: none;
   }
   
   .tab-btn {
@@ -4182,11 +4225,36 @@ const tryAutoplay = () => {
   }
   
   .ticket-details-row {
-    gap: 12px;
+    gap: 12px 10px;
+    flex-wrap: wrap;
   }
-  
+
+  .hari-konser-col {
+    flex: 1 0 100% !important;
+  }
+
   .detail-col {
-    min-width: 100%;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .detail-col-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.5px;
+  }
+
+  .detail-col .session-detail-wrapper-simple,
+  .detail-col .calendar-detail-wrapper-simple {
+    gap: 8px;
+  }
+
+  .detail-col .info-bold-text {
+    font-size: 0.68rem;
+    line-height: 1.2;
+  }
+
+  .detail-col .detail-icon-red {
+    flex-shrink: 0;
   }
   
   .calendar-sheet-box,

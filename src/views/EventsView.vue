@@ -51,7 +51,7 @@ const mapBusToEvent = (item) => {
     departureTime: '',
     returnTime: '',
     location: item.description || '',
-    city: item.location_city || 'Jakarta',
+    city: (item.location_city && item.location_city !== 'Jakarta') ? item.location_city : 'Ecovention & Ecopark Ancol, Jakarta',
     organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
     price: priceStr,
     priceNum: priceNum,
@@ -301,7 +301,7 @@ const tagColors = {
                 <span class="price-label">Mulai dari</span>
                 <div style="display: flex; flex-direction: column;">
                   <span class="event-price">{{ event.price }}</span>
-                  <span style="font-size: 0.72rem; color: #000000; font-weight: 600;">pulang - pergi</span>
+                  <span style="font-size: 0.72rem; color: #000000; font-weight: 600;">*Termasuk tiket ancol</span>
                 </div>
               </div>
               <button class="book-now-btn">

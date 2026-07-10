@@ -169,7 +169,7 @@ const fetchUpcomingEvents = async () => {
           dateLabel: `${day} ${month} ${year}`,
           time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
           location: item.description || 'TBA',
-          city: 'Jakarta',
+          city: 'Ecovention & Ecopark Ancol, Jakarta',
           organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
           price: 'Rp75.000',
           priceNum: 0,
@@ -517,7 +517,7 @@ const tagColors = {
                   <span class="price-label">Mulai dari</span>
                   <div style="display: flex; flex-direction: column;">
                     <span class="event-price">{{ event.price }}</span>
-                    <span style="font-size: 0.75rem; color: #000000; font-weight: 600;">pulang - pergi</span>
+                    <span style="font-size: 0.75rem; color: #000000; font-weight: 600;">*Termasuk tiket ancol</span>
                   </div>
                 </div>
                 <button class="book-now-btn">
