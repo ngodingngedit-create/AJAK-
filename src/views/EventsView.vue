@@ -31,9 +31,10 @@ const mapBusToEvent = (item) => {
     console.warn('Invalid seatmap JSON', e);
   }
 
-  // Static minimum price (like homepage)
-  const priceStr = 'Rp75.000';
-  const priceNum = 75000;
+  // Dynamic starting price from API
+  const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+  const priceNum = item.starting_price || 0;
+  const priceStr = item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami';
 
   return {
     id: item.id,
