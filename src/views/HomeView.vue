@@ -159,25 +159,26 @@ const fetchUpcomingEvents = async () => {
           console.warn('Invalid seatmap JSON', e);
         }
 
-        return {
-          id: item.id,
-          name: item.name,
-          slug: item.slug,
-          image: item.image_url,
-          desc: item.description,
-          date: item.start_date ? item.start_date.split('T')[0] : '',
-          dateLabel: `${day} ${month} ${year}`,
-          time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
-          location: item.description || 'TBA',
-          city: 'Ecovention & Ecopark Ancol, Jakarta',
-          organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
-          price: 'Rp75.000',
-          priceNum: 0,
-          tag: 'Shuttle Bersama',
-          bus_type: 'MINIBUS',
-          plate_number: '-',
-          seats: seats
-        };
+          const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+          return {
+            id: item.id,
+            name: item.name,
+            slug: item.slug,
+            image: item.image_url,
+            desc: item.description,
+            date: item.start_date ? item.start_date.split('T')[0] : '',
+            dateLabel: `${day} ${month} ${year}`,
+            time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
+            location: item.description || 'TBA',
+            city: 'Ecovention & Ecopark Ancol, Jakarta',
+            organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
+            price: item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami',
+            priceNum: item.starting_price || 0,
+            tag: 'Shuttle Bersama',
+            bus_type: 'MINIBUS',
+            plate_number: '-',
+            seats: seats
+          };
       });
     }
   } catch (error) {
