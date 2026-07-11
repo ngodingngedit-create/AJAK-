@@ -48,6 +48,7 @@ const formatseatBase = (seatId) => {
 
 // Fetch extra detail
 const shuttleDetail = ref(null);
+const shuttleAdminDetail = ref(null);
 
 // Redirect to events if store is empty
 onMounted(async () => {
@@ -56,6 +57,7 @@ onMounted(async () => {
     return;
   }
   
+  // Fetch shuttle detail
   if (event.value.slug) {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle/${event.value.slug}`);
@@ -68,6 +70,22 @@ onMounted(async () => {
     } catch (e) {
       console.error('Error fetching shuttle detail for transaction view:', e);
     }
+  }
+
+  // Fetch all shuttles to get admin fee
+  try {
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle`);
+    if (res.ok) {
+      const result = await res.json();
+      if (result.success && result.data && result.data.data) {
+        const matched = result.data.data.find(s => s.name === event.value.name);
+        if (matched) {
+            shuttleAdminDetail.value = matched;
+        }
+      }
+    }
+  } catch (e) {
+      console.error('Error fetching shuttle list for admin fee:', e);
   }
 
   startTimer();
@@ -194,8 +212,7 @@ const totalDiscount = computed(() => {
   return vouchers.value.reduce((total, v) => total + (v.applied ? v.discount : 0), 0);
 });
 const adminFee = computed(() => {
-  // Admin fee 8000 per transaction (flat, not per ticket)
-  return 8000;
+  return Number(shuttleAdminDetail.value?.admin_fee || 8000);
 });
 const totalPayment = computed(() => {
   return Math.max(0, baseTicketPrice.value + adminFee.value - totalDiscount.value);
