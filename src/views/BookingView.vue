@@ -256,6 +256,7 @@ const isPanning = ref(false);
 const isCanvasOpen = ref(false);
 const isFullscreen = ref(false);
 const isTabsSticky = ref(false);
+const isStageDraggable = ref(true);
 const tabsBarRef = ref(null);
 const showMobileDetailSheet = ref(false);
 
@@ -341,6 +342,7 @@ const handleTouchStart = (e) => {
   const touches = (e.evt && e.evt.touches) || (e.touches) || (e.targetTouches);
   if (touches && touches.length === 2) {
     if (e.evt) e.evt.preventDefault();
+    isStageDraggable.value = false;
     lastDist = getDistance(touches[0], touches[1]);
   }
 };
@@ -365,6 +367,7 @@ const handleTouchMove = (e) => {
 
 const handleTouchEnd = () => {
   lastDist = 0;
+  isStageDraggable.value = true;
 };
 
 const onWheel = (e) => {
@@ -2266,7 +2269,7 @@ const tryAutoplay = () => {
                                       :config="{ 
                                         width: 800, 
                                         height: 600, 
-                                        draggable: true, 
+                                        draggable: isStageDraggable, 
                                         scaleX: zoom, 
                                         scaleY: zoom 
                                       }"
