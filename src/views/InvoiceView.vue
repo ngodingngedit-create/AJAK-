@@ -191,7 +191,7 @@ const tickets = computed(() => {
         </div>
         <div class="invoice-body">
           <div class="invoice-body-actions print-hidden" v-if="invoice.payment_status?.toUpperCase() === 'PAID' || invoice.payment_status?.toUpperCase() === 'SUCCESS'">
-            <button class="btn-action btn-outline" @click="downloadPdf">
+            <button class="btn-action btn-success" @click="downloadPdf">
               <Download :size="18" /> Unduh PDF
             </button>
           </div>
@@ -409,7 +409,7 @@ const tickets = computed(() => {
 }
 .invoice-body-actions {
   display: flex;
-  justify-content: flex-start;
+  justify-content: flex-end;
   margin-bottom: 0px;
 }
 .section-block {
@@ -561,6 +561,18 @@ const tickets = computed(() => {
   border-color: #a93c3c;
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(201, 76, 76, 0.3);
+}
+
+.btn-success {
+  background: #2E7D32;
+  border: 2px solid #2E7D32;
+  color: white;
+}
+.btn-success:hover {
+  background: #1b5e20;
+  border-color: #1b5e20;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(46, 125, 50, 0.3);
 }
 
 @media print {

@@ -444,6 +444,7 @@ const closeModal = () => {
               <tr>
                 <th>No</th>
                 <th>Invoice</th>
+                <th>Tanggal Order</th>
                 <th>Nama</th>
                 <th>Email</th>
                 <th>No Telp</th>
@@ -473,6 +474,7 @@ const closeModal = () => {
                     {{ b.invoice_no }}
                   </a>
                 </td>
+                <td style="white-space: nowrap;">{{ formatDate(b.created_at) }}</td>
                 <td style="white-space: nowrap;">{{ getPemesanName(b) }}</td>
                 <td style="white-space: nowrap;">{{ b.pemesan?.email || b.passengers?.find(p => p.is_pemesan)?.email || '-' }}</td>
                 <td style="white-space: nowrap;">{{ b.pemesan?.phone || b.passengers?.find(p => p.is_pemesan)?.phone || '-' }}</td>
