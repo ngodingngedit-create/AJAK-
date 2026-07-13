@@ -357,7 +357,7 @@ const handleTouchMove = (e) => {
     }
     
     const scale = dist / lastDist;
-    let newZoom = zoom.value * scale;
+    const newZoom = zoom.value * scale;
     zoom.value = Math.min(Math.max(newZoom, 0.5), 3.0);
     lastDist = dist;
   }
@@ -4996,6 +4996,7 @@ const tryAutoplay = () => {
   padding: 24px;
   background: var(--card-bg, #ffffff);
   width: 100%;
+  touch-action: none;
 }
 
 .mobile-seatmap-header {
