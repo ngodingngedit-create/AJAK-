@@ -4,22 +4,42 @@ import { useRouter } from 'vue-router';
 import { Users, Ticket, DollarSign, Filter, Search, Download, Eye, X, Tag } from 'lucide-vue-next';
 
 const router = useRouter();
-const bookings = ref([]);
+const allBookings = ref([]);
+const bookings = ref([]); // Will be used for paginated table
 const isLoading = ref(true);
+const currentPage = ref(1);
+const lastPage = ref(1);
 
-onMounted(async () => {
+const fetchAllBookings = async () => {
+  isLoading.value = true;
   try {
-    const response = await fetch(import.meta.env.VITE_API_URL + '/api/shuttle-order');
-    if (!response.ok) throw new Error('Network response was not ok');
-    const result = await response.json();
-    if (result.success && result.data && result.data.data) {
-      bookings.value = result.data.data;
+    let allData = [];
+    let p = 1;
+    
+    while (true) {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle-order?page=${p}`);
+      const result = await res.json();
+      
+      if (result.success && result.data && result.data.data && result.data.data.length > 0) {
+        allData = [...allData, ...result.data.data];
+        p++;
+      } else {
+        // No more data, stop fetching
+        break;
+      }
     }
+    
+    allBookings.value = allData;
+    lastPage.value = p - 1;
   } catch (err) {
-    console.error('Failed to fetch shuttle orders:', err);
+    console.error('Failed to fetch all shuttle orders:', err);
   } finally {
     isLoading.value = false;
   }
+};
+
+onMounted(async () => {
+  await fetchAllBookings();
 });
 
 const filterStatus = ref('Semua');
@@ -93,7 +113,7 @@ const getseats = (b) => {
 
 const paymentStatuses = computed(() => {
   const statuses = new Set();
-  bookings.value.forEach(b => {
+  allBookings.value.forEach(b => {
     if (b.payment_status) {
       statuses.add(b.payment_status);
     }
@@ -103,7 +123,7 @@ const paymentStatuses = computed(() => {
 
 const sesiList = computed(() => {
   const sesis = new Set();
-  bookings.value.forEach(b => {
+  allBookings.value.forEach(b => {
     const s = getSesi(b);
     if (s && s !== '-') sesis.add(s);
   });
@@ -112,7 +132,7 @@ const sesiList = computed(() => {
 
 const jenisTiketList = computed(() => {
   const jenis = new Set();
-  bookings.value.forEach(b => {
+  allBookings.value.forEach(b => {
     const jt = getJenisTiket(b);
     if (jt && jt !== '-') {
       jt.split(', ').forEach(j => jenis.add(j));
@@ -123,7 +143,7 @@ const jenisTiketList = computed(() => {
 
 // Filtered bookings
 const filteredBookings = computed(() => {
-  let res = [...bookings.value];
+  let res = [...allBookings.value];
   if (filterStatus.value !== 'Semua') {
     res = res.filter(b => b.payment_status === filterStatus.value);
   }
@@ -137,15 +157,33 @@ const filteredBookings = computed(() => {
     const q = searchQuery.value.toLowerCase();
     res = res.filter(b => 
       b.invoice_no?.toLowerCase().includes(q) ||
-      b.shuttle?.name?.toLowerCase().includes(q)
+      getPemesanName(b)?.toLowerCase().includes(q) ||
+      (b.pemesan?.email || b.passengers?.find(p => p.is_pemesan)?.email || '').toLowerCase().includes(q) ||
+      (b.pemesan?.phone || b.passengers?.find(p => p.is_pemesan)?.phone || '').toLowerCase().includes(q)
     );
   }
   return res.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 });
 
-const isPaid = (b) => b.payment_status === 'PAID' || b.payment_status === 'SUCCESS';
+const totalPages = computed(() => Math.ceil(filteredBookings.value.length / 20));
+const paginatedBookings = computed(() => {
+    const start = (currentPage.value - 1) * 20;
+    return filteredBookings.value.slice(start, start + 20);
+});
+
+// Watchers
+import { watch } from 'vue';
+watch([filterStatus, filterSesi, filterJenisTiket, searchQuery], () => {
+    currentPage.value = 1;
+});
+
+const isPaid = (b) => b.payment_status === 'PAID' || b.payment_status === 'SUCCESS' || b.transaction_status_id === 2;
 
 // Summary metrics
+const totalTransactions = computed(() => {
+  return filteredBookings.value.filter(isPaid).length;
+});
+
 const totalTickets = computed(() => {
   return filteredBookings.value.reduce((sum, b) => {
     if (isPaid(b)) {
@@ -334,8 +372,8 @@ const closeModal = () => {
         <div class="metric-card">
           <div class="metric-icon"><Ticket :size="24" /></div>
           <div class="metric-info">
-            <div class="metric-label">Total Pemesanan</div>
-            <div class="metric-value">{{ filteredBookings.length }}</div>
+            <div class="metric-label">Total Transaksi Terjual</div>
+            <div class="metric-value">{{ totalTransactions }}</div>
           </div>
         </div>
         <div class="metric-card">
@@ -405,60 +443,67 @@ const closeModal = () => {
             <thead>
               <tr>
                 <th>No</th>
-                <th>Tanggal</th>
-                <th>Invoice No</th>
-                <th>Pemesan</th>
-                <th>Shuttle</th>
-                <th>Deskripsi</th>
-                <th>Tanggal Keberangkatan</th>
+                <th>Invoice</th>
+                <th>Nama</th>
+                <th>Email</th>
+                <th>No Telp</th>
+                <th>Jenis Tiket</th>
+                <th>Tanggal Berangkat</th>
                 <th>Sesi</th>
                 <th>Trip</th>
-                <th>Jenis Tiket</th>
-                <th>seat</th>
                 <th>Qty</th>
-                <th>Total Price</th>
+                <th>Seat</th>
                 <th>Status</th>
                 <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="isLoading">
-                <td colspan="14" class="empty-state">Loading data...</td>
+                <td colspan="13" class="empty-state">Loading data...</td>
               </tr>
-              <tr v-else-if="filteredBookings.length === 0">
-                <td colspan="14" class="empty-state">
+              <tr v-else-if="paginatedBookings.length === 0">
+                <td colspan="13" class="empty-state">
                   Belum ada data pemesanan untuk filter ini.
                 </td>
               </tr>
-              <tr v-for="(b, index) in filteredBookings" :key="b.id">
-                <td>{{ index + 1 }}</td>
-                <td style="white-space: nowrap;">{{ formatDate(b.created_at) }}</td>
+              <tr v-for="(b, index) in paginatedBookings" :key="b.id">
+                <td>{{ (currentPage - 1) * 20 + index + 1 }}</td>
                 <td style="white-space: nowrap;">
                   <a :href="`/shuttle-invoice/${b.invoice_no}`" target="_blank" style="text-decoration: none; color: inherit; font-weight: bold;">
                     {{ b.invoice_no }}
                   </a>
                 </td>
                 <td style="white-space: nowrap;">{{ getPemesanName(b) }}</td>
-                <td class="event-name" style="white-space: nowrap;">{{ b.shuttle?.name || '-' }}</td>
-                <td style="white-space: nowrap;">{{ b.shuttle?.description || '-' }}</td>
+                <td style="white-space: nowrap;">{{ b.pemesan?.email || b.passengers?.find(p => p.is_pemesan)?.email || '-' }}</td>
+                <td style="white-space: nowrap;">{{ b.pemesan?.phone || b.passengers?.find(p => p.is_pemesan)?.phone || '-' }}</td>
+                <td style="white-space: nowrap;">{{ getJenisTiket(b) }}</td>
                 <td style="white-space: nowrap;">{{ getDepartureDate(b) }}</td>
                 <td style="white-space: nowrap;">{{ getSesi(b) }}</td>
                 <td style="white-space: nowrap;">{{ getTripStatus(b) }}</td>
-                <td style="white-space: nowrap;">{{ getJenisTiket(b) }}</td>
-                <td style="white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" :title="getseats(b)">{{ getseats(b) }}</td>
                 <td>{{ b.total_qty }}</td>
-                <td style="white-space: nowrap;"><strong>{{ formatRp(b.total_price) }}</strong></td>
+                <td style="white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" :title="getseats(b)">{{ getseats(b) }}</td>
                 <td>
                   <span class="tag-badge">{{ b.payment_status }}</span>
                 </td>
                 <td>
-                  <a :href="`/shuttle-invoice/${b.invoice_no}`" target="_blank" class="btn-icon" title="Lihat Detail" style="display: inline-block; cursor: pointer; text-decoration: none; color: inherit;">
+                  <button class="btn-icon" title="Lihat Detail" @click="viewInvoice(b.invoice_no)" style="display: inline-block; cursor: pointer; border: none; background: none; color: inherit; padding: 0;">
                     <Eye :size="16" />
-                  </a>
+                  </button>
                 </td>
               </tr>
             </tbody>
           </table>
+        </div>
+        <!-- Pagination Controls -->
+        <div v-if="totalPages > 1" class="pagination-controls" style="display: flex; justify-content: center; gap: 8px; margin-top: 20px; margin-bottom: 20px;">
+          <button 
+            v-for="page in totalPages" 
+            :key="page"
+            :class="['btn-pagination', { 'active': currentPage === page }]"
+            @click="currentPage = page"
+          >
+            {{ page }}
+          </button>
         </div>
       </div>
     </div>
@@ -1076,5 +1121,32 @@ const closeModal = () => {
 }
 .modal-fade-enter-from, .modal-fade-leave-to {
   opacity: 0;
+}
+.pagination-controls {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.btn-pagination {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-dark);
+  transition: all 0.2s;
+}
+.btn-pagination:hover {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+.btn-pagination.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
 }
 </style>
