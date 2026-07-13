@@ -40,6 +40,12 @@ const formatDate = (isoString) => {
   return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 };
 
+const formatDateOnly = (isoString) => {
+  if (!isoString) return '-';
+  const d = new Date(isoString);
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const getStatusConfig = (status) => {
   switch(status?.toUpperCase()) {
     case 'SUCCESS':
@@ -199,6 +205,10 @@ const tickets = computed(() => {
               <div class="detail-item" v-if="tickets?.[0]?.shuttle_session">
                 <span class="label">Sesi Keberangkatan</span>
                 <span class="value">{{ tickets[0].shuttle_session.name }} ({{ tickets[0].shuttle_session.departure_time }})</span>
+              </div>
+              <div class="detail-item" v-if="invoice.etickets?.[0]?.ticket_date">
+                <span class="label">Tanggal Keberangkatan</span>
+                <span class="value">{{ formatDateOnly(invoice.etickets[0].ticket_date) }} {{ invoice.etickets[0].journey_time }}</span>
               </div>
               <div class="detail-item" v-if="tickets?.[0]?.trip_status">
                 <span class="label">Jenis Trip</span>

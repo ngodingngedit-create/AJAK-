@@ -896,7 +896,10 @@ watch(() => route.hash, (newHash) => {
 
 // Clear trip type error when user selects a trip type
 watch(selectedTripStatus, (val) => {
-  if (val) tripTypeError.value = '';
+  if (val) {
+    tripTypeError.value = '';
+    selectedseatsMap.value = {}; // Reset seats
+  }
 });
 
 watch(dateOptions, (newDates) => {
@@ -1245,7 +1248,7 @@ const formatTimeLabel = (timeStr) => {
 };
 
 const maxTickets = computed(() => {
-  return event.value?.max_buy_ticket || 5;
+  return event.value?.max_buy_ticket || 999;
 });
 
 const formatseatLabel = (seatId) => {

@@ -52,6 +52,14 @@ const getSesi = (b) => {
   return '-';
 };
 
+const getDepartureDate = (b) => {
+  if (b.tickets?.[0]?.shuttle_session?.departure_date) {
+    const d = new Date(b.tickets[0].shuttle_session.departure_date);
+    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+  return '-';
+};
+
 const getTripStatus = (b) => {
   if (b.tickets?.[0]?.trip_status?.name) {
     return b.tickets[0].trip_status.name;
@@ -135,10 +143,12 @@ const filteredBookings = computed(() => {
   return res.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 });
 
+const isPaid = (b) => b.payment_status === 'PAID' || b.payment_status === 'SUCCESS';
+
 // Summary metrics
 const totalTickets = computed(() => {
   return filteredBookings.value.reduce((sum, b) => {
-    if (b.payment_status === 'PAID' || b.payment_status === 'SUCCESS') {
+    if (isPaid(b)) {
       return sum + (Number(b.total_qty) || 0);
     }
     return sum;
@@ -147,7 +157,7 @@ const totalTickets = computed(() => {
 
 const totalRevenue = computed(() => {
   return filteredBookings.value.reduce((sum, b) => {
-    if (b.payment_status === 'PAID' || b.payment_status === 'SUCCESS') {
+    if (isPaid(b)) {
       return sum + (Number(b.total_price) || 0);
     }
     return sum;
@@ -158,7 +168,7 @@ const totalRevenue = computed(() => {
 const perSesiDanJenisStats = computed(() => {
   const stats = {};
   filteredBookings.value.forEach(b => {
-    if (b.payment_status !== 'PAID' && b.payment_status !== 'SUCCESS') return;
+    if (!isPaid(b)) return;
     const sesi = getSesi(b);
     if (sesi === '-') return;
     if (b.tickets && b.tickets.length > 0) {
@@ -394,11 +404,13 @@ const closeModal = () => {
           <table class="report-table">
             <thead>
               <tr>
+                <th>No</th>
                 <th>Tanggal</th>
                 <th>Invoice No</th>
                 <th>Pemesan</th>
                 <th>Shuttle</th>
                 <th>Deskripsi</th>
+                <th>Tanggal Keberangkatan</th>
                 <th>Sesi</th>
                 <th>Trip</th>
                 <th>Jenis Tiket</th>
@@ -418,12 +430,18 @@ const closeModal = () => {
                   Belum ada data pemesanan untuk filter ini.
                 </td>
               </tr>
-              <tr v-for="b in filteredBookings" :key="b.id">
+              <tr v-for="(b, index) in filteredBookings" :key="b.id">
+                <td>{{ index + 1 }}</td>
                 <td style="white-space: nowrap;">{{ formatDate(b.created_at) }}</td>
-                <td style="white-space: nowrap;"><strong>{{ b.invoice_no }}</strong></td>
+                <td style="white-space: nowrap;">
+                  <a :href="`/shuttle-invoice/${b.invoice_no}`" target="_blank" style="text-decoration: none; color: inherit; font-weight: bold;">
+                    {{ b.invoice_no }}
+                  </a>
+                </td>
                 <td style="white-space: nowrap;">{{ getPemesanName(b) }}</td>
                 <td class="event-name" style="white-space: nowrap;">{{ b.shuttle?.name || '-' }}</td>
                 <td style="white-space: nowrap;">{{ b.shuttle?.description || '-' }}</td>
+                <td style="white-space: nowrap;">{{ getDepartureDate(b) }}</td>
                 <td style="white-space: nowrap;">{{ getSesi(b) }}</td>
                 <td style="white-space: nowrap;">{{ getTripStatus(b) }}</td>
                 <td style="white-space: nowrap;">{{ getJenisTiket(b) }}</td>
@@ -434,9 +452,9 @@ const closeModal = () => {
                   <span class="tag-badge">{{ b.payment_status }}</span>
                 </td>
                 <td>
-                  <button class="btn-icon" @click="viewInvoice(b.invoice_no)" title="Lihat Detail">
+                  <a :href="`/shuttle-invoice/${b.invoice_no}`" target="_blank" class="btn-icon" title="Lihat Detail" style="display: inline-block; cursor: pointer; text-decoration: none; color: inherit;">
                     <Eye :size="16" />
-                  </button>
+                  </a>
                 </td>
               </tr>
             </tbody>
