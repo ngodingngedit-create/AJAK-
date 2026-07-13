@@ -9,7 +9,7 @@ import {
 
 const router = useRouter();
 
-// Redirect if not logged in
+// Redirect if not logged i
 if (!authState.isLoggedIn) {
   router.push('/login');
 }

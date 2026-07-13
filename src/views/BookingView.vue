@@ -1214,14 +1214,31 @@ const formatRp = (num) => {
 };
 
 const formatEventDates = (evt) => {
-  if (!evt) return '';
-  if (evt.id === 107) {
-    return '5 Mei - 6 Mei 2027';
+  if (!evt || !evt.start_date) return evt.dateLabel || evt.date || 'TBA';
+
+  const start = new Date(evt.start_date);
+  const end = evt.end_date ? new Date(evt.end_date) : start;
+  
+  const diffTime = Math.abs(end - start);
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+  const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const month = monthNames[start.getMonth()];
+  const year = start.getFullYear();
+
+  if (diffDays <= 5) {
+    let days = [];
+    for (let i = 0; i < diffDays; i++) {
+        let d = new Date(start);
+        d.setDate(start.getDate() + i);
+        days.push(d.getDate());
+    }
+    if (days.length === 1) return `${days[0]} ${month} ${year}`;
+    const last = days.pop();
+    return `${days.join(', ')} dan ${last} ${month} ${year}`;
+  } else {
+    return `${start.getDate()}-${end.getDate()} ${month} ${year}`;
   }
-  if (evt.start_date) {
-    return formatDateLabel(evt.start_date);
-  }
-  return evt.dateLabel || evt.date || 'TBA';
 };
 
 const formatDateLabel = (dateStr) => {
@@ -3630,7 +3647,7 @@ const tryAutoplay = () => {
     flex-grow: 1;
     background-color: var(--primary, #C94C4C);
     color: #ffffff;
-    padding: 8px 16px;
+    padding: 14px 16px;
     border-radius: 10px;
     font-size: 0.875rem;
     font-weight: 800;
