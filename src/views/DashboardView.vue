@@ -185,12 +185,14 @@ const totalTransactions = computed(() => {
 });
 
 const totalTickets = computed(() => {
-  return filteredBookings.value.reduce((sum, b) => {
-    if (isPaid(b)) {
-      return sum + (Number(b.total_qty) || 0);
+  let count = 0;
+  filteredBookings.value.forEach(b => {
+    if (!isPaid(b)) return;
+    if (b.tickets && b.tickets.length > 0) {
+      count += b.tickets.length;
     }
-    return sum;
-  }, 0);
+  });
+  return count;
 });
 
 const totalRevenue = computed(() => {
@@ -210,12 +212,14 @@ const perSesiDanJenisStats = computed(() => {
     const sesi = getSesi(b);
     if (sesi === '-') return;
     if (b.tickets && b.tickets.length > 0) {
+      const bookingTotal = Number(b.total_price) || 0;
+      const ticketCount = b.tickets.length;
       b.tickets.forEach(t => {
         const tName = t.ticket?.name || 'Tiket';
         const key = `${tName} - ${sesi}`;
         if (!stats[key]) stats[key] = { qty: 0, revenue: 0, jenisTiket: tName, sesi };
         stats[key].qty += 1;
-        stats[key].revenue += Number(t.subtotal_price) || 0;
+        stats[key].revenue += bookingTotal / ticketCount;
       });
     }
   });
@@ -379,7 +383,7 @@ const closeModal = () => {
         <div class="metric-card">
           <div class="metric-icon blue"><Users :size="24" /></div>
           <div class="metric-info">
-            <div class="metric-label">Total Tiket Terjual</div>
+            <div class="metric-label">Total Seat Terjual</div>
             <div class="metric-value">{{ totalTickets }}</div>
           </div>
         </div>
