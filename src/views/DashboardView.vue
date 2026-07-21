@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { Users, Ticket, DollarSign, Filter, Search, Download, Eye, X, Tag } from 'lucide-vue-next';
+import * as XLSX from 'xlsx';
 
 const router = useRouter();
 const allBookings = ref([]);
@@ -256,39 +257,73 @@ const formatDate = (isoString) => {
 
 const exportExcel = () => {
     const headers = [
-      'Tanggal Transaksi', 'Invoice No', 'Pemesan', 'Shuttle', 'Deskripsi', 
-      'Sesi', 'Jenis Tiket', 'seat',
-      'Qty', 'Total Price', 'Status'
+      'Invoice No', 'Tanggal Order', 'Nama', 'Email', 'No Telp',
+      'Jenis Tiket', 'Tanggal Berangkat', 'Sesi', 'Trip',
+      'Qty', 'Seat', 'Status'
     ];
   
-    const rows = filteredBookings.value.map(b => {
-      return [
-        `"${formatDate(b.created_at)}"`,
-        `"${b.invoice_no || '-'}"`,
-        `"${getPemesanName(b)}"`,
-        `"${b.shuttle?.name || '-'}"`,
-        `"${b.shuttle?.description || '-'}"`,
-        `"${getSesi(b)}"`,
-        `"${getJenisTiket(b)}"`,
-        `"${getseats(b)}"`,
+    // Build data array (header + rows) for SheetJS
+    const dataRows = filteredBookings.value.map(b => [
+      b.invoice_no || '-',
+      formatDate(b.created_at),
+      getPemesanName(b),
+      b.pemesan?.email || b.passengers?.find(p => p.is_pemesan)?.email || '-',
+      b.pemesan?.phone || b.passengers?.find(p => p.is_pemesan)?.phone || '-',
+      getJenisTiket(b),
+      getDepartureDate(b),
+      getSesi(b),
+      getTripStatus(b),
       b.total_qty || 0,
-      b.total_price || 0,
-      `"${b.payment_status || '-'}"`
-    ];
-  });
+      getseats(b),
+      b.payment_status || '-'
+    ]);
 
-  const csvContent = "data:text/csv;charset=utf-8," 
-    + headers.join(',') + "\n"
-    + rows.map(e => e.join(',')).join("\n");
+    // Create worksheet from array of arrays (header first)
+    const wsData = [headers, ...dataRows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement("a");
-  link.setAttribute("href", encodedUri);
-  link.setAttribute("download", `Data_Penjualan_Tiket_AJAK_${new Date().getTime()}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-};
+    // ===== Auto-fit column widths based on content =====
+    const colWidths = headers.map((h, colIdx) => {
+      let maxLen = h.length;
+      dataRows.forEach(row => {
+        const cellVal = String(row[colIdx] || '');
+        if (cellVal.length > maxLen) maxLen = cellVal.length;
+      });
+      // Clamp width between 10 and 40 characters
+      const width = Math.min(Math.max(maxLen + 3, 10), 40);
+      return { wch: width };
+    });
+    ws['!cols'] = colWidths;
+
+    // ===== Enable AutoFilter on the header range =====
+    const range = XLSX.utils.encode_range({
+      s: { r: 0, c: 0 },
+      e: { r: dataRows.length, c: headers.length - 1 }
+    });
+    ws['!autofilter'] = { ref: range };
+
+    // Freeze the header row
+    ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+    // Create workbook and append sheet
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Data Penjualan');
+
+    // Generate Excel binary and trigger download
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+    const buffer = new ArrayBuffer(wbout.length);
+    const view = new Uint8Array(buffer);
+    for (let i = 0; i < wbout.length; i++) view[i] = wbout.charCodeAt(i) & 0xFF;
+
+    const blob = new Blob([buffer], { type: 'application/octet-stream' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `Data_Penjualan_Tiket_AJAK_${new Date().getTime()}.xlsx`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
 
 const isModalOpen = ref(false);
 const invoiceLoading = ref(false);

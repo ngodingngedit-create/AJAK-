@@ -77,7 +77,19 @@ const sessionOptions = computed(() => {
     return val.slice(0, 5);
   };
 
-  return currentOp.sessions.map(s => {
+  return currentOp.sessions
+    .filter(s => {
+      // Filter out sessions named "Sore" or "Malam" (case-insensitive)
+      const name = (s.name || '').toLowerCase();
+      if (name.includes('sore') || name.includes('malam')) return false;
+      
+      // Filter out sessions with departure time >= 17:00 (evening/night only)
+      const depTime = formatTimeOnly(s.departure_time);
+      if (depTime && depTime >= '17:00') return false;
+      
+      return true;
+    })
+    .map(s => {
     const depTime = formatTimeOnly(s.departure_time);
     const arrTime = formatTimeOnly(s.arrival_time);
     const hasTickets = s.tickets && Array.isArray(s.tickets) && s.tickets.length > 0;

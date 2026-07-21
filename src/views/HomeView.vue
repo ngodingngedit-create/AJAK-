@@ -110,7 +110,6 @@ onMounted(() => {
   }
 
   fetchUpcomingEvents();
-  fetchShuttleBuses();
   fetchPickupLocations();
 });
 
@@ -121,20 +120,7 @@ onUnmounted(() => {
 
 // API Data
 const events = ref([]);
-const shuttleBuses = ref([]);
 
-const fetchShuttleBuses = async () => {
-  try {
-    const response = await fetch(import.meta.env.VITE_API_URL + '/api/shuttlebuses');
-    if (!response.ok) throw new Error('Network response was not ok');
-    const result = await response.json();
-    if (result.success && result.data && result.data.data) {
-      shuttleBuses.value = result.data.data;
-    }
-  } catch (error) {
-    console.error('Failed to fetch shuttle buses:', error);
-  }
-};
 
 const fetchUpcomingEvents = async () => {
   try {
@@ -463,20 +449,6 @@ const tagColors = {
       </div>
     </section>
 
-    <!-- ===== MARQUEE 1 ===== -->
-    <div class="logo-marquee-wrap">
-      <div class="logo-marquee-track">
-        <div class="logo-marquee-inner">
-          <div v-for="i in marqueeCount" :key="'f'+i" class="logo-marquee-item">
-            <span class="marquee-text">#SiapAntarKeSetiapSudutKebahagiaan</span>
-          </div>
-          <div v-for="i in marqueeCount" :key="'f2'+i" class="logo-marquee-item" aria-hidden="true">
-            <span class="marquee-text">#SiapAntarKeSetiapSudutKebahagiaan</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- ===== UPCOMING VIBES ===== -->
     <section class="section vibes-section" id="vibes">
       <div class="container">
@@ -535,75 +507,6 @@ const tagColors = {
             Lihat Semua Event
             <ArrowRight :size="18" />
           </button>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===== MARQUEE 2 ===== -->
-    <div class="logo-marquee-wrap">
-      <div class="logo-marquee-track">
-        <div class="logo-marquee-inner">
-          <div v-for="i in marqueeCount" :key="'b'+i" class="logo-marquee-item">
-            <span class="marquee-text">#SiapAntarKeSetiapSudutKebahagiaan</span>
-          </div>
-          <div v-for="i in marqueeCount" :key="'b2'+i" class="logo-marquee-item" aria-hidden="true">
-            <span class="marquee-text">#SiapAntarKeSetiapSudutKebahagiaan</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ===== EXPERIENCE TIERS ===== -->
-    <section class="section tiers-section" id="services">
-      <div class="container">
-        <div class="section-title-box text-center mb-5">
-          <span class="sub-title">Armada Kami</span>
-          <h2 class="creative-title">Produk <span class="text-primary">Layanan</span></h2>
-          <div class="title-underline mx-auto"></div>
-        </div>
-
-        <div class="events-cards">
-          <div
-            v-for="(bus, busIdx) in shuttleBuses"
-            :key="bus.id"
-            class="event-card"
-            @click="router.push(`/shuttlebus/${bus.slug}`)"
-          >
-            <div class="event-card-img">
-              <img :src="busIdx === 0 ? '/bus_parkir2.png' : (busIdx === 1 ? '/bus_parkir.png' : '/bus_parkir3.png')" :alt="bus.bus_name" />
-              <div class="event-img-overlay"></div>
-              <div class="event-genre-tag" style="background: var(--primary);">
-                {{ bus.bus_code }}
-              </div>
-            </div>
-            <div class="event-card-body">
-              <div class="event-city-text">{{ bus.plate_number }}</div>
-              <h3 class="event-name">{{ bus.bus_name }}</h3>
-              <div class="event-organizer">{{ bus.bus_type === 'BIG_BUS' ? 'Big Bus' : (bus.bus_type === 'MEDIUM_BUS' ? 'Medium Bus' : 'Minibus') }}</div>
-              <div class="event-meta">
-                <div class="meta-row" style="display: flex; align-items: center; gap: 6px;">
-                  <Sofa :size="13" />
-                  <span>Layout: {{ bus.seat_layout }}</span>
-                </div>
-                <div class="meta-row" style="display: flex; align-items: center; gap: 6px;">
-                  <ShieldCheck :size="13" />
-                  <span>Fasilitas: {{ bus.facilities.slice(0, 3).join(', ') }}</span>
-                </div>
-              </div>
-              <div class="event-card-footer">
-                <div class="event-price-block">
-                  <span class="price-label">Kapasitas</span>
-                  <div style="display: flex; align-items: baseline; gap: 5px;">
-                    <span class="event-price">{{ bus.total_seat }} Kursi</span>
-                    <span style="font-size: 0.75rem; color: #000000; font-weight: 600;">Tersedia</span>
-                  </div>
-                </div>
-                <button class="book-now-btn">
-                  Lihat Detail →
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </section>
@@ -785,7 +688,7 @@ const tagColors = {
     </section>
 
     <!-- WhatsApp Floating Button -->
-    <a href="https://wa.me/6285178276837" target="_blank" class="wa-float-btn" title="Hubungi Kami via WhatsApp">
+    <a href="https://wa.me/6281287728920" target="_blank" class="wa-float-btn" title="Hubungi Kami via WhatsApp">
       <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" />
     </a>
   </div>
