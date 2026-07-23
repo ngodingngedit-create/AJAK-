@@ -83,9 +83,10 @@ const sessionOptions = computed(() => {
       const name = (s.name || '').toLowerCase();
       if (name.includes('sore') || name.includes('malam')) return false;
       
-      // Filter out sessions with departure time >= 17:00 (evening/night only)
+      // Filter out sessions with departure time >= 17:00 (evening/night only),
+      // but always keep "Petang" sessions
       const depTime = formatTimeOnly(s.departure_time);
-      if (depTime && depTime >= '17:00') return false;
+      if (depTime && depTime >= '17:00' && !name.includes('petang')) return false;
       
       return true;
     })
@@ -976,6 +977,19 @@ const filteredTickets = computed(() => {
         is_fullbook: isFull,
         is_finish: isFin
       };
+    }).filter(t => {
+      // 🔹 Filter: di sesi 4 day 1 hanya tampilkan ticket rute Sudirman → Ancol
+      const firstDate = dateOptions.value[0]?.id;
+      const isDay1 = firstDate && String(selectedDate.value) === String(firstDate);
+      const currentSesi = sessionOptions.value.find(s => String(s.id) === String(selectedSesi.value));
+      const isSesiPetang = currentSesi && (currentSesi.name || '').toLowerCase().includes('petang');
+      
+      if (isDay1 && isSesiPetang) {
+        const origin = (t.route?.origin_name || '').toLowerCase();
+        const dest = (t.route?.destination_name || '').toLowerCase();
+        return origin.includes('sudirman') && dest.includes('ancol');
+      }
+      return true;
     });
   }
   
