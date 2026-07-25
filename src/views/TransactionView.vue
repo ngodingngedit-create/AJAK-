@@ -784,7 +784,7 @@ const isLongText = (str, limit = 20) => {
 
         <!-- ================== RIGHT COLUMN: EVENT + VOUCHER + SUMMARY ================== -->
         <aside class="tx-sidebar-column">
-          <!-- Mini Event Card -->
+          <!-- Mini Event Card (Hidden for now)
           <div class="sidebar-mini-event-card">
             <img :src="event.image" :alt="event.name" class="mini-event-image" />
             <div class="mini-event-info">
@@ -798,6 +798,7 @@ const isLongText = (str, limit = 20) => {
               <span class="mini-event-date">{{ event.dateLabel || event.date }}</span>
             </div>
           </div>
+          -->
 
           <!-- Voucher Box (Accordion) -->
           <div class="sidebar-box-wrapper voucher-box">
