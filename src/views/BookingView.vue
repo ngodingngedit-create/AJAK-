@@ -88,6 +88,16 @@ const sessionOptions = computed(() => {
       const depTime = formatTimeOnly(s.departure_time);
       if (depTime && depTime >= '17:00' && !name.includes('petang')) return false;
       
+      // Hide "petang" sessions on August 8 and August 9
+      const dateParts = (selectedDate.value || '').split('-');
+      if (dateParts.length === 3) {
+        const month = parseInt(dateParts[1], 10);
+        const day = parseInt(dateParts[2], 10);
+        if (month === 8 && (day === 8 || day === 9)) {
+          if (name.includes('petang')) return false;
+        }
+      }
+      
       return true;
     })
     .map(s => {
