@@ -84,7 +84,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 <template>
   <div class="mobile-nav-wrapper">
     <nav class="crystal-nav">
-      <!-- Minimalist Top Indicator -->
+      <!-- Top Active Indicator Bar -->
       <div 
         class="active-indicator" 
         :style="{ transform: `translateX(calc(${activeIndex} * 100%))` }"
@@ -101,12 +101,10 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
           @click="handleNav(item)"
         >
           <div class="icon-box">
-            <component :is="item.icon" :size="18" stroke-width="2.2" />
+            <component :is="item.icon" :size="20" stroke-width="2" />
           </div>
           <span class="nav-label">{{ item.label }}</span>
         </button>
-
-        <!-- Profile Button (Hidden) -->
       </div>
     </nav>
   </div>
@@ -116,11 +114,12 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 .mobile-nav-wrapper {
   display: none;
   position: fixed;
-  bottom: 20px;
+  bottom: 0;
   left: 0;
   right: 0;
+  width: 100%;
   z-index: 1000;
-  padding: 0 20px;
+  padding: 0;
   justify-content: center;
 }
 
@@ -130,19 +129,20 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 
 .crystal-nav {
   position: relative;
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: #ffffff;
   width: 100%;
-  max-width: 350px; /* Lebih ramping */
-  height: 60px; /* Lebih pendek */
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  max-width: 100%;
+  height: 64px;
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 
-    0 10px 30px rgba(0, 0, 0, 0.04),
-    inset 0 1px 2px rgba(255, 255, 255, 0.5);
+    0 -8px 24px rgba(0, 0, 0, 0.1),
+    0 -2px 6px rgba(0, 0, 0, 0.04);
   display: flex;
-  padding: 0 6px;
+  padding: 0 4px;
   overflow: hidden;
 }
 
@@ -151,6 +151,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
   width: 100%;
   position: relative;
   z-index: 2;
+  height: 100%;
 }
 
 .nav-btn {
@@ -161,26 +162,26 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
   align-items: center;
   justify-content: center;
   flex: 1;
-  color: #777;
+  color: #70757a;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  transition: all 0.25s ease;
   font-family: inherit;
-  gap: 2px;
+  gap: 3px;
+  padding-top: 4px;
 }
 
 .icon-box {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.3s ease;
+  transition: transform 0.25s ease;
 }
 
 .nav-label {
-  font-size: 0.6rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  opacity: 0.7;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+  opacity: 0.85;
 }
 
 /* Active State */
@@ -189,36 +190,37 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 }
 
 .nav-btn.active .icon-box {
-  transform: scale(1.15);
+  transform: translateY(-1px);
 }
 
 .nav-btn.active .nav-label {
   opacity: 1;
-  font-weight: 800;
+  font-weight: 700;
+  color: var(--primary);
 }
 
-/* Minimalist Top Indicator */
+/* Top Active Indicator Bar */
 .active-indicator {
   position: absolute;
   top: 0;
-  left: 6px;
-  width: calc((100% - 12px) / 4);
+  left: 0;
+  width: 25%;
   height: 3px;
-  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1);
-  z-index: 1;
+  transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  z-index: 5;
   display: flex;
   justify-content: center;
 }
 
 .indicator-line {
-  width: 24px;
+  width: 28px;
   height: 100%;
   background: var(--primary);
   border-radius: 0 0 4px 4px;
-  box-shadow: 0 2px 6px rgba(201, 76, 76, 0.3);
+  box-shadow: 0 2px 6px rgba(201, 76, 76, 0.4);
 }
 
 .nav-btn:active .icon-box {
-  transform: scale(0.85);
+  transform: scale(0.9);
 }
 </style>

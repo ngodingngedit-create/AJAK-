@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ShieldCheck, Bus, Zap, Coffee, Sofa, MapPin, Navigation, Search, ArrowRight, Users, Baby, X, Calendar, Star, Clock, Tag, ChevronLeft, ChevronRight } from 'lucide-vue-next';
+import { ShieldCheck, Bus, Zap, Coffee, Sofa, MapPin, Navigation, Search, ArrowRight, Users, Baby, X, Calendar, Star, Clock, Tag, ChevronLeft, ChevronRight, Car, Building2, Plane } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
 
 const router = useRouter();
@@ -42,6 +42,38 @@ const resetAutoplay = () => {
   heroInterval = setInterval(() => {
     currentHeroIndex.value = nextIndex.value;
   }, 6000);
+};
+
+// Hero Category Pills State (Traveloka Style)
+const activeCategory = ref('shuttle-bersama');
+const heroSearchQuery = ref('');
+
+const handleHeroSearchSubmit = () => {
+  if (!heroSearchQuery.value.trim()) return;
+  router.push(`/events?q=${encodeURIComponent(heroSearchQuery.value)}`);
+};
+
+const heroCategories = [
+  { id: 'shuttle-bersama', label: 'Shuttle Bersama', icon: Bus, target: '#vibes' },
+  { id: 'event-konser', label: 'Event', icon: Calendar, isRoute: true, to: '/events', target: '#vibes' },
+  { id: 'penjemputan', label: 'Titik Jemput', icon: MapPin, target: '#discovery' },
+  { id: 'rental-mobil', label: 'Rental Mobil', icon: Car, badge: 'Coming Soon', isRoute: true, to: '/rental-mobil' },
+  { id: 'hotel', label: 'Hotel', icon: Building2, badge: 'Coming Soon', isRoute: true, to: '/hotel' },
+  { id: 'pesawat', label: 'Tiket Pesawat', icon: Plane, badge: 'Coming Soon', isRoute: true, to: '/tiket-pesawat' }
+];
+
+const selectHeroCategory = (cat) => {
+  activeCategory.value = cat.id;
+  if (cat.isRoute && cat.to) {
+    router.push(cat.to);
+    return;
+  }
+  if (cat.target) {
+    const el = document.querySelector(cat.target);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth' });
+    }
+  }
 };
 
 // Touch swipe logic for mobile devices
@@ -413,37 +445,48 @@ const tagColors = {
           >
             <div class="card-inner">
               <img :src="img.src" :alt="img.alt" />
-              
-              <!-- Navigation chevrons (visible only on active slide) -->
-              <button 
-                v-if="index === currentHeroIndex" 
-                class="nav-arrow arrow-left" 
-                @click.stop="prevSlide"
-                aria-label="Previous slide"
-              >
-                <ChevronLeft size="24" stroke-width="3" />
-              </button>
-              <button 
-                v-if="index === currentHeroIndex" 
-                class="nav-arrow arrow-right" 
-                @click.stop="nextSlide"
-                aria-label="Next slide"
-              >
-                <ChevronRight size="24" stroke-width="3" />
-              </button>
-
-              <!-- Slide indicator dots inside the active hero image -->
-              <div v-if="index === currentHeroIndex" class="slider-indicators-inside">
-                <button
-                  v-for="(img, i) in heroImages"
-                  :key="i"
-                  class="indicator-dot"
-                  :class="{ active: currentHeroIndex === i }"
-                  @click.stop="goToSlide(i)"
-                  :aria-label="`Go to slide ${i + 1}`"
-                ></button>
-              </div>
+              <div class="hero-gradient-overlay"></div>
             </div>
+          </div>
+        </div>
+
+        <!-- Hero Overlay Content & Category Buttons -->
+        <div class="hero-overlay-content">
+          <div class="hero-header-text">
+            <h1 class="hero-title">Berangkat ke Event Favoritmu Tanpa Ribet</h1>
+            <p class="hero-sub">Pesan shuttle, rental mobil, hotel, dan kebutuhan perjalanan lainnya dalam satu platform yang praktis, nyaman, dan terpercaya.</p>
+          </div>
+
+          <!-- Mobile Search Bar (Positioned ABOVE Category Card) -->
+          <div class="hero-mobile-search-bar">
+            <Search :size="18" class="search-ico" />
+            <input
+              type="text"
+              v-model="heroSearchQuery"
+              placeholder="Cari armada, rute, atau event..."
+              class="search-input"
+              @keydown.enter="handleHeroSearchSubmit"
+            />
+            <button v-if="heroSearchQuery" class="clear-search" @click="heroSearchQuery = ''">
+              <X :size="14" />
+            </button>
+          </div>
+
+          <!-- White Category Card -->
+          <div class="category-pills-bar">
+            <button
+              v-for="cat in heroCategories"
+              :key="cat.id"
+              class="category-pill-btn"
+              :class="{ active: activeCategory === cat.id }"
+              @click="selectHeroCategory(cat)"
+            >
+              <span v-if="cat.badge" class="cat-badge">{{ cat.badge }}</span>
+              <div class="cat-icon-wrapper">
+                <component :is="cat.icon" size="24" class="cat-icon" />
+              </div>
+              <span class="cat-label">{{ cat.label }}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -727,56 +770,53 @@ const tagColors = {
 /* ===== HERO ===== */
 .hero-section {
   position: relative;
+  width: 100%;
   min-height: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  /* background-image: url('/herobanner.png'); */
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  padding: 110px 0 0px;
+  padding: 0;
+  margin: 0;
 }
 
-/* Slider Track & Layout */
+/* Slider Track & Layout - FULL SCREEN BLEED (Under Transparent Navbar) */
 .slider-wrapper {
   position: relative;
-  width: 100%;
-  max-width: 1400px;
-  height: 380px;
+  width: 100vw;
+  max-width: 100%;
+  height: 580px;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 5;
-  overflow: visible;
-  margin-top: -65px;
+  overflow: hidden;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .slider-track {
   position: relative;
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
-/* Slider Card Styles */
+/* Slider Card Styles - FULL SCREEN FRAME */
 .slider-card {
   position: absolute;
-  width: 890px;
-  height: 290.91px;
-  border-radius: 8px;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
   overflow: hidden;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5);
-  transition: transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1), 
-              opacity 0.6s ease,
-              filter 0.6s ease;
-  background: transparent;
+  transition: opacity 1s ease-in-out;
+  background: #111;
   user-select: none;
-  filter: brightness(0.6);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .card-inner {
@@ -788,137 +828,244 @@ const tagColors = {
 .slider-card img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  object-position: center;
   display: block;
 }
 
-/* Center / Active slide */
-.slider-card.active {
-  transform: translateX(0) scale(1);
-  z-index: 10;
-  opacity: 1;
-  filter: brightness(1);
-  cursor: default;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-}
-
-/* Side slides */
-.slider-card.prev {
-  transform: translateX(-44%) scale(0.82);
-  z-index: 5;
-  opacity: 1;
-  cursor: pointer;
-}
-
-.slider-card.next {
-  transform: translateX(44%) scale(0.82);
-  z-index: 5;
-  opacity: 1;
-  cursor: pointer;
-}
-
-/* Hidden slides */
-.slider-card.hidden {
-  transform: scale(0.6);
-  opacity: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-
-/* Navigation Chevrons inside Active Card */
-.nav-arrow {
+.hero-gradient-overlay {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  color: #2A2A2A;
-  border: none;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.15) 45%,
+    rgba(0, 0, 0, 0.45) 100%
+  );
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Active slide - Smooth Fade In */
+.slider-card.active {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+/* Hidden slides - Fade Out */
+.slider-card.prev,
+.slider-card.next,
+.slider-card.hidden {
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ===== HERO OVERLAY CONTENT & CATEGORY BUTTONS ===== */
+.hero-overlay-content {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 105px 0 40px;
+  text-align: center;
+  pointer-events: none;
+  width: 100%;
+}
+
+.hero-header-text {
+  width: 100%;
+  max-width: 1400px;
+  padding: 0 40px;
+  box-sizing: border-box;
+  margin-bottom: 32px;
+  pointer-events: auto;
+  animation: heroFadeIn 0.8s ease-out;
+}
+
+.hero-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.5px;
+  margin: 0;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
+  line-height: 1.2;
+}
+
+.hero-sub {
+  font-size: 0.98rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  margin-top: 10px;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.65);
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* Mobile Search Bar in Hero (Hidden on Desktop) */
+.hero-mobile-search-bar {
+  display: none;
+}
+
+.cat-icon-wrapper {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* Category Pills Bar - Grid Layout matching Navbar container width */
+.category-pills-bar {
+  width: 100%;
+  max-width: 1400px;
+  padding: 0 40px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  pointer-events: auto;
+  animation: heroFadeIn 1s ease-out;
+}
+
+.category-pill-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 16px;
+  width: 100%;
+  border-radius: 12px;
+  background: transparent;
+  border: 2px solid transparent;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.98rem;
+  font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
-  z-index: 20;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-sizing: border-box;
 }
 
-.nav-arrow:hover {
-  background: #ffffff;
-  transform: translateY(-50%) scale(1.1);
-  color: var(--primary);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+.category-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  border-radius: 12px;
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
-.nav-arrow.arrow-left {
-  left: 24px;
+.category-pill-btn.active {
+  background: rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  font-weight: 800;
+  transform: translateY(-4px) scale(1.04);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
-.nav-arrow.arrow-right {
-  right: 24px;
+.category-pill-btn.active .cat-icon {
+  color: #ffffff;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.4));
 }
 
-/* Indicators Dots Inside active card */
-.slider-indicators-inside {
+.cat-icon {
+  transition: transform 0.3s ease;
+}
+
+.category-pill-btn:hover .cat-icon {
+  transform: scale(1.15);
+}
+
+/* Category Badge */
+.cat-badge {
   position: absolute;
-  bottom: 16px;
+  top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  display: flex;
-  gap: 10px;
-  z-index: 15;
+  background: var(--primary, #C94C4C);
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 900;
+  padding: 2px 10px;
+  border-radius: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+  border: 1.5px solid #ffffff;
+  white-space: nowrap;
 }
 
-.slider-indicators-inside .indicator-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.4);
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  transition: all 0.3s ease;
-}
-
-.slider-indicators-inside .indicator-dot.active {
-  background: var(--primary);
-  width: 24px;
-  border-radius: 4px;
-  box-shadow: 0 0 8px var(--primary);
+@keyframes heroFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Responsive adjustments for Slider */
 @media (max-width: 1200px) {
+  .hero-section {
+    padding: 0;
+  }
   .slider-wrapper {
-    height: 310px;
+    height: 440px;
+    border-radius: 0;
   }
   .slider-card {
-    width: 720px;
-    height: 236px;
-  }
-  .slider-card.prev {
-    transform: translateX(-42%) scale(0.82);
-  }
-  .slider-card.next {
-    transform: translateX(42%) scale(0.82);
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
   }
 }
 
 @media (max-width: 992px) {
+  .hero-section {
+    padding: 0;
+  }
   .slider-wrapper {
-    height: 260px;
+    height: 380px !important;
+    margin-top: 0 !important;
+    border-radius: 0;
   }
   .slider-card {
-    width: 600px;
-    height: 196.8px;
+    width: 100% !important;
+    height: 100% !important;
+    border-radius: 0 !important;
   }
-  .slider-card.prev {
-    transform: translateX(-42%) scale(0.82);
+  .hero-title {
+    font-size: 1.8rem !important;
+    white-space: normal !important;
   }
-  .slider-card.next {
-    transform: translateX(42%) scale(0.82);
+  .hero-sub {
+    white-space: normal !important;
+    font-size: 0.9rem !important;
+  }
+  .hero-header-text {
+    padding: 0 20px !important;
+    margin-bottom: 20px !important;
+  }
+  .category-pills-bar {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 10px !important;
+    padding: 0 20px !important;
   }
   .creative-title {
     font-size: 1.85rem !important;
@@ -940,31 +1087,166 @@ const tagColors = {
 @media (max-width: 768px) {
   .hero-section {
     min-height: auto;
-    padding: 20px 0 0px;
+    padding: 0;
+    background: linear-gradient(160deg, #D85555 0%, #C94C4C 50%, #B03A3A 100%) !important;
+    border-bottom-left-radius: 24px !important;
+    border-bottom-right-radius: 24px !important;
+    overflow: visible !important;
+    margin-bottom: 45px !important;
+  }
+  .slider-track,
+  .slider-card {
+    display: none !important;
   }
   .slider-wrapper {
-    height: 320px !important;
-    padding: 0 20px !important;
-    margin-top: -35px;
+    height: auto !important;
+    min-height: unset !important;
+    padding: 0 !important;
+    margin-top: 0 !important;
     overflow: visible !important;
+    border-radius: 0 !important;
+    background: transparent !important;
   }
-  .slider-card {
-    position: absolute !important;
-    width: 560px !important;
-    height: 183px !important;
-    border-radius: 4px;
+  .hero-overlay-content {
+    position: relative !important;
+    inset: auto !important;
+    padding-top: 14px !important;
+    padding-bottom: 0px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    width: 100% !important;
+    pointer-events: auto !important;
+    z-index: 10 !important;
   }
-  .slider-card.prev {
-    transform: translateX(-42%) scale(0.82) !important;
-    opacity: 1 !important;
+  .hero-header-text {
+    display: none !important;
   }
-  .slider-card.next {
-    transform: translateX(42%) scale(0.82) !important;
-    opacity: 1 !important;
+
+  /* Mobile Search Bar ABOVE Category Card (Shifted up, slimmed down & reduced roundedness) */
+  .hero-mobile-search-bar {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    width: calc(100% - 32px) !important;
+    max-width: 400px !important;
+    height: 40px !important;
+    margin: 0 auto 6px !important;
+    padding: 0 14px !important;
+    border-radius: 14px !important;
+    background: var(--card-bg, #ffffff) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12) !important;
+    pointer-events: auto !important;
+  }
+  .hero-mobile-search-bar .search-ico {
+    color: var(--primary) !important;
+    flex-shrink: 0 !important;
+  }
+  .hero-mobile-search-bar input {
+    flex: 1 !important;
+    border: none !important;
+    background: transparent !important;
+    outline: none !important;
+    font-family: inherit !important;
+    font-size: 0.84rem !important;
+    font-weight: 600 !important;
+    color: var(--text-dark) !important;
+  }
+  .hero-mobile-search-bar input::placeholder {
+    color: var(--text-light) !important;
+    font-weight: 500 !important;
+  }
+  .hero-mobile-search-bar .clear-search {
+    background: none !important;
+    border: none !important;
+    color: var(--text-light) !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  /* Category Menu Card Floating On Top of Hero Overlay Content Edge */
+  .category-pills-bar {
+    position: relative !important;
+    z-index: 25 !important;
+    width: calc(100% - 32px) !important;
+    max-width: 400px !important;
+    background: var(--card-bg, #ffffff) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 14px 28px -4px rgba(0, 0, 0, 0.16), 0 6px 12px -2px rgba(201, 76, 76, 0.08) !important;
+    padding: 20px 12px 18px !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 14px 4px !important;
+    margin: 0 auto -40px !important;
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06)) !important;
+    pointer-events: auto !important;
+  }
+  .category-pill-btn {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 5px !important;
+    padding: 2px !important;
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-dark) !important;
+    text-shadow: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  .category-pill-btn:hover,
+  .category-pill-btn.active {
+    background: transparent !important;
+    border: none !important;
+    transform: none !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+  .cat-badge {
+    font-size: 0.46rem !important;
+    font-weight: 900 !important;
+    padding: 1px 5px !important;
+    border-radius: 5px !important;
+    top: -7px !important;
+    border: 1px solid #ffffff !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18) !important;
+    letter-spacing: 0.2px !important;
+  }
+  .cat-icon-wrapper {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 50% !important;
+    background: rgba(201, 76, 76, 0.08) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    color: var(--primary) !important;
+    transition: all 0.2s ease !important;
+  }
+  .category-pill-btn.active .cat-icon-wrapper {
+    background: var(--primary) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(201, 76, 76, 0.35) !important;
+  }
+  .cat-icon {
+    width: 18px !important;
+    height: 18px !important;
+  }
+  .cat-label {
+    font-size: 0.6rem !important;
+    font-weight: 600 !important;
+    color: var(--text-dark) !important;
+    text-align: center !important;
+    line-height: 1.15 !important;
+    text-shadow: none !important;
+    white-space: normal !important;
   }
   .nav-arrow {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
   }
   .nav-arrow svg {
     width: 16px;
@@ -977,7 +1259,7 @@ const tagColors = {
     right: 12px;
   }
   .slider-indicators-inside {
-    bottom: 10px;
+    bottom: 12px;
   }
   .slider-indicators-inside .indicator-dot {
     width: 6px;
@@ -989,26 +1271,25 @@ const tagColors = {
 }
 
 @media (max-width: 480px) {
+  .hero-section {
+    padding: 0;
+  }
   .slider-wrapper {
-    height: 240px !important;
-    margin-top: -25px;
-    overflow: visible !important;
+    height: auto !important;
+    margin-top: 0 !important;
+    border-radius: 0 !important;
   }
   .slider-card {
-    position: absolute !important;
-    width: 380px !important;
-    height: 124px !important;
+    display: none !important;
   }
-  .slider-card.prev {
-    transform: translateX(-40%) scale(0.82) !important;
-    opacity: 1 !important;
-  }
-  .slider-card.next {
-    transform: translateX(40%) scale(0.82) !important;
-    opacity: 1 !important;
+  .category-pills-bar {
+    grid-template-columns: repeat(3, 1fr) !important;
+    border-radius: 16px !important;
+    gap: 10px 4px !important;
+    padding: 10px 6px !important;
   }
   .nav-arrow {
-    display: none; /* Hide arrows on small screens, rely on touch swipe and dots */
+    display: none;
   }
 }
 

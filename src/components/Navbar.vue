@@ -39,11 +39,11 @@ const handleLogout = () => { authState.logout(); router.push('/'); };
 //   isRoute: true  → navigate to `to`, active = route.path match
 //   isRoute: false → scroll to section id on home page, active = scroll position
 const navLinks = [
-  { id: 'home',      label: 'Beranda', icon: Home,     isRoute: true,  to: '/' },
-  { id: 'events',    label: 'Event',   icon: Calendar, isRoute: true,  to: '/events' },
-  { id: 'services',  label: 'Layanan', icon: Layers,   isRoute: false },
+  { id: 'home',      label: 'Beranda',     icon: Home,     isRoute: true,  to: '/' },
+  { id: 'events',    label: 'Event',       icon: Calendar, isRoute: true,  to: '/events' },
+  { id: 'services',  label: 'Layanan',     icon: Layers,   isRoute: false },
   { id: 'discovery', label: 'Penjemputan', icon: MapPin,   isRoute: false },
-  { id: 'Tentang',     label: 'Tentang',   icon: Info,     isRoute: false },
+  { id: 'Tentang',   label: 'Tentang',     icon: Info,     isRoute: false },
 ];
 
 const isOnHome = computed(() => route.path === '/');
@@ -120,15 +120,15 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 
 
 <template>
-  <header class="navbar" :class="{ 'scrolled': scrolled, 'no-shadow': route.name === 'help' }">
+  <header class="navbar" :class="{ 'scrolled': scrolled, 'no-shadow': route.name === 'help', 'transparent-home': isOnHome && !scrolled }">
     <div class="container navbar-content">
       <!-- Logo -->
       <router-link to="/" class="logo">
         <img src="/AJAKLogo/LOGO.png" alt="AJAK! Logo" class="logo-img" />
       </router-link>
 
-      <!-- Desktop Nav Links -->
-      <nav class="nav-links">
+      <!-- Desktop Nav Links (Non-Home Pages) -->
+      <nav class="nav-links" v-if="!isOnHome">
         <button
           v-for="link in navLinks"
           :key="link.id"
@@ -142,10 +142,26 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
         </button>
       </nav>
 
+      <!-- Desktop Center Search Bar (Homepage) -->
+      <div class="header-center-search" v-if="isOnHome">
+        <div class="search-box-center">
+          <Search size="17" class="search-box-icon" />
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Cari armada, rute, atau event konser favoritmu..."
+            @keydown.enter="handleSearchSubmit"
+          />
+          <button v-if="searchQuery" class="clear-search-btn" @click="searchQuery = ''">
+            <X size="14" />
+          </button>
+        </div>
+      </div>
+
       <!-- Right: Search + Language + Auth -->
       <div class="nav-auth">
-        <!-- Search Bar (expandable) -->
-        <div class="search-wrap" :class="{ open: searchOpen }">
+        <!-- Search Bar (expandable on non-home pages) -->
+        <div class="search-wrap" v-if="!isOnHome" :class="{ open: searchOpen }">
           <transition name="search-expand">
             <div v-if="searchOpen" class="search-box">
               <Search size="16" class="search-box-icon" />
@@ -335,6 +351,47 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 .navbar.no-shadow {
   box-shadow: none !important;
 }
+.navbar.transparent-home {
+  background-color: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: none !important;
+}
+.navbar.transparent-home .logo-img {
+  filter: brightness(0) invert(1);
+}
+.navbar.transparent-home .nav-item {
+  color: #ffffff;
+}
+.navbar.transparent-home .nav-item:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.18);
+}
+.navbar.transparent-home .nav-item.active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.28);
+}
+.navbar.transparent-home .nav-dot {
+  background: #ffffff;
+}
+.navbar.transparent-home .icon-pill-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+}
+.navbar.transparent-home .icon-pill-btn:hover {
+  background: #ffffff;
+  color: var(--primary);
+}
+.navbar.transparent-home .nav-btn {
+  color: #ffffff !important;
+  border-color: #ffffff !important;
+  background: transparent !important;
+}
+.navbar.transparent-home .nav-btn:hover {
+  background: #ffffff !important;
+  color: var(--primary) !important;
+  border-color: #ffffff !important;
+}
 
 /* Theme toggle */
 .theme-toggle-btn { position: relative; overflow: hidden; }
@@ -343,7 +400,7 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 .theme-icon-leave-to   { opacity: 0; transform: rotate(90deg) scale(0.5); }
 .navbar-content {
   display: flex; justify-content: space-between; align-items: center;
-  height: 60px; gap: 20px;
+  height: 68px; padding-top: 8px; gap: 20px;
 }
 
 /* Logo */
@@ -479,10 +536,127 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
   .logo { display: flex; }
   .logo-img { height: 30px; }
   
-  .nav-links { display: none; }
+  .navbar.transparent-home {
+    background: linear-gradient(160deg, #D85555 0%, #C94C4C 100%) !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
+  }
+  .navbar.transparent-home .logo-img {
+    filter: brightness(0) invert(1);
+  }
+  .navbar.transparent-home .hamburger-btn {
+    background: rgba(255, 255, 255, 0.18) !important;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    color: #ffffff !important;
+  }
+
+  .nav-links, .header-center-search { display: none !important; }
   .hamburger-btn { display: flex; margin-left: auto; }
   .desktop-auth-area, .search-wrap { display: none; }
   .mobile-search-bar { display: none; } /* keep hidden to simplify */
   .lang-switcher, .theme-toggle-btn { display: none; }
+}
+
+/* Center Search Bar on Desktop (Home page) */
+.header-center-search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  max-width: 440px;
+}
+
+.search-box-center {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 42px;
+  padding: 0 16px;
+  border-radius: 24px;
+  background: var(--input-bg);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.search-box-center:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 4px 14px rgba(201, 76, 76, 0.15);
+}
+
+.search-box-center input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.search-box-center input::placeholder {
+  color: var(--text-light);
+  opacity: 0.8;
+}
+
+.search-box-center .search-box-icon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.clear-search-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-light);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.clear-search-btn:hover {
+  color: var(--primary);
+  background: rgba(201, 76, 76, 0.1);
+}
+
+/* Transparent Home mode styling for Center Search Bar */
+.navbar.transparent-home .search-box-center {
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.navbar.transparent-home .search-box-center:focus-within {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.navbar.transparent-home .search-box-center input {
+  color: #ffffff;
+}
+
+.navbar.transparent-home .search-box-center input::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.navbar.transparent-home .search-box-center .search-box-icon {
+  color: #ffffff;
+}
+
+.navbar.transparent-home .clear-search-btn {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.navbar.transparent-home .clear-search-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.2);
 }
 </style>
