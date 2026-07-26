@@ -97,6 +97,12 @@ const sessionOptions = computed(() => {
           if (name.includes('petang')) return false;
         }
       }
+
+      // Hide "siang" sessions on Day 1, Day 2, and Day 3
+      const firstThreeDates = dateOptions.value.slice(0, 3).map(d => String(d.id));
+      if (firstThreeDates.includes(String(selectedDate.value))) {
+        if (name.includes('siang')) return false;
+      }
       
       return true;
     })
@@ -1109,6 +1115,8 @@ onMounted(async () => {
                 price: parseInt(t.price || 0),
                 available_seat_number: t.available_seat_number || 'A1,A2,A3,A4,A5,B1,B2,B3,C1,C2,C3,D1,D2,E1,E2,E3',
                 taken_seat_number: t.taken_seat_number || '',
+                pending_seat_number: t.pending_seat_number || '',
+                reserved_seat_number: t.reserved_seat_number || '',
                 total_seat: t.total_seat || 59,
                 ticket_type_id: 1
               });
