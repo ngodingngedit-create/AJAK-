@@ -60,6 +60,13 @@ const getStatusConfig = (status) => {
 
 const statusConfig = computed(() => getStatusConfig(invoice.value?.payment_status));
 
+const getTripLabel = (ticketTypeId) => {
+  if (ticketTypeId === 1 || ticketTypeId === '1') return 'PERGI';
+  if (ticketTypeId === 2 || ticketTypeId === '2') return 'PULANG';
+  if (ticketTypeId === 3 || ticketTypeId === '3') return 'PULANG PERGI';
+  return null;
+};
+
 const downloadPdf = () => {
   const url = `${import.meta.env.VITE_API_URL}/api/shuttle-order/download/${invoiceNo}`;
   window.open(url, '_blank');
@@ -111,7 +118,7 @@ const tickets = computed(() => {
         shuttle_session: et.shuttle_session || ticketObj.shuttle_session || null,
         trip_status: ticketObj.trip_status || null,
         passenger_name: et.passenger?.passenger_name || et.passenger?.name || '-',
-        journey_type: et.journey_type || null
+        ticket_type_id: ticketObj.ticket_type_id || et.ticket_type_id || null
       };
     });
   }
@@ -268,7 +275,7 @@ const tickets = computed(() => {
                       <small>
                         seat: {{ t.order_seat_number }}
                         <span v-if="t.shuttle_session"> | Sesi: {{ t.shuttle_session.name }}</span>
-                        <span v-if="t.trip_status || t.journey_type"> | Trip: {{ t.journey_type || t.trip_status.name }}</span>
+                        <span v-if="getTripLabel(t.ticket_type_id)"> | Trip: {{ getTripLabel(t.ticket_type_id) }}</span>
                       </small>
                     </td>
                     <td class="text-right">{{ formatRp(t.price + (t.ticket_fee || 0)) }}</td>
