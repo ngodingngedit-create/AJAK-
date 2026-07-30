@@ -1,10 +1,62 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { ShieldCheck, Bus, Zap, Coffee, Sofa, MapPin, Navigation, Search, ArrowRight, Users, Baby, X, Calendar, Star, Clock, Tag, ChevronLeft, ChevronRight, Car, Building2, Plane } from 'lucide-vue-next';
+import { ShieldCheck, Bus, Zap, Coffee, Sofa, MapPin, Navigation, Search, ArrowRight, Users, Baby, X, Calendar, Star, Clock, Tag, ChevronLeft, ChevronRight, Car, Building2, Plane, Music, Volume2, VolumeX } from 'lucide-vue-next';
 import { bookingStore } from '../store/booking';
 
 const router = useRouter();
+
+// Background Music
+const bgAudio = ref(null);
+const isPlaying = ref(false);
+const isMuted = ref(false);
+const audioVolume = ref(0.5);
+
+const initAudio = () => {
+  if (!bgAudio.value) {
+    bgAudio.value = new Audio('/sounds/Cacaca Bang Rey.wav');
+    bgAudio.value.loop = true;
+    bgAudio.value.volume = audioVolume.value;
+  }
+};
+
+const startAutoplay = () => {
+  initAudio();
+  bgAudio.value.play().then(() => {
+    isPlaying.value = true;
+  }).catch(() => {
+    // Blocked by browser — wait for first user interaction
+    const unlockAudio = () => {
+      bgAudio.value.play().then(() => {
+        isPlaying.value = true;
+      }).catch(() => {});
+      document.removeEventListener('click', unlockAudio);
+      document.removeEventListener('touchstart', unlockAudio);
+    };
+    document.addEventListener('click', unlockAudio, { once: true });
+    document.addEventListener('touchstart', unlockAudio, { once: true });
+  });
+};
+
+const toggleMusic = () => {
+  initAudio();
+  if (isPlaying.value) {
+    bgAudio.value.pause();
+    isPlaying.value = false;
+  } else {
+    bgAudio.value.play().then(() => {
+      isPlaying.value = true;
+    }).catch(err => {
+      console.warn('Audio play blocked:', err);
+    });
+  }
+};
+
+const toggleMute = () => {
+  if (!bgAudio.value) return;
+  isMuted.value = !isMuted.value;
+  bgAudio.value.muted = isMuted.value;
+};
 
 // Hero Images Loop (previous bus parkir images)
 const heroImages = [
@@ -143,11 +195,18 @@ onMounted(() => {
 
   fetchUpcomingEvents();
   fetchPickupLocations();
+
+  // Autoplay background music
+  startAutoplay();
 });
 
 onUnmounted(() => {
   if (heroInterval) clearInterval(heroInterval);
   if (ekslusifInterval) clearInterval(ekslusifInterval);
+  if (bgAudio.value) {
+    bgAudio.value.pause();
+    bgAudio.value = null;
+  }
 });
 
 // API Data
@@ -734,6 +793,21 @@ const tagColors = {
     <a href="https://wa.me/6281287728920" target="_blank" class="wa-float-btn" title="Hubungi Kami via WhatsApp">
       <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp" />
     </a>
+
+    <!-- Background Music Player -->
+    <div class="music-player-float" :class="{ playing: isPlaying }">
+      <div class="music-visualizer" v-if="isPlaying">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <button class="music-toggle-btn" @click="toggleMusic" :title="isPlaying ? 'Pause Musik' : 'Putar Musik'">
+        <Music v-if="!isPlaying" :size="20" />
+        <span v-else class="pause-icon">⏸</span>
+      </button>
+      <button v-if="isPlaying" class="music-mute-btn" @click="toggleMute" :title="isMuted ? 'Unmute' : 'Mute'">
+        <Volume2 v-if="!isMuted" :size="14" />
+        <VolumeX v-else :size="14" />
+      </button>
+    </div>
   </div>
 </template>
 
@@ -2140,6 +2214,141 @@ const tagColors = {
   .wa-float-btn img {
     width: 28px;
     height: 28px;
+  }
+}
+
+/* ===== MUSIC PLAYER FLOAT ===== */
+.music-player-float {
+  position: fixed;
+  bottom: 100px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 998;
+  transition: all 0.3s ease;
+}
+
+.music-toggle-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  background: linear-gradient(135deg, var(--primary, #e63946), #c1121f);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 20px rgba(230, 57, 70, 0.45);
+  transition: all 0.3s ease;
+  font-size: 1.2rem;
+  position: relative;
+}
+
+.music-player-float.playing .music-toggle-btn {
+  box-shadow: 0 4px 25px rgba(230, 57, 70, 0.6);
+  animation: music-pulse-ring 2s ease infinite;
+}
+
+@keyframes music-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0.6), 0 4px 25px rgba(230, 57, 70, 0.5); }
+  70% { box-shadow: 0 0 0 14px rgba(230, 57, 70, 0), 0 4px 25px rgba(230, 57, 70, 0.5); }
+  100% { box-shadow: 0 0 0 0 rgba(230, 57, 70, 0), 0 4px 25px rgba(230, 57, 70, 0.5); }
+}
+
+.music-toggle-btn:hover {
+  transform: scale(1.1);
+}
+
+.pause-icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.music-mute-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  transition: all 0.2s ease;
+}
+
+.music-mute-btn:hover {
+  background: rgba(255,255,255,0.25);
+  transform: scale(1.1);
+}
+
+.music-label {
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 20px;
+  padding: 4px 12px;
+  max-width: 130px;
+  overflow: hidden;
+}
+
+.music-title {
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+  display: block;
+  animation: marquee-text 6s linear infinite;
+}
+
+@keyframes marquee-text {
+  0%   { transform: translateX(0); }
+  40%  { transform: translateX(0); }
+  60%  { transform: translateX(-30%); }
+  100% { transform: translateX(0); }
+}
+
+/* Visualizer bars */
+.music-visualizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+}
+
+.music-visualizer span {
+  display: block;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--primary, #e63946);
+  animation: bar-bounce 0.8s ease-in-out infinite alternate;
+}
+
+.music-visualizer span:nth-child(1) { height: 8px;  animation-delay: 0s; }
+.music-visualizer span:nth-child(2) { height: 16px; animation-delay: 0.15s; }
+.music-visualizer span:nth-child(3) { height: 11px; animation-delay: 0.3s; }
+.music-visualizer span:nth-child(4) { height: 6px;  animation-delay: 0.45s; }
+
+@keyframes bar-bounce {
+  from { transform: scaleY(0.4); opacity: 0.7; }
+  to   { transform: scaleY(1.2); opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .music-player-float {
+    bottom: 160px;
+    right: 20px;
+  }
+  .music-toggle-btn {
+    width: 46px;
+    height: 46px;
   }
 }
 </style>
