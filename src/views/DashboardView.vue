@@ -43,7 +43,7 @@ onMounted(async () => {
   await fetchAllBookings();
 });
 
-const filterStatus = ref('Semua');
+const filterStatus = ref('PAID');
 const filterSesi = ref('Semua');
 const filterJenisTiket = ref('Semua');
 const searchQuery = ref('');
@@ -110,6 +110,18 @@ const getseats = (b) => {
     if (seats.length > 0) return seats.join(', ');
   }
   return '-';
+};
+
+const getSeatQty = (b) => {
+  if (b.tickets && b.tickets.length > 0) {
+    const seats = b.tickets.map(t => t.order_seat_number).filter(Boolean);
+    if (seats.length > 0) return seats.length;
+  }
+  if (b.passengers && b.passengers.length > 0) {
+    const seats = b.passengers.map(p => p.seat_name || p.trip_seat?.seat_number || p.seat_number).filter(Boolean);
+    if (seats.length > 0) return seats.length;
+  }
+  return 0;
 };
 
 const paymentStatuses = computed(() => {
@@ -259,7 +271,7 @@ const exportExcel = () => {
     const headers = [
       'Invoice No', 'Tanggal Order', 'Nama', 'Email', 'No Telp',
       'Jenis Tiket', 'Tanggal Berangkat', 'Sesi', 'Trip',
-      'Qty', 'Seat', 'Status'
+      'Qty', 'Seat', 'Qty Seat', 'Status'
     ];
   
     // Build data array (header + rows) for SheetJS
@@ -275,6 +287,7 @@ const exportExcel = () => {
       getTripStatus(b),
       b.total_qty || 0,
       getseats(b),
+      getSeatQty(b),
       b.payment_status || '-'
     ]);
 
@@ -493,16 +506,17 @@ const closeModal = () => {
                 <th>Trip</th>
                 <th>Qty</th>
                 <th>Seat</th>
+                <th>Qty Seat</th>
                 <th>Status</th>
                 <th>Aksi</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="isLoading">
-                <td colspan="13" class="empty-state">Loading data...</td>
+                <td colspan="14" class="empty-state">Loading data...</td>
               </tr>
               <tr v-else-if="paginatedBookings.length === 0">
-                <td colspan="13" class="empty-state">
+                <td colspan="14" class="empty-state">
                   Belum ada data pemesanan untuk filter ini.
                 </td>
               </tr>
@@ -523,6 +537,7 @@ const closeModal = () => {
                 <td style="white-space: nowrap;">{{ getTripStatus(b) }}</td>
                 <td>{{ b.total_qty }}</td>
                 <td style="white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" :title="getseats(b)">{{ getseats(b) }}</td>
+                <td>{{ getSeatQty(b) }}</td>
                 <td>
                   <span class="tag-badge">{{ b.payment_status }}</span>
                 </td>
