@@ -98,10 +98,15 @@ const sessionOptions = computed(() => {
         }
       }
 
-      // Hide "siang" sessions on Day 1, Day 2, and Day 3
-      const firstThreeDates = dateOptions.value.slice(0, 3).map(d => String(d.id));
-      if (firstThreeDates.includes(String(selectedDate.value))) {
-        if (name.includes('siang')) return false;
+
+      // Hide "siang" sessions on Day 1, Day 2, and Day 3 (only for TSP event)
+      const isTSPEvent = event.value?.name?.toLowerCase().includes('the sounds project') || 
+                         event.value?.name?.toLowerCase().includes('tsp');
+      if (isTSPEvent) {
+        const firstThreeDates = dateOptions.value.slice(0, 3).map(d => String(d.id));
+        if (firstThreeDates.includes(String(selectedDate.value))) {
+          if (name.includes('siang')) return false;
+        }
       }
       
       return true;
@@ -187,7 +192,8 @@ const juneDays = computed(() => {
 });
 
 // Booking states (Quantity, selected seats, and buyer information)
-const quantity = ref(1);
+// Per-ticket quantities for festival tickets (keyed by ticket.id)
+const ticketQuantities = ref({});
 const selectedseatsMap = ref({});
 
 const currentSelectionKey = computed(() => {
@@ -213,6 +219,7 @@ const allSelectedTickets = computed(() => {
   const list = [];
   if (!event.value) return [];
   
+  // Add seated tickets from selectedseatsMap
   for (const [key, seats] of Object.entries(selectedseatsMap.value)) {
     if (seats && seats.length > 0) {
       const [ticketId, dayId, sesiId] = key.split('_');
@@ -226,25 +233,55 @@ const allSelectedTickets = computed(() => {
           sesiId,
           seats,
           price: getEffectivePrice(ticket),
-          name: ticket.name
+          name: ticket.name,
+          isFestival: false
         });
       }
     }
   }
+  
+  // Add festival tickets with quantity > 0
+  for (const [ticketId, qty] of Object.entries(ticketQuantities.value)) {
+    if (qty > 0) {
+      const ticket = filteredTickets.value.find(t => String(t.id) === String(ticketId));
+      if (ticket && ticket.ticket_category === 'festival') {
+        list.push({
+          key: `festival_${ticketId}`,
+          ticket,
+          dayId: selectedDate.value,
+          sesiId: selectedSesi.value,
+          seats: [], // No seats for festival
+          quantity: qty,
+          price: getEffectivePrice(ticket),
+          name: ticket.name,
+          isFestival: true
+        });
+      }
+    }
+  }
+  
   return list;
 });
 
 const totalSelectedTicketsCount = computed(() => {
   return allSelectedTickets.value.reduce((sum, item) => {
-    const count = isPP.value ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length;
-    return sum + count;
+    if (item.isFestival) {
+      return sum + item.quantity;
+    } else {
+      const count = isPP.value ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length;
+      return sum + count;
+    }
   }, 0);
 });
 
 const totalSelectedTicketsPrice = computed(() => {
   return allSelectedTickets.value.reduce((sum, item) => {
-    const count = isPP.value ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length;
-    return sum + (item.price * count);
+    if (item.isFestival) {
+      return sum + (item.price * item.quantity);
+    } else {
+      const count = isPP.value ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length;
+      return sum + (item.price * count);
+    }
   }, 0);
 });
 
@@ -262,6 +299,27 @@ const getEffectivePrice = (ticket) => {
   const matchingPrice = ticket.prices.find(p => String(p.ticket_type_id) === String(selectedTripStatus.value.id));
   return matchingPrice ? parseInt(matchingPrice.price) : (ticket.price || 0);
 };
+
+// Helper: get quantity for a specific ticket (defaults to 0)
+const getTicketQuantity = (ticketId) => {
+  return ticketQuantities.value[ticketId] || 0;
+};
+
+// Helper: set quantity for a specific ticket
+const setTicketQuantity = (ticketId, qty) => {
+  const newQty = Math.max(0, Math.min(10, qty));
+  ticketQuantities.value[ticketId] = newQty;
+  
+  // Auto-select ticket when quantity > 0
+  if (newQty > 0) {
+    const ticket = filteredTickets.value.find(t => t.id === ticketId);
+    if (ticket && ticket.ticket_category === 'festival') {
+      selectedTicket.value = ticket;
+      expandedTicketId.value = ticketId;
+    }
+  }
+};
+
 
 const ppPergiSelectedCount = computed(() => {
   return selectedseats.value.filter(s => s.endsWith('_1')).length;
@@ -971,7 +1029,7 @@ const filteredTickets = computed(() => {
       return {
         id: t.id,
         name: t.name || 'Tiket Shuttle',
-        ticket_category: t.trip_status?.name ? `Shuttle (${t.trip_status.name})` : 'Regular Shuttle',
+        ticket_category: t.ticket_category || 'seated', // festival or seated
         description: t.description || (t.route ? `Rute: ${t.route.origin_name || ''} -> ${t.route.destination_name || ''} (${t.route.distance_km || ''} km)` : ''),
         price: parseInt(t.price || 0),
         ticket_fee: t.ticket_fee || 0,
@@ -1258,7 +1316,26 @@ const formatRp = (num) => {
 };
 
 const formatEventDates = (evt) => {
-  if (!evt || !evt.start_date) return evt.dateLabel || evt.date || 'TBA';
+  if (!evt) return 'TBA';
+  
+  // PRIORITY 1: Use operation_days if available (actual operating dates)
+  if (evt.operation_days && Array.isArray(evt.operation_days) && evt.operation_days.length > 0) {
+    const dates = evt.operation_days.map(op => formatOpDate(op.operation_date));
+    if (dates.length === 1) {
+      return dates[0].label; // e.g. "Min, 16 Agt 2026"
+    }
+    // Multiple dates: "16, 17 dan 18 Agt 2026"
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+    const dayNums = dates.map(d => parseInt(String(d.fullDate).split(' ')[0], 10));
+    const monthStr = dates[0]?.shortDate?.split(' ')[1] || '';
+    const year = String(evt.start_date || '').split('-')[0] || '';
+    if (dayNums.length === 1) return `${dayNums[0]} ${monthStr} ${year}`;
+    const last = dayNums.pop();
+    return `${dayNums.join(', ')} dan ${last} ${monthStr} ${year}`;
+  }
+  
+  // FALLBACK: Use start_date - end_date
+  if (!evt.start_date) return evt.dateLabel || evt.date || 'TBA';
 
   const start = new Date(evt.start_date);
   const end = evt.end_date ? new Date(evt.end_date) : start;
@@ -1442,8 +1519,23 @@ const getTicketStatusClass = (t) => {
 };
 
 const selectTicketCategory = (t) => {
-  // Jika belum pilih jenis trip, tampilkan notif dan expand accordion
-  if (!selectedTripStatus.value) {
+  // Debug: check ticket_category value
+  console.log('selectTicketCategory called with ticket:', t);
+  console.log('ticket_category:', t.ticket_category);
+  console.log('ticket_type_id:', t.ticket_type_id);
+  
+  // Auto-select Pulang Pergi (ID 3) for festival tickets
+  if (t.ticket_category === 'festival' && !selectedTripStatus.value) {
+    const pulanPergiOption = tripStatusOptions.value.find(ts => ts.id === 3);
+    if (pulanPergiOption) {
+      selectedTripStatus.value = pulanPergiOption;
+      bookingStore.selectedTripStatus = pulanPergiOption;
+      console.log('Auto-selected Pulang Pergi for festival ticket');
+    }
+  }
+  
+  // Jika belum pilih jenis trip (for non-festival tickets)
+  if (t.ticket_category !== 'festival' && !selectedTripStatus.value) {
     tripTypeError.value = 'Silakan pilih jenis trip terlebih dahulu';
     selectedTicket.value = t;
     expandedTicketId.value = t.id;
@@ -1454,15 +1546,31 @@ const selectTicketCategory = (t) => {
     });
     return;
   }
+  
+  // For festival tickets, check if quantity > 0
+  if (t.ticket_category === 'festival') {
+    const qty = getTicketQuantity(t.id);
+    if (qty === 0) {
+      alert('Silakan pilih jumlah tiket terlebih dahulu (gunakan tombol + untuk menambah)');
+      return;
+    }
+    console.log('Festival ticket with quantity:', qty);
+  }
+  
   tripTypeError.value = '';
   selectedTicket.value = t;
   errors.value.seats = '';
   isEditMode.value = false;
   ppStep.value = 1;
   
-  if (t.ticket_type_id === 0) {
+  // Check ticket_category: festival = no seat selection, seated = show seat selection
+  if (t.ticket_category === 'festival' || t.ticket_type_id === 0) {
+    console.log('→ Going to buyer details (festival or ticket_type_id=0)');
+    // Store quantity in bookingStore for festival tickets
+    bookingStore.adults = getTicketQuantity(t.id);
     goToBuyerDetails();
   } else {
+    console.log('→ Opening seat map (seated ticket)');
     // Save scroll so back button can restore it
     sessionStorage.setItem('booking_scroll_y', String(window.scrollY));
     router.push({ hash: '#seatmap' });
@@ -2164,7 +2272,7 @@ const tryAutoplay = () => {
 
                 <!-- Wrapper for Shuttle Tickets -->
                 <div class="outer-section-group">
-                  <h3 class="outer-section-title">pilih kursi</h3>
+                  <h3 class="outer-section-title">{{ filteredTickets.some(t => t.ticket_category === 'festival') ? 'pilih tiket' : 'pilih kursi' }}</h3>
                   <div class="tickets-list-wrapper" style="display: flex; flex-direction: column; gap: 16px;">
                     <div 
                       v-for="t in filteredTickets" 
@@ -2513,9 +2621,9 @@ const tryAutoplay = () => {
                                 <p class="ticket-description-text">{{ t.description }}</p>
                               </div>
                               
-                              <!-- Pilih Jenis Trip Dropdown -->
-                              <div class="accordion-section-divider"></div>
-                              <div class="trip-status-section">
+                              <!-- Pilih Jenis Trip Dropdown (Hidden for festival tickets) -->
+                              <div v-if="t.ticket_category !== 'festival'" class="accordion-section-divider"></div>
+                              <div v-if="t.ticket_category !== 'festival'" class="trip-status-section">
                                 <span class="detail-col-label">Pilih Jenis Seat</span>
                                 <div class="trip-status-dropdown-wrapper">
                                   <select 
@@ -2579,9 +2687,18 @@ const tryAutoplay = () => {
                                 
                                 <div class="ticket-footer-vertical-divider"></div>
                                 
-                                <!-- Direct Book / Select seat Button -->
+                                <!-- Direct Book / Select seat Button OR Quantity Selector for Festival -->
                                 <div class="ticket-action-select-btn-only">
-                                   <button 
+                                  <!-- Festival ticket: Show quantity selector -->
+                                  <div v-if="t.ticket_category === 'festival'" class="quantity-selector-wrapper">
+                                    <button class="qty-btn" @click="setTicketQuantity(t.id, getTicketQuantity(t.id) - 1)">−</button>
+                                    <span class="qty-display">{{ getTicketQuantity(t.id) }}</span>
+                                    <button class="qty-btn" @click="setTicketQuantity(t.id, getTicketQuantity(t.id) + 1)">+</button>
+                                  </div>
+                                  
+                                  <!-- Seated ticket: Show seat selection button -->
+                                  <button 
+                                    v-else
                                     class="select-ticket-btn"
                                     :class="{ selected: selectedTicket?.id === t.id && isCanvasOpen, 'sold-out': !hasAvailableseats(t) }"
                                     :disabled="!hasAvailableseats(t)"
@@ -2652,7 +2769,7 @@ const tryAutoplay = () => {
                             <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
                             
                             <span class="summary-ticket-name">{{ item.name }}</span>
-                            <span class="summary-ticket-badge-count">{{ isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length }}X</span>
+                            <span class="summary-ticket-badge-count">{{ item.isFestival ? item.quantity : (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length) }}X</span>
                           </div>
                           
                           <!-- Day and Session Info -->
@@ -2671,12 +2788,12 @@ const tryAutoplay = () => {
                             </button>
                           </div>
                           
-                          <div class="summary-ticket-seats-row">
+                          <div v-if="!item.isFestival" class="summary-ticket-seats-row">
                             seat: {{ item.seats.map(s => formatseatLabel(s)).join(', ') }}
                           </div>
                           
                           <div class="summary-ticket-price-row">
-                            {{ formatRp(item.price * (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length)) }}
+                            {{ formatRp(item.isFestival ? (item.price * item.quantity) : (item.price * (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length))) }}
                           </div>
                         </div>
                       </div>
@@ -2822,7 +2939,7 @@ const tryAutoplay = () => {
       <div class="container bottom-bar-container">
         <div class="bottom-bar-left">
           <span class="bottom-bar-ticket-name font-bold" v-if="totalSelectedTicketsCount > 0">
-              Total {{ totalSelectedTicketsCount }} seat
+              Total {{ totalSelectedTicketsCount }} {{ selectedTicket?.ticket_category === 'festival' ? 'tiket' : 'seat' }}
             </span>
             <span class="bottom-bar-ticket-name" v-else>
               Harga mulai dari
@@ -2834,23 +2951,23 @@ const tryAutoplay = () => {
         </div>
         
         <div class="bottom-bar-right">
-          <!-- State 1: No seat selected yet -->
+          <!-- State 1: No tickets selected -->
           <button 
-            v-if="!selectedTicket || selectedseats.length === 0"
+            v-if="totalSelectedTicketsCount === 0"
             class="bottom-bar-buy-btn"
-            @click="scrollToTickets"
+            @click="scrollToTickets()"
           >
-            Pilih seat
+            {{ selectedTicket?.ticket_category === 'festival' ? 'Pilih tiket' : 'Pilih seat' }}
           </button>
           
-          <!-- State 2: seats selected, select step 1 -->
+          <!-- State 2: Tickets selected (seats or festival qty), at step 1 -->
           <button 
             v-else-if="currentStep === 1"
             class="bottom-bar-buy-btn animate-pulse-once"
             :disabled="isPP && ppStep === 1 && ppPergiSelectedCount === 0"
-            @click="isPP && ppStep === 1 ? goToPpStep2() : goToBuyerDetails()"
+            @click="selectedTicket?.ticket_category === 'festival' ? goToBuyerDetails() : (isPP && ppStep === 1 ? goToPpStep2() : goToBuyerDetails())"
           >
-            <template v-if="isPP && ppStep === 1">Lanjut ke Pulang</template>
+            <template v-if="selectedTicket?.ticket_category !== 'festival' && isPP && ppStep === 1">Lanjut ke Pulang</template>
             <template v-else>Selanjutnya</template>
           </button>
           
@@ -4390,6 +4507,48 @@ const tryAutoplay = () => {
   align-items: center;
   justify-content: flex-end;
   flex-shrink: 0;
+}
+
+/* Quantity Selector for Festival Tickets */
+.quantity-selector-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qty-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.qty-btn:hover {
+  border-color: var(--primary, #c94c4c);
+  background: #fef2f2;
+  color: var(--primary, #c94c4c);
+}
+
+.qty-display {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+  min-width: 24px;
+  text-align: center;
+}
+
+.festival-btn {
+  margin-left: 8px;
 }
 
 /* Responsive Overkendaraans */

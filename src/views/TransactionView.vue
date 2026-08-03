@@ -165,6 +165,24 @@ const ticketOwners = ref(
   }))
 );
 
+// Watch for quantity changes (for festival tickets) to reinitialize ticketOwners
+watch(quantity, (newQty) => {
+  if (ticket.value?.ticket_category === 'festival' && selectedseats.value.length === 0) {
+    // Festival ticket: regenerate ticketOwners based on quantity
+    ticketOwners.value = Array.from({ length: newQty }, () => ({
+      useRegistrant: false,
+      fullName: '',
+      email: '',
+      phonePrefix: '+62',
+      phoneNumber: '',
+      ktpNumber: '',
+      profession: '',
+      company: '',
+      birthDate: ''
+    }));
+  }
+});
+
 // Voucher State
 const vouchers = ref([{ code: '', applied: false, discount: 0 }]);
 const promoError = ref('');
@@ -198,6 +216,11 @@ const baseTicketPrice = computed(() => effectivePrice.value * (isPP.value ? effe
 
 // Helper: get seat labels for owner at given index
 const getOwnerLabel = (idx) => {
+  // For festival tickets, don't show any label
+  if (ticket.value?.ticket_category === 'festival') {
+    return '';
+  }
+  
   if (!isPP.value) {
     const seat = selectedseats.value[idx];
     return `${tripTypeName.value} ${formatseatBase(seat || '')}`;
@@ -388,35 +411,53 @@ const executeCheckout = async () => {
     admin_fee: adminFee.value,
     ppn: 0,
     payment_status: "PENDING",
-    tickets: selectedseats.value.map(seat => {
-      // Parse type_id: PP seats have _1/_2 suffix, non-PP uses trip_status_id
-      const seatMatch = seat.match(/^(.*?)_(1|2)$/);
-      let typeId;
-      let baseseat;
-      if (seatMatch) {
-        // PP type: _1 = Pergi, _2 = Pulang
-        typeId = parseInt(seatMatch[2], 10);
-        baseseat = seatMatch[1];
-      } else {
-        // Non-PP: use selectedTripStatus.id (1=Pergi, 2=Pulang)
-        typeId = bookingStore.selectedTripStatus?.id || 1;
-        baseseat = seat;
+    tickets: (() => {
+      // For festival tickets: generate based on quantity (no seats)
+      if (ticket.value?.ticket_category === 'festival') {
+        return Array.from({ length: quantity.value }, () => ({
+          shuttle_ticket_id: ticket.value?.id || "",
+          shuttle_session_id: parseInt(bookingStore.selectedSessionId) || 0,
+          trip_status_id: bookingStore.selectedTripStatus?.id || 3,
+          type_id: 1,
+          order_seat_number: "", // No seat for festival
+          qty_ticket: 1,
+          price: effectivePrice.value,
+          ticket_fee: 0,
+          is_promo: totalDiscount.value > 0 ? 1 : 0,
+          promo_price: totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0,
+          subtotal_price: effectivePrice.value,
+          shuttle_route_id: ticket.value?.route_id || null
+        }));
       }
-      return {
-        shuttle_ticket_id: ticket.value?.id || "",
-        shuttle_session_id: parseInt(bookingStore.selectedSessionId) || 0,
-        trip_status_id: bookingStore.selectedTripStatus?.id || 1,
-        type_id: typeId, // 1 = pergi, 2 = pulang
-        order_seat_number: baseseat,
-        qty_ticket: 1,
-        price: effectivePrice.value,
-        ticket_fee: 0,
-        is_promo: totalDiscount.value > 0 ? 1 : 0,
-        promo_price: totalDiscount.value > 0 ? (totalDiscount.value / effectiveTicketCount.value) : 0,
-        subtotal_price: effectivePrice.value,
-        shuttle_route_id: ticket.value?.route_id || null
-      };
-    }),
+      
+      // For seated tickets: generate based on seats
+      return selectedseats.value.map(seat => {
+        const seatMatch = seat.match(/^(.*?)_(1|2)$/);
+        let typeId;
+        let baseseat;
+        if (seatMatch) {
+          typeId = parseInt(seatMatch[2], 10);
+          baseseat = seatMatch[1];
+        } else {
+          typeId = bookingStore.selectedTripStatus?.id || 1;
+          baseseat = seat;
+        }
+        return {
+          shuttle_ticket_id: ticket.value?.id || "",
+          shuttle_session_id: parseInt(bookingStore.selectedSessionId) || 0,
+          trip_status_id: bookingStore.selectedTripStatus?.id || 1,
+          type_id: typeId,
+          order_seat_number: baseseat,
+          qty_ticket: 1,
+          price: effectivePrice.value,
+          ticket_fee: 0,
+          is_promo: totalDiscount.value > 0 ? 1 : 0,
+          promo_price: totalDiscount.value > 0 ? (totalDiscount.value / effectiveTicketCount.value) : 0,
+          subtotal_price: effectivePrice.value,
+          shuttle_route_id: ticket.value?.route_id || null
+        };
+      });
+    })(),
     passengers: (() => {
       const allOwners = ticketOwners.value;
       const registrantEntry = {
@@ -867,8 +908,8 @@ const isLongText = (str, limit = 20) => {
                 </div>
               </div>
 
-              <!-- Trip Status / Jenis Trip -->
-              <div class="summary-route-section">
+              <!-- Trip Status / Jenis Trip (Hidden for festival tickets) -->
+              <div v-if="ticket.ticket_category !== 'festival'" class="summary-route-section">
                 <div class="summary-route-label">JENIS TRIP</div>
                 <div class="summary-route-value">
                   {{ tripTypeName }}

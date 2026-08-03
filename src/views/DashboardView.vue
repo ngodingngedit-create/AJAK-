@@ -15,11 +15,23 @@ const lastPage = ref(1);
 const fetchAllBookings = async () => {
   isLoading.value = true;
   try {
+    const token = authState.token;
+    if (!token) {
+      console.error('No auth token found. Please login first.');
+      router.push('/login');
+      return;
+    }
+    
     let allData = [];
     let p = 1;
     
     while (true) {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle-order?page=${p}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle-order-bycreator?page=${p}`, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
       const result = await res.json();
       
       if (result.success && result.data && result.data.data && result.data.data.length > 0) {
@@ -31,11 +43,11 @@ const fetchAllBookings = async () => {
       }
     }
     
-    // Show all bookings without filtering by email
+    // Show all bookings from this creator (filtered by bearer token)
     allBookings.value = allData;
     lastPage.value = p - 1;
   } catch (err) {
-    console.error('Failed to fetch all shuttle orders:', err);
+    console.error('Failed to fetch shuttle orders by creator:', err);
   } finally {
     isLoading.value = false;
   }
