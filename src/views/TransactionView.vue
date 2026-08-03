@@ -297,20 +297,12 @@ const getPhoneError = (phone) => {
   if (!cleanPhone) {
     return 'Nomor telepon wajib diisi';
   }
-  if (cleanPhone.startsWith('0')) {
-    return 'Nomor telepon tidak boleh diawali dengan angka 0. Silakan langsung mulai dengan angka 8';
+  if (!/^[0-9+\-\s()]+$/.test(cleanPhone)) {
+    return 'Nomor telepon tidak valid';
   }
-  if (cleanPhone.startsWith('+62') || cleanPhone.startsWith('62')) {
-    return 'Prefix +62 sudah disediakan. Silakan langsung mulai dengan angka 8';
-  }
-  if (!cleanPhone.startsWith('8')) {
-    return 'Nomor telepon Indonesia harus diawali dengan angka 8';
-  }
-  if (!/^\d+$/.test(cleanPhone)) {
-    return 'Nomor telepon hanya boleh berupa angka';
-  }
-  if (cleanPhone.length < 8 || cleanPhone.length > 13) {
-    return 'Nomor telepon harus terdiri dari 8 hingga 13 digit angka';
+  const digitsOnly = cleanPhone.replace(/[^0-9]/g, '');
+  if (digitsOnly.length < 8 || digitsOnly.length > 15) {
+    return 'Nomor telepon harus terdiri dari 8 hingga 15 digit';
   }
   return '';
 };

@@ -1,8 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { Users, Ticket, DollarSign, Filter, Search, Download, Eye, X, Tag } from 'lucide-vue-next';
+import { Users, Ticket, DollarSign, Filter, Search, Download, Eye, X, Tag, Pencil } from 'lucide-vue-next';
 import * as XLSX from 'xlsx';
+import { authState } from '../store/auth';
 
 const router = useRouter();
 const allBookings = ref([]);
@@ -30,6 +31,7 @@ const fetchAllBookings = async () => {
       }
     }
     
+    // Show all bookings without filtering by email
     allBookings.value = allData;
     lastPage.value = p - 1;
   } catch (err) {
@@ -415,6 +417,11 @@ const closeModal = () => {
   isModalOpen.value = false;
   selectedInvoice.value = null;
 };
+
+const editTransaction = (booking) => {
+  // TODO: Implement edit transaction functionality
+  console.log('Edit transaction:', booking);
+};
 </script>
 
 <template>
@@ -556,9 +563,14 @@ const closeModal = () => {
                   <span class="tag-badge">{{ b.payment_status }}</span>
                 </td>
                 <td>
-                  <button class="btn-icon" title="Lihat Detail" @click="viewInvoice(b.invoice_no)" style="display: inline-block; cursor: pointer; border: none; background: none; color: inherit; padding: 0;">
-                    <Eye :size="16" />
-                  </button>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <button class="btn-icon" title="Lihat Detail" @click="viewInvoice(b.invoice_no)">
+                      <Eye :size="16" />
+                    </button>
+                    <button class="btn-icon btn-icon-edit" title="Edit Transaksi" @click="editTransaction(b)">
+                      <Pencil :size="16" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             </tbody>
@@ -766,10 +778,10 @@ const closeModal = () => {
 .search-box {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   background: var(--input-bg);
-  padding: 10px 16px;
-  border-radius: 14px;
+  padding: 8px 14px;
+  border-radius: 12px;
   border: 1.5px solid var(--border-color);
   transition: all 0.3s ease;
 }
@@ -783,17 +795,17 @@ const closeModal = () => {
   background: transparent;
   outline: none;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: var(--text-dark);
-  width: 200px;
+  width: 180px;
 }
 .filter-box {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: var(--input-bg);
-  padding: 10px 20px;
-  border-radius: 14px;
+  padding: 8px 16px;
+  border-radius: 12px;
   border: 1.5px solid var(--border-color);
   transition: all 0.3s ease;
   cursor: pointer;
@@ -810,32 +822,32 @@ const closeModal = () => {
   border: none;
   background: transparent;
   font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--text-dark);
   outline: none;
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  padding-right: 24px;
+  padding-right: 20px;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23C94C4C' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right center;
-  background-size: 14px;
+  background-size: 12px;
 }
 .date-filter {
-  padding: 8px 16px;
+  padding: 6px 14px;
 }
 .date-input {
   border: none;
   background: transparent;
   font-family: inherit;
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--text-dark);
   outline: none;
   cursor: pointer;
-  min-width: 160px;
+  min-width: 140px;
 }
 .date-input::-webkit-calendar-picker-indicator {
   cursor: pointer;
@@ -844,14 +856,14 @@ const closeModal = () => {
 .export-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--primary);
   color: white;
   border: none;
-  padding: 10px 20px;
-  border-radius: 14px;
+  padding: 8px 16px;
+  border-radius: 12px;
   font-weight: 700;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   font-family: inherit;
   cursor: pointer;
   transition: all 0.3s;
@@ -1029,6 +1041,15 @@ const closeModal = () => {
 }
 .btn-icon:hover {
   background: var(--primary);
+  color: white;
+}
+
+.btn-icon-edit {
+  background: rgba(21, 101, 192, 0.1);
+  color: #1565C0;
+}
+.btn-icon-edit:hover {
+  background: #1565C0;
   color: white;
 }
 
