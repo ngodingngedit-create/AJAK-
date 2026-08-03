@@ -46,6 +46,7 @@ onMounted(async () => {
 const filterStatus = ref('PAID');
 const filterSesi = ref('Semua');
 const filterJenisTiket = ref('Semua');
+const filterDate = ref('');
 const searchQuery = ref('');
 
 const getSesi = (b) => {
@@ -166,6 +167,16 @@ const filteredBookings = computed(() => {
   if (filterJenisTiket.value !== 'Semua') {
     res = res.filter(b => getJenisTiket(b).includes(filterJenisTiket.value));
   }
+  if (filterDate.value) {
+    res = res.filter(b => {
+      if (b.tickets?.[0]?.shuttle_session?.departure_date) {
+        const departureDate = new Date(b.tickets[0].shuttle_session.departure_date);
+        const filterDateObj = new Date(filterDate.value);
+        return departureDate.toDateString() === filterDateObj.toDateString();
+      }
+      return false;
+    });
+  }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase();
     res = res.filter(b => 
@@ -186,7 +197,7 @@ const paginatedBookings = computed(() => {
 
 // Watchers
 import { watch } from 'vue';
-watch([filterStatus, filterSesi, filterJenisTiket, searchQuery], () => {
+watch([filterStatus, filterSesi, filterJenisTiket, filterDate, searchQuery], () => {
     currentPage.value = 1;
 });
 
@@ -482,6 +493,9 @@ const closeModal = () => {
                   {{ jt === 'Semua' ? 'Semua Jenis Tiket' : jt }}
                 </option>
               </select>
+            </div>
+            <div class="filter-box date-filter">
+              <input type="date" v-model="filterDate" class="date-input" placeholder="Pilih Tanggal" />
             </div>
             <button class="export-btn" @click="exportExcel">
               <Download :size="16" />
@@ -808,6 +822,24 @@ const closeModal = () => {
   background-repeat: no-repeat;
   background-position: right center;
   background-size: 14px;
+}
+.date-filter {
+  padding: 8px 16px;
+}
+.date-input {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-dark);
+  outline: none;
+  cursor: pointer;
+  min-width: 160px;
+}
+.date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(30%) sepia(93%) saturate(1071%) hue-rotate(334deg) brightness(85%) contrast(87%);
 }
 .export-btn {
   display: flex;
