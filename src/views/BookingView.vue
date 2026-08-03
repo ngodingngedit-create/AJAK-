@@ -1964,12 +1964,29 @@ const confirmBooking = () => {
 // YouTube Music Player
 const isMuted = ref(false);
 const youtubeIframeRef = ref(null);
+const localAudioRef = ref(null);
+
+// Detect Neverland event (only for this event, don't affect others)
+const isNeverlandEvent = computed(() => {
+  const name = (event.value?.name || '').toLowerCase();
+  return name.includes('neverland');
+});
 
 const toggleMute = () => {
   isMuted.value = !isMuted.value;
+  
+  // For Neverland: control local audio element
+  if (isNeverlandEvent.value) {
+    const audio = localAudioRef.value;
+    if (audio) {
+      audio.muted = isMuted.value;
+    }
+    return;
+  }
+  
+  // For other events: use YouTube IFrame API
   const iframe = youtubeIframeRef.value;
   if (!iframe) return;
-  // Use YouTube IFrame API postMessage — music keeps playing, no reload
   const command = isMuted.value ? 'mute' : 'unMute';
   iframe.contentWindow.postMessage(
     JSON.stringify({ event: 'command', func: command, args: [] }),
@@ -1978,6 +1995,18 @@ const toggleMute = () => {
 };
 
 const tryAutoplay = () => {
+  // For Neverland: play local audio
+  if (isNeverlandEvent.value) {
+    const audio = localAudioRef.value;
+    if (audio) {
+      audio.play().catch(() => {});
+    }
+    document.removeEventListener('click', tryAutoplay);
+    document.removeEventListener('touchstart', tryAutoplay);
+    return;
+  }
+  
+  // For other events: YouTube autoplay
   const iframe = youtubeIframeRef.value;
   if (iframe && iframe.contentWindow) {
     iframe.contentWindow.postMessage(
@@ -3159,8 +3188,19 @@ const tryAutoplay = () => {
       </div>
     </transition>
 
-    <!-- YouTube audio iframe (hidden) -->
+    <!-- Neverland local audio (only for Neverland event) -->
+    <audio
+      v-if="isNeverlandEvent"
+      ref="localAudioRef"
+      :src="'/sounds/JINGLE NEVERLAND FULL VERSION.wav'"
+      loop
+      autoplay
+      preload="auto"
+    ></audio>
+
+    <!-- YouTube audio iframe (hidden) - for other events only -->
     <iframe
+      v-else
       ref="youtubeIframeRef"
       class="yt-music-iframe"
       src="https://www.youtube.com/embed/TYBlfpCVHBo?autoplay=1&loop=1&playlist=TYBlfpCVHBo&mute=0&controls=0&showinfo=0&rel=0&modestbranding=1&enablejsapi=1"
