@@ -592,7 +592,7 @@ const tagColors = {
                   <span class="price-label">Mulai dari</span>
                   <div style="display: flex; flex-direction: column;">
                     <span class="event-price">{{ event.price }}</span>
-                    <span style="font-size: 0.75rem; color: #000000; font-weight: 600;">*Termasuk tiket ancol</span>
+                    <span v-if="!event.name?.toLowerCase().includes('neverland')" style="font-size: 0.75rem; color: #000000; font-weight: 600;">*Termasuk tiket ancol</span>
                   </div>
                 </div>
                 <button class="book-now-btn">
