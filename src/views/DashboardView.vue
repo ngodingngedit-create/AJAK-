@@ -174,8 +174,32 @@ const getBundledQty = (b) => {
   return 0;
 };
 
-// Qty column: bundled count (Couple ÷2, Barudak ÷4)
+// Qty column: bundled count (Couple ÷2, Barudak ÷4), except thesoundsproject uses raw count
 const getTotalQty = (b) => {
+  // Exception: thesoundsproject uses raw ticket count (no bundling)
+  const user = authState.user;
+  const creatorName = (user?.has_creator?.name || user?.has_creator?.slug || user?.name || '').toLowerCase();
+  const creatorSlug = (user?.has_creator?.slug_url || user?.has_creator?.slug || '').toLowerCase();
+  
+  console.log('getTotalQty - creatorName:', creatorName, 'creatorSlug:', creatorSlug);
+  
+  const isTSP = creatorName.includes('thesoundsproject') || 
+                creatorName.includes('tsp') || 
+                creatorName.includes('sounds') ||
+                creatorSlug.includes('thesoundsproject');
+  
+  if (isTSP) {
+    console.log('TSP detected - using raw ticket count');
+    // Return raw ticket count for TSP
+    if (b.tickets && b.tickets.length > 0) {
+      console.log('Returning tickets.length:', b.tickets.length);
+      return b.tickets.length;
+    }
+    if (b.total_qty && Number(b.total_qty) > 0) return Number(b.total_qty);
+    return 0;
+  }
+  
+  // For other events (Neverland, etc): use bundling logic
   return getBundledQty(b);
 };
 

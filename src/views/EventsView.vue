@@ -602,7 +602,7 @@ const tagColors = {
   transition: none !important;
 }
 .event-card-img {
-  height: 200px;
+  height: 150px;
   position: relative;
   overflow: hidden;
   border-radius: 8px !important;
