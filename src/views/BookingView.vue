@@ -79,9 +79,16 @@ const sessionOptions = computed(() => {
 
   return currentOp.sessions
     .filter(s => {
-      // Filter out sessions named "Sore" or "Malam" (case-insensitive)
       const name = (s.name || '').toLowerCase();
-      if (name.includes('sore') || name.includes('malam')) return false;
+      
+      // Exception for Neverland: Don't filter out "soreang" (place name)
+      const isNeverlandEvent = event.value?.name?.toLowerCase().includes('neverland');
+      
+      // Filter out sessions named "Sore" or "Malam" (case-insensitive)
+      // But skip this filter for Neverland event to keep "Soreang" sessions
+      if (!isNeverlandEvent) {
+        if (name.includes('sore') || name.includes('malam')) return false;
+      }
       
       // Filter out sessions with departure time >= 17:00 (evening/night only),
       // but always keep "Petang" sessions
