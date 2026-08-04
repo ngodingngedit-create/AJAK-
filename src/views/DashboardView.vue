@@ -58,6 +58,12 @@ const filterJenisTiket = ref('Semua');
 const filterDate = ref('');
 const searchQuery = ref('');
 
+// Detect Neverland dashboard based on creator name or slug
+const isNeverlandDashboard = computed(() => {
+  const name = (authState.user?.has_creator?.name || authState.user?.has_creator?.slug || authState.user?.name || '').toLowerCase();
+  return name.includes('neverland');
+});
+
 const getSesi = (b) => {
   // Helper: extract HH:mm from departure_time
   const getTime = (timeStr) => {
@@ -112,6 +118,10 @@ const getJenisTiket = (b) => {
 
 const getseats = (b) => {
   if (b.tickets && b.tickets.length > 0) {
+    // For festival tickets (no seats), return '-'
+    const hasSeats = b.tickets.some(t => t.order_seat_number && t.order_seat_number !== '');
+    if (!hasSeats) return '-';
+    
     const seats = b.tickets.map(t => t.order_seat_number).filter(Boolean);
     if (seats.length > 0) return seats.join(', ');
   }
@@ -122,8 +132,63 @@ const getseats = (b) => {
   return '-';
 };
 
+// Get bundling divisor based on ticket name (Couple=2, Barudak=4, else=1)
+const getBundlingDivisor = (ticket) => {
+  if (!ticket) return 1;
+  
+  // Prefer bundling_qty from API data
+  if (ticket.bundling_qty && Number(ticket.bundling_qty) > 1) {
+    return Number(ticket.bundling_qty);
+  }
+  
+  // Try different name fields: ticket.name, ticket.ticket?.name
+  const name = (ticket.name || ticket.ticket?.name || '').toLowerCase();
+  if (name.includes('couple')) return 2;
+  if (name.includes('barudak')) return 4;
+  return 1; // sorangan / regular = 1
+};
+
+// Get bundled qty for festival tickets (Couple: 2 tickets = 1, Barudak: 4 tickets = 1)
+const getBundledQty = (b) => {
+  if (!b) return 0;
+  
+  if (b.tickets && b.tickets.length > 0) {
+    const hasSeats = b.tickets.some(t => t.order_seat_number && t.order_seat_number !== '');
+    if (!hasSeats) {
+      // Festival: find any ticket with name info to get divisor
+      const ticketWithName = b.tickets.find(t => t.name || t.ticket?.name || t.bundling_qty);
+      const divisor = getBundlingDivisor(ticketWithName);
+      return Math.ceil(b.tickets.length / divisor);
+    }
+    
+    // Seated tickets: count actual seats
+    const seats = b.tickets.map(t => t.order_seat_number).filter(Boolean);
+    if (seats.length > 0) return seats.length;
+  }
+  
+  // Fallback to API total_qty if no tickets data
+  if (b.total_qty && Number(b.total_qty) > 0) {
+    return Number(b.total_qty);
+  }
+  
+  return 0;
+};
+
+// Qty column: bundled count (Couple ÷2, Barudak ÷4)
+const getTotalQty = (b) => {
+  return getBundledQty(b);
+};
+
+// Qty Seat column: raw ticket count for festival, seat count for seated
 const getSeatQty = (b) => {
   if (b.tickets && b.tickets.length > 0) {
+    const hasSeats = b.tickets.some(t => t.order_seat_number && t.order_seat_number !== '');
+    if (!hasSeats) {
+      // Festival tickets: return raw ticket count
+      return b.tickets.length;
+    }
+    
+    // Seated tickets: count actual seats
     const seats = b.tickets.map(t => t.order_seat_number).filter(Boolean);
     if (seats.length > 0) return seats.length;
   }
@@ -305,7 +370,7 @@ const exportExcel = () => {
       getDepartureDate(b),
       getSesi(b),
       getTripStatus(b),
-      b.total_qty || 0,
+      getTotalQty(b),
       getseats(b),
       getSeatQty(b),
       b.payment_status || '-'
@@ -508,7 +573,7 @@ const editTransaction = (booking) => {
                 </option>
               </select>
             </div>
-            <div class="filter-box date-filter">
+            <div v-if="!isNeverlandDashboard" class="filter-box date-filter">
               <input type="date" v-model="filterDate" class="date-input" placeholder="Pilih Tanggal" />
             </div>
             <button class="export-btn" @click="exportExcel">
@@ -532,19 +597,19 @@ const editTransaction = (booking) => {
                 <th>Tanggal Berangkat</th>
                 <th>Sesi</th>
                 <th>Trip</th>
-                <th>Qty</th>
+                <th class="text-center">Qty</th>
                 <th>Seat</th>
-                <th>Qty Seat</th>
+                <th class="text-center">Qty Seat</th>
                 <th>Status</th>
-                <th>Aksi</th>
+                <th class="text-center">Aksi</th>
               </tr>
             </thead>
             <tbody>
               <tr v-if="isLoading">
-                <td colspan="14" class="empty-state">Loading data...</td>
+                <td colspan="15" class="empty-state">Loading data...</td>
               </tr>
               <tr v-else-if="paginatedBookings.length === 0">
-                <td colspan="14" class="empty-state">
+                <td colspan="15" class="empty-state">
                   Belum ada data pemesanan untuk filter ini.
                 </td>
               </tr>
@@ -563,14 +628,14 @@ const editTransaction = (booking) => {
                 <td style="white-space: nowrap;">{{ getDepartureDate(b) }}</td>
                 <td style="white-space: nowrap;">{{ getSesi(b) }}</td>
                 <td style="white-space: nowrap;">{{ getTripStatus(b) }}</td>
-                <td>{{ b.total_qty }}</td>
+                <td class="text-center">{{ getTotalQty(b) }}</td>
                 <td style="white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" :title="getseats(b)">{{ getseats(b) }}</td>
-                <td>{{ getSeatQty(b) }}</td>
+                <td class="text-center">{{ getSeatQty(b) }}</td>
                 <td>
                   <span class="tag-badge">{{ b.payment_status }}</span>
                 </td>
-                <td>
-                  <div style="display: flex; gap: 8px; align-items: center;">
+                <td class="text-center">
+                  <div style="display: flex; gap: 8px; align-items: center; justify-content: center;">
                     <button class="btn-icon" title="Lihat Detail" @click="viewInvoice(b.invoice_no)">
                       <Eye :size="16" />
                     </button>
@@ -884,32 +949,41 @@ const editTransaction = (booking) => {
 
 .table-responsive {
   overflow-x: auto;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,0.06);
 }
 .report-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 900px;
+  min-width: 1100px;
 }
 .report-table th, .report-table td {
-  padding: 16px 24px;
+  padding: 12px 16px;
   text-align: left;
-  border-bottom: 1px solid rgba(0,0,0,0.04);
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  white-space: nowrap;
 }
 .report-table th {
-  font-size: 0.8rem;
+  font-size: 0.72rem;
   font-weight: 800;
   color: var(--text-light);
   text-transform: uppercase;
-  letter-spacing: 1px;
-  background: rgba(0,0,0,0.02);
+  letter-spacing: 0.8px;
+  background: #f8fafc;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 .report-table td {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-dark);
-  vertical-align: top;
+  vertical-align: middle;
 }
 .report-table tr:hover td {
   background: rgba(0,0,0,0.01);
+}
+.report-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .report-table td.empty-state {
@@ -917,6 +991,16 @@ const editTransaction = (booking) => {
   padding: 60px 24px !important;
   color: var(--text-light);
   font-style: italic;
+}
+
+/* Center alignment utility for table cells */
+.text-center {
+  text-align: center !important;
+}
+
+/* Align header center for consistency with data cells */
+.report-table th.text-center {
+  text-align: center !important;
 }
 
 .small-text {

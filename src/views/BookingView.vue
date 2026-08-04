@@ -8280,6 +8280,57 @@ html.lock-scroll, body.lock-scroll {
   opacity: 0.6;
 }
 
+/* Mobile: Fit 3 sessions without wrapping - fully responsive */
+@media (max-width: 768px) {
+  .session-pills-row {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+  
+  .session-pill-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
+  }
+  
+  .session-pill-inner {
+    padding: 6px 6px;
+    width: 100%;
+  }
+  
+  .session-pill-name {
+    font-size: 0.75rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .session-pill-time {
+    font-size: 0.65rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Extra small screens (<= 380px): reduce further */
+@media (max-width: 380px) {
+  .session-pill-inner {
+    padding: 5px 4px;
+  }
+  
+  .session-pill-name {
+    font-size: 0.68rem;
+  }
+  
+  .session-pill-time {
+    font-size: 0.6rem;
+  }
+}
+
 /* UX Visual Indicator: Session Status Dot */
 .session-status-dot {
   display: inline-block;
@@ -8402,12 +8453,8 @@ html.lock-scroll, body.lock-scroll {
   .session-pills-row {
     gap: 8px;
     flex-wrap: nowrap;
-    overflow-x: auto;
-    scroll-behavior: smooth;
-    -webkit-overflow-scrolling: touch;
+    overflow-x: visible;
     padding-bottom: 4px;
-    -ms-overflow-style: none;
-    scrollbar-width: none;
   }
   
   .session-pills-row::-webkit-scrollbar {
@@ -8415,8 +8462,9 @@ html.lock-scroll, body.lock-scroll {
   }
   
   .session-pill-btn {
-    flex: none;
-    width: 160px;
+    flex: 1 1 0;
+    min-width: 0;
+    width: auto;
     border-radius: 8px;
   }
   

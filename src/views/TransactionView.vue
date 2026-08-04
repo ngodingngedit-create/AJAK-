@@ -414,11 +414,15 @@ const executeCheckout = async () => {
     tickets: (() => {
       // For festival tickets: generate based on quantity (no seats)
       if (ticket.value?.ticket_category === 'festival') {
+        // Neverland: default type_id = 3 (Pulang Pergi)
+        const isNeverland = event.value?.name?.toLowerCase().includes('neverland');
+        const defaultTypeId = isNeverland ? 3 : 1;
+        
         return Array.from({ length: quantity.value }, () => ({
           shuttle_ticket_id: ticket.value?.id || "",
           shuttle_session_id: parseInt(bookingStore.selectedSessionId) || 0,
           trip_status_id: bookingStore.selectedTripStatus?.id || 3,
-          type_id: 1,
+          type_id: defaultTypeId,
           order_seat_number: "", // No seat for festival
           qty_ticket: 1,
           price: effectivePrice.value,
