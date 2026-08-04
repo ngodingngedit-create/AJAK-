@@ -426,7 +426,9 @@ const executeCheckout = async () => {
           is_promo: totalDiscount.value > 0 ? 1 : 0,
           promo_price: totalDiscount.value > 0 ? (totalDiscount.value / quantity.value) : 0,
           subtotal_price: effectivePrice.value,
-          shuttle_route_id: ticket.value?.route_id || null
+          shuttle_route_id: ticket.value?.route_id || null,
+          is_bundling: ticket.value?.is_bundling || false,
+          bundling_qty: ticket.value?.bundling_qty || 0
         }));
       }
       
@@ -454,7 +456,9 @@ const executeCheckout = async () => {
           is_promo: totalDiscount.value > 0 ? 1 : 0,
           promo_price: totalDiscount.value > 0 ? (totalDiscount.value / effectiveTicketCount.value) : 0,
           subtotal_price: effectivePrice.value,
-          shuttle_route_id: ticket.value?.route_id || null
+          shuttle_route_id: ticket.value?.route_id || null,
+          is_bundling: ticket.value?.is_bundling || false,
+          bundling_qty: ticket.value?.bundling_qty || 0
         };
       });
     })(),

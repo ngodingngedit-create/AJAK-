@@ -307,7 +307,7 @@ const getTicketQuantity = (ticketId) => {
 
 // Helper: set quantity for a specific ticket
 const setTicketQuantity = (ticketId, qty) => {
-  const newQty = Math.max(0, Math.min(10, qty));
+  const newQty = Math.max(0, Math.min(50, qty)); // Increased to 50 for bundling support
   ticketQuantities.value[ticketId] = newQty;
   
   // Auto-select ticket when quantity > 0
@@ -1033,6 +1033,8 @@ const filteredTickets = computed(() => {
         description: t.description || (t.route ? `Rute: ${t.route.origin_name || ''} -> ${t.route.destination_name || ''} (${t.route.distance_km || ''} km)` : ''),
         price: parseInt(t.price || 0),
         ticket_fee: t.ticket_fee || 0,
+        is_bundling: t.is_bundling || false,
+        bundling_qty: t.bundling_qty || 1,
         available_seat_number: t.available_seat_number || 'A1,A2,A3,A4,A5,B1,B2,B3,C1,C2,C3,D1,D2,E1,E2,E3',
         taken_seat_number: t.taken_seat_number || '',
         pending_seat_number: t.pending_seat_number || '',
@@ -2720,9 +2722,9 @@ const tryAutoplay = () => {
                                 <div class="ticket-action-select-btn-only">
                                   <!-- Festival ticket: Show quantity selector -->
                                   <div v-if="t.ticket_category === 'festival'" class="quantity-selector-wrapper">
-                                    <button class="qty-btn" @click="setTicketQuantity(t.id, getTicketQuantity(t.id) - 1)">−</button>
+                                    <button class="qty-btn" @click="setTicketQuantity(t.id, getTicketQuantity(t.id) - (t.is_bundling ? (t.bundling_qty || 1) : 1))">−</button>
                                     <span class="qty-display">{{ getTicketQuantity(t.id) }}</span>
-                                    <button class="qty-btn" @click="setTicketQuantity(t.id, getTicketQuantity(t.id) + 1)">+</button>
+                                    <button class="qty-btn" @click="setTicketQuantity(t.id, getTicketQuantity(t.id) + (t.is_bundling ? (t.bundling_qty || 1) : 1))">+</button>
                                   </div>
                                   
                                   <!-- Seated ticket: Show seat selection button -->
@@ -3035,7 +3037,7 @@ const tryAutoplay = () => {
         <!-- Bottom Row: Buy Button -->
         <div class="m-bottom-bar-bottom-row">
           <button 
-            v-if="!selectedTicket || selectedseats.length === 0"
+            v-if="totalSelectedTicketsCount === 0"
             class="m-buy-btn"
             @click="scrollToTickets"
           >
@@ -3046,9 +3048,9 @@ const tryAutoplay = () => {
             v-else-if="currentStep === 1"
             class="m-buy-btn"
             :disabled="isPP && ppStep === 1 && ppPergiSelectedCount === 0"
-            @click="isPP && ppStep === 1 ? goToPpStep2() : goToBuyerDetails()"
+            @click="selectedTicket?.ticket_category === 'festival' ? goToBuyerDetails() : (isPP && ppStep === 1 ? goToPpStep2() : goToBuyerDetails())"
           >
-            <template v-if="isPP && ppStep === 1">Lanjut ke Pulang</template>
+            <template v-if="selectedTicket?.ticket_category !== 'festival' && isPP && ppStep === 1">Lanjut ke Pulang</template>
             <template v-else>Beli Tiket Sekarang</template>
           </button>
           
