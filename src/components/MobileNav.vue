@@ -1,7 +1,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { Home, Calendar, Layers, MapPin, User } from 'lucide-vue-next';
+import { Home, Calendar, Layers, MapPin, User, ScanLine, UserCheck } from 'lucide-vue-next';
 import { authState } from '../store/auth';
+import { checkinTab } from '../store/checkin';
 import { useRouter, useRoute } from 'vue-router';
 
 const router = useRouter();
@@ -16,6 +17,9 @@ const navItems = [
 ];
 
 const isOnHome = computed(() => route.path === '/');
+
+// Special nav for /checkin (mobile only): only Checkin & Checkin Manual tabs
+const isCheckinPage = computed(() => route.path === '/checkin');
 
 const onScroll = () => {
   if (!isOnHome.value) return;
@@ -77,13 +81,49 @@ const activeIndex = computed(() => {
   return navItems.findIndex(i => i.id === activeSection.value);
 });
 
+// Checkin nav specific logic
+const checkinItems = [
+  { id: 'scan',   label: 'Checkin',        icon: ScanLine,  tab: 'scan' },
+  { id: 'manual', label: 'Checkin Manual', icon: UserCheck, tab: 'manual' },
+];
+
+const checkinActiveIndex = computed(() => {
+  return checkinItems.findIndex(i => i.tab === checkinTab.value);
+});
+
 onMounted(() => window.addEventListener('scroll', onScroll));
 onUnmounted(() => window.removeEventListener('scroll', onScroll));
 </script>
 
 <template>
   <div class="mobile-nav-wrapper">
-    <nav class="crystal-nav">
+    <!-- /checkin: only Checkin & Checkin Manual tabs -->
+    <nav v-if="isCheckinPage" class="crystal-nav checkin-nav">
+      <div
+        class="active-indicator"
+        :style="{ transform: `translateX(calc(${checkinActiveIndex} * 100%))`, width: '50%' }"
+      >
+        <div class="indicator-line"></div>
+      </div>
+
+      <div class="nav-content">
+        <button
+          v-for="item in checkinItems"
+          :key="item.id"
+          class="nav-btn"
+          :class="{ active: checkinTab === item.tab }"
+          @click="checkinTab = item.tab"
+        >
+          <div class="icon-box">
+            <component :is="item.icon" :size="20" stroke-width="2" />
+          </div>
+          <span class="nav-label">{{ item.label }}</span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Default nav -->
+    <nav v-else class="crystal-nav">
       <!-- Top Active Indicator Bar -->
       <div 
         class="active-indicator" 
@@ -222,5 +262,14 @@ onUnmounted(() => window.removeEventListener('scroll', onScroll));
 
 .nav-btn:active .icon-box {
   transform: scale(0.9);
+}
+
+/* Checkin-specific nav: 2 tabs, slightly larger labels */
+.crystal-nav.checkin-nav {
+  height: 64px;
+}
+.checkin-nav .nav-label {
+  font-size: 0.7rem;
+  font-weight: 700;
 }
 </style>

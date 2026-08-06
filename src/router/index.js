@@ -40,6 +40,7 @@ const router = createRouter({
     { path: '/profile/help', redirect: '/help' },
     { path: '/help', name: 'help', component: HelpView },
     { path: '/portfolio', name: 'portfolio', component: () => import('../views/PortfolioView.vue') },
+    { path: '/checkin', name: 'checkin', component: () => import('../views/CheckinView.vue') },
   ],
   scrollBehavior(to, from, savedPosition) {
     if (to.hash) {

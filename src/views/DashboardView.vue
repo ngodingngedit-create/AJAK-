@@ -22,25 +22,29 @@ const fetchAllBookings = async () => {
       return;
     }
     
-    let allData = [];
-    let p = 1;
+    // Step 1: Fetch only the first 20 transactions and show them fast
+    const firstRes = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle-order?creator_id=${creatorId}&page=1&per_page=20`);
+    const firstResult = await firstRes.json();
     
-    while (true) {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle-order?creator_id=${creatorId}&page=${p}`);
-      const result = await res.json();
-      
-      if (result.success && result.data && result.data.data && result.data.data.length > 0) {
-        allData = [...allData, ...result.data.data];
-        p++;
-      } else {
-        // No more data, stop fetching
-        break;
-      }
+    if (firstResult.success && firstResult.data) {
+      const firstData = (firstResult.data.data) || [];
+      allBookings.value = firstData;
+      lastPage.value = firstResult.data.last_page || 1;
+    } else {
+      allBookings.value = [];
+      lastPage.value = 0;
     }
     
-    // Show bookings filtered by creator_id
-    allBookings.value = allData;
-    lastPage.value = p - 1;
+    isLoading.value = false;
+    
+    // Step 2: Then fetch ALL transactions at once and display everything
+    const allRes = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle-order?creator_id=${creatorId}&per_page=5000`);
+    const allResult = await allRes.json();
+    
+    if (allResult.success && allResult.data) {
+      allBookings.value = allResult.data.data || [];
+      lastPage.value = allResult.data.last_page || 1;
+    }
   } catch (err) {
     console.error('Failed to fetch shuttle orders by creator:', err);
   } finally {
