@@ -49,8 +49,21 @@ const dateOptions = computed(() => {
   if (!event.value || !event.value.operation_days || !Array.isArray(event.value.operation_days) || event.value.operation_days.length === 0) {
     return [];
   }
+  
+  const isTSPEvent = event.value?.name?.toLowerCase().includes('the sounds project') || 
+                     event.value?.name?.toLowerCase().includes('tsp');
+  
   return event.value.operation_days.map(op => {
     const formatted = formatOpDate(op.operation_date);
+    
+    // Hide Day 1 for TSP event
+    if (isTSPEvent) {
+      const firstDate = event.value.operation_days[0]?.operation_date;
+      if (String(op.operation_date) === String(firstDate)) {
+        return null;
+      }
+    }
+    
     return {
       id: String(op.operation_date),
       label: formatted.label,
@@ -60,7 +73,7 @@ const dateOptions = computed(() => {
       enabled: true,
       raw: op
     };
-  });
+  }).filter(Boolean);
 });
 
 const sessionOptions = computed(() => {
