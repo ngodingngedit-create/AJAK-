@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, computed } from 'vue';
+import { ref, onMounted, onBeforeUnmount, nextTick, computed, watch } from 'vue';
 import { authState } from '../store/auth';
 import { checkinTab } from '../store/checkin';
 import { UserCheck, Search, X, CheckCircle2, AlertTriangle, XCircle, Loader2 } from 'lucide-vue-next';
@@ -200,44 +200,79 @@ const retryScan = () => {
 };
 
 // Load eticket list when manual tab is shown
-import { watch } from 'vue';
-watch(checkinTab, (tab) => {
-  if (tab === 'manual' && etickets.value.length === 0) {
-    fetchEtickets();
+// Re-initialize the scanner when returning to the scan tab
+watch(checkinTab, async (tab) => {
+  if (tab === 'scan') {
+    // Wait for the video element to be re-created by v-if
+    await nextTick();
+    // Bind the existing active stream to the new video element
+    if (isCameraOn.value && stream.value && videoRef.value) {
+      videoRef.value.srcObject = stream.value;
+      videoRef.value.onloadedmetadata = () => {
+        videoRef.value.play().catch((e) => {
+          console.warn('Autoplay blocked, user gesture needed', e);
+        });
+      };
+      if (!scanRAF) {
+        scanRAF = requestAnimationFrame(scanLoop);
+      }
+    } else if (!isCameraOn.value && !isStarting.value && !cameraError.value) {
+      startCamera();
+    }
+  } else if (tab === 'manual') {
+    // Video element is destroyed by v-if; stop scanning to save resources
+    stopScanLoop();
+    if (allEtickets.value.length === 0) {
+      fetchEtickets();
+    }
   }
 });
 
 // ---------- Checkin Manual List ----------
-const etickets = ref([]);
+const allEtickets = ref([]);
 const isLoading = ref(false);
 const searchQuery = ref('');
 const summary = ref({ total: 0, checked_in: 0, not_checked_in: 0 });
 const currentPage = ref(1);
-const lastPage = ref(1);
+const pageSize = 10;
 const manualSubmittingId = ref(null);
 const filterStatus = ref('semua');
 const filterSession = ref('semua');
 const filterTicket = ref('semua');
+const filterDate = ref('');
 
-const fetchEtickets = async (page = 1) => {
+// Fetch ALL etickets once, then search/filter/paginate client-side
+const fetchEtickets = async () => {
   isLoading.value = true;
   try {
-    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle/checkin/list?page=${page}`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle/checkin/list?per_page=10000`);
     const result = await res.json();
 
     if (result.success) {
-      etickets.value = result.data || [];
-      summary.value = result.summary || { total: 0, checked_in: 0, not_checked_in: 0 };
-      if (result.pagination) {
-        currentPage.value = result.pagination.current_page || 1;
-        lastPage.value = result.pagination.last_page || 1;
+      let all = result.data || [];
+
+      // Total rows may exceed per_page; keep fetching while there are more pages
+      if (result.pagination && result.pagination.total > all.length) {
+        const last = result.pagination.last_page || 1;
+        for (let p = 2; p <= last; p++) {
+          const pr = await fetch(`${import.meta.env.VITE_API_URL}/api/shuttle/checkin/list?per_page=5000&page=${p}`);
+          const prj = await pr.json();
+          if (prj?.success && prj?.data) {
+            all = all.concat(prj.data);
+          } else {
+            break;
+          }
+        }
       }
+
+      allEtickets.value = all;
+      summary.value = result.summary || { total: 0, checked_in: 0, not_checked_in: 0 };
     } else {
-      etickets.value = [];
+      allEtickets.value = [];
     }
   } catch (err) {
     console.error('Failed to fetch etickets:', err);
-    etickets.value = [];
+    allEtickets.value = [];
   } finally {
     isLoading.value = false;
   }
@@ -245,14 +280,20 @@ const fetchEtickets = async (page = 1) => {
 
 const filteredEtickets = computed(() => {
   const q = searchQuery.value.trim().toLowerCase();
-  return etickets.value.filter(b => {
-    // Search filter
+  return allEtickets.value.filter(b => {
+    // Search: covers every visible column
     if (q) {
-      const match =
-        (b.eticket_number || '').toLowerCase().includes(q) ||
-        (b.nama || '').toLowerCase().includes(q) ||
-        (b.email || '').toLowerCase().includes(q);
-      if (!match) return false;
+      const haystack = [
+        b.eticket_number,
+        b.nama,
+        b.email,
+        getTicketType(b),
+        b.session,
+        b.seat_no,
+        b.status,
+        b.is_checkin ? 'sudah check-in' : 'belum check-in',
+      ].map(v => (v || '').toLowerCase()).join(' ');
+      if (!haystack.includes(q)) return false;
     }
     // Status filter
     if (filterStatus.value !== 'semua') {
@@ -267,19 +308,38 @@ const filteredEtickets = computed(() => {
     if (filterTicket.value !== 'semua') {
       if (getTicketType(b) !== filterTicket.value) return false;
     }
+    // Date filter (match year-month-day)
+    if (filterDate.value) {
+      if (!b.checkin_date) return false;
+      const target = filterDate.value;
+      const dt = new Date(b.checkin_date);
+      if (isNaN(dt.getTime())) return false;
+      const y = dt.getFullYear();
+      const m = String(dt.getMonth() + 1).padStart(2, '0');
+      const d = String(dt.getDate()).padStart(2, '0');
+      if (`${y}-${m}-${d}` !== target) return false;
+    }
     return true;
   });
 });
 
-// Filter options derived from current list
+const totalFiltered = computed(() => filteredEtickets.value.length);
+const lastPage = computed(() => Math.max(1, Math.ceil(totalFiltered.value / pageSize)));
+
+const paginatedEtickets = computed(() => {
+  const start = (currentPage.value - 1) * pageSize;
+  return filteredEtickets.value.slice(start, start + pageSize);
+});
+
+// Filter options derived from the full dataset
 const sessionOptions = computed(() => {
-  const set = new Set(etickets.value.map(e => e.session).filter(Boolean));
-  return Array.from(set);
+  const set = new Set(allEtickets.value.map(e => e.session).filter(Boolean));
+  return Array.from(set).sort();
 });
 
 const ticketOptions = computed(() => {
-  const set = new Set(etickets.value.map(e => getTicketType(e)).filter(t => t !== '-'));
-  return Array.from(set);
+  const set = new Set(allEtickets.value.map(e => getTicketType(e)).filter(t => t !== '-'));
+  return Array.from(set).sort();
 });
 
 const getTicketType = (e) => {
@@ -308,8 +368,38 @@ const formatCheckinDate = (iso) => {
 
 const goToPage = (p) => {
   if (p < 1 || p > lastPage.value || p === currentPage.value) return;
-  fetchEtickets(p);
+  currentPage.value = p;
 };
+
+const goToNeighbor = (dir) => {
+  goToPage(currentPage.value + dir);
+};
+
+// Build a compact page list with ellipsis
+const visiblePages = computed(() => {
+  const total = lastPage.value;
+  const cur = currentPage.value;
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1);
+  }
+  const pages = [1];
+  const range = [cur - 1, cur, cur + 1].filter(p => p > 1 && p < total);
+  let prev = 1;
+  range.forEach(p => {
+    if (p - prev > 1) pages.push('...');
+    pages.push(p);
+    prev = p;
+  });
+  if (total - prev > 1) pages.push('...');
+  pages.push(total);
+  return pages;
+});
+
+const resetPageOnFilter = () => {
+  currentPage.value = 1;
+};
+
+watch([searchQuery, filterStatus, filterSession, filterTicket, filterDate], resetPageOnFilter);
 
 const manualCheckin = async (eticket) => {
   if (manualSubmittingId.value) return;
@@ -333,7 +423,7 @@ const manualCheckin = async (eticket) => {
         data: result.data,
       };
       // Refresh the list to reflect the updated check-in status
-      fetchEtickets(currentPage.value);
+      fetchEtickets();
     } else {
       const isAlready = !res.ok && result.message && result.message.toLowerCase().includes('sudah');
       checkinResult.value = {
@@ -458,6 +548,9 @@ const manualCheckin = async (eticket) => {
           <div class="search-box">
             <Search :size="16" class="text-light" />
             <input type="text" v-model="searchQuery" placeholder="Cari eticket, nama, email..." class="search-input" />
+            <button v-if="searchQuery" class="clear-search-btn" @click="searchQuery = ''">
+              <X :size="14" />
+            </button>
           </div>
         </div>
 
@@ -475,6 +568,12 @@ const manualCheckin = async (eticket) => {
             <option value="semua">Semua Tiket</option>
             <option v-for="t in ticketOptions" :key="t" :value="t">{{ t }}</option>
           </select>
+          <div class="date-filter">
+            <input type="date" v-model="filterDate" class="date-input" />
+            <button v-if="filterDate" class="clear-search-btn" @click="filterDate = ''">
+              <X :size="14" />
+            </button>
+          </div>
         </div>
 
         <div class="table-responsive">
@@ -497,13 +596,13 @@ const manualCheckin = async (eticket) => {
               <tr v-if="isLoading">
                 <td colspan="10" class="empty-state">Loading data...</td>
               </tr>
-              <tr v-else-if="filteredEtickets.length === 0">
+              <tr v-else-if="paginatedEtickets.length === 0">
                 <td colspan="10" class="empty-state">
                   Belum ada data.
                 </td>
               </tr>
-              <tr v-for="(e, index) in filteredEtickets" :key="e.id">
-                <td>{{ (currentPage - 1) * 20 + index + 1 }}</td>
+              <tr v-for="(e, index) in paginatedEtickets" :key="e.id">
+                <td>{{ (currentPage - 1) * pageSize + index + 1 }}</td>
                 <td style="white-space: nowrap; font-weight: 700;">
                   {{ e.eticket_number }}
                 </td>
@@ -536,16 +635,27 @@ const manualCheckin = async (eticket) => {
         </div>
 
         <!-- Pagination -->
-        <div v-if="lastPage > 1" class="pagination-controls">
-          <button class="page-btn" :disabled="currentPage <= 1" @click="goToPage(currentPage - 1)">‹</button>
-          <button
-            v-for="p in lastPage"
-            :key="p"
-            class="page-btn"
-            :class="{ active: p === currentPage }"
-            @click="goToPage(p)"
-          >{{ p }}</button>
-          <button class="page-btn" :disabled="currentPage >= lastPage" @click="goToPage(currentPage + 1)">›</button>
+        <div v-if="totalFiltered > 0" class="pagination-bar">
+          <span class="pagination-info">
+            Menampilkan {{ (currentPage - 1) * pageSize + 1 }}–{{ Math.min(currentPage * pageSize, totalFiltered) }} dari {{ totalFiltered }} tiket
+          </span>
+          <div v-if="lastPage > 1" class="pagination-controls">
+            <button class="page-btn" :disabled="currentPage <= 1" @click="goToNeighbor(-1)" title="Sebelumnya">
+              ‹
+            </button>
+            <template v-for="(p, i) in visiblePages" :key="i">
+              <span v-if="p === '...'" class="page-ellipsis">…</span>
+              <button
+                v-else
+                class="page-btn"
+                :class="{ active: p === currentPage }"
+                @click="goToPage(p)"
+              >{{ p }}</button>
+            </template>
+            <button class="page-btn" :disabled="currentPage >= lastPage" @click="goToNeighbor(1)" title="Berikutnya">
+              ›
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -900,6 +1010,23 @@ const manualCheckin = async (eticket) => {
   width: 220px;
 }
 
+.clear-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #999;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+.clear-search-btn:hover {
+  color: var(--primary);
+  background: rgba(201, 76, 76, 0.08);
+}
+
 .text-light {
   color: var(--primary);
 }
@@ -1036,6 +1163,37 @@ const manualCheckin = async (eticket) => {
   box-shadow: 0 4px 15px rgba(201, 76, 76, 0.08);
 }
 
+.date-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 10px;
+  background: #ffffff;
+  transition: all 0.25s ease;
+}
+.date-filter:focus-within {
+  border-color: var(--primary);
+  box-shadow: 0 4px 15px rgba(201, 76, 76, 0.08);
+}
+.date-input {
+  border: none;
+  background: transparent;
+  outline: none;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #000;
+  cursor: pointer;
+  padding: 10px 0;
+  min-width: 130px;
+}
+.date-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(30%) sepia(93%) saturate(1071%) hue-rotate(334deg) brightness(85%) contrast(87%);
+}
+
 .sum-item {
   background: #f7f7f7;
   border: 1px solid #e0e0e0;
@@ -1080,11 +1238,30 @@ const manualCheckin = async (eticket) => {
 }
 
 /* Pagination */
+.pagination-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid rgba(0,0,0,0.06);
+  border-radius: 12px;
+  background: #fafafa;
+}
+
+.pagination-info {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 600;
+}
+
 .pagination-controls {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 6px;
-  margin-top: 20px;
+  flex-wrap: wrap;
 }
 
 .page-btn {
@@ -1108,10 +1285,20 @@ const manualCheckin = async (eticket) => {
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
+  box-shadow: 0 3px 10px rgba(201, 76, 76, 0.3);
 }
 .page-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.page-ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  color: #999;
+  font-weight: 700;
 }
 
 /* Desktop layout */
@@ -1174,16 +1361,30 @@ const manualCheckin = async (eticket) => {
     font-size: 0.6rem;
   }
   .filter-row {
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
-  .filter-select {
+  .filter-row .filter-select {
     width: 100%;
+  }
+  .date-filter {
+    grid-column: 1 / -1;
   }
   .search-box {
     width: 100%;
   }
   .search-input {
     width: 100%;
+  }
+  .pagination-bar {
+    padding: 12px;
+  }
+  .page-btn {
+    min-width: 32px;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 0.8rem;
   }
 }
 
