@@ -50,19 +50,8 @@ const dateOptions = computed(() => {
     return [];
   }
   
-  const isTSPEvent = event.value?.name?.toLowerCase().includes('the sounds project') || 
-                     event.value?.name?.toLowerCase().includes('tsp');
-  
   return event.value.operation_days.map(op => {
     const formatted = formatOpDate(op.operation_date);
-    
-    // Hide Day 1 for TSP event
-    if (isTSPEvent) {
-      const firstDate = event.value.operation_days[0]?.operation_date;
-      if (String(op.operation_date) === String(firstDate)) {
-        return null;
-      }
-    }
     
     return {
       id: String(op.operation_date),
@@ -978,6 +967,19 @@ const getFacilityIcon = (facility) => {
 const tripStatusOptions = ref([]);
 const selectedTripStatus = ref(null);
 
+// On tanggal 7 (day-of-month 7), only the "Ticket Pulang" (one-way return) trip type is allowed
+const isPulangOnlyDate = computed(() => {
+  const parts = (selectedDate.value || '').split('-');
+  return parts.length === 3 && parseInt(parts[2], 10) === 7;
+});
+
+const availableTripStatusOptions = computed(() => {
+  if (isPulangOnlyDate.value) {
+    return tripStatusOptions.value.filter(ts => Number(ts.id) === 2);
+  }
+  return tripStatusOptions.value;
+});
+
 const fetchTicketTypes = async () => {
   try {
     const res = await fetch(import.meta.env.VITE_API_URL + '/api/shuttle-ticket-type');
@@ -1009,6 +1011,16 @@ watch(selectedTripStatus, (val) => {
   if (val) {
     tripTypeError.value = '';
     selectedseatsMap.value = {}; // Reset seats
+  }
+});
+
+// Reset trip type if it's not allowed for the currently selected date
+watch([isPulangOnlyDate, tripStatusOptions], () => {
+  if (selectedTripStatus.value) {
+    const allowed = availableTripStatusOptions.value.some(ts => String(ts.id) === String(selectedTripStatus.value.id));
+    if (!allowed) {
+      selectedTripStatus.value = null;
+    }
   }
 });
 
@@ -2685,7 +2697,7 @@ const tryAutoplay = () => {
                                   >
                                     <option :value="null" disabled>Pilih jenis seat</option>
                                     <option
-                                      v-for="ts in tripStatusOptions"
+                                      v-for="ts in availableTripStatusOptions"
                                       :key="ts.id"
                                       :value="ts"
                                     >
