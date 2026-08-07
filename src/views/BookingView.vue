@@ -49,9 +49,13 @@ const dateOptions = computed(() => {
   if (!event.value || !event.value.operation_days || !Array.isArray(event.value.operation_days) || event.value.operation_days.length === 0) {
     return [];
   }
+
+  const isTSPEvent = event.value?.name?.toLowerCase().includes('the sounds project') ||
+                     event.value?.name?.toLowerCase().includes('tsp');
   
-  return event.value.operation_days.map(op => {
+  return event.value.operation_days.map((op) => {
     const formatted = formatOpDate(op.operation_date);
+    const dayOfMonth = parseInt(String(op.operation_date).split('T')[0].split('-')[2], 10);
     
     return {
       id: String(op.operation_date),
@@ -60,9 +64,10 @@ const dateOptions = computed(() => {
       shortDay: formatted.shortDay,
       shortDate: formatted.shortDate,
       enabled: true,
-      raw: op
+      raw: op,
+      hidden: isTSPEvent && dayOfMonth === 8
     };
-  }).filter(Boolean);
+  }).filter(Boolean).filter(d => !d.hidden);
 });
 
 const sessionOptions = computed(() => {
