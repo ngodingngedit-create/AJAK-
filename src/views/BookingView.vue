@@ -45,17 +45,25 @@ const formatOpDate = (dateStr) => {
   };
 };
 
+const isTSPEvent = () => {
+  const name = (event.value?.name || '').toLowerCase();
+  return name.includes('the sounds project') || name.includes('tsp');
+};
+
+const getDayOfMonth = (dateStr) => {
+  const parts = (dateStr || '').split('T')[0].split('-');
+  return parts.length === 3 ? parseInt(parts[2], 10) : NaN;
+};
+
+const isTSPDay7or8 = computed(() => isTSPEvent() && [7, 8].includes(getDayOfMonth(selectedDate.value)));
+
 const dateOptions = computed(() => {
   if (!event.value || !event.value.operation_days || !Array.isArray(event.value.operation_days) || event.value.operation_days.length === 0) {
     return [];
   }
-
-  const isTSPEvent = event.value?.name?.toLowerCase().includes('the sounds project') ||
-                     event.value?.name?.toLowerCase().includes('tsp');
   
-  return event.value.operation_days.map((op) => {
+  return event.value.operation_days.map(op => {
     const formatted = formatOpDate(op.operation_date);
-    const dayOfMonth = parseInt(String(op.operation_date).split('T')[0].split('-')[2], 10);
     
     return {
       id: String(op.operation_date),
@@ -65,7 +73,7 @@ const dateOptions = computed(() => {
       shortDate: formatted.shortDate,
       enabled: true,
       raw: op,
-      hidden: isTSPEvent && dayOfMonth === 8
+      hidden: isTSPEvent() && getDayOfMonth(op.operation_date) === 9
     };
   }).filter(Boolean).filter(d => !d.hidden);
 });
@@ -972,10 +980,12 @@ const getFacilityIcon = (facility) => {
 const tripStatusOptions = ref([]);
 const selectedTripStatus = ref(null);
 
-// On tanggal 7 (day-of-month 7), only the "Ticket Pulang" (one-way return) trip type is allowed
+// On tanggal 7 (day-of-month 7), only the "Ticket Pulang" (one-way return) trip type is allowed.
+// For the TSP event, day 8 (2026-08-08) also only allows "Ticket Pulang".
 const isPulangOnlyDate = computed(() => {
   const parts = (selectedDate.value || '').split('-');
-  return parts.length === 3 && parseInt(parts[2], 10) === 7;
+  const dayOfMonth = parts.length === 3 ? parseInt(parts[2], 10) : NaN;
+  return dayOfMonth === 7 || (isTSPEvent() && dayOfMonth === 8);
 });
 
 const availableTripStatusOptions = computed(() => {
@@ -1059,7 +1069,10 @@ const filteredTickets = computed(() => {
     if (!currentSesiObj || !currentSesiObj.tickets || !Array.isArray(currentSesiObj.tickets)) return [];
     
     return currentSesiObj.tickets.map(t => {
-      const isSold = Boolean(t.status?.is_soldout);
+      // On TSP day 7 (2026-08-07) and day 8 (2026-08-08), force "sold out" for all tickets
+      const forceSoldOut = isTSPDay7or8.value;
+
+      const isSold = Boolean(t.status?.is_soldout) || forceSoldOut;
       const isFull = Boolean(t.status?.is_fullbook);
       const isFin = Boolean(t.status?.is_finish);
       
