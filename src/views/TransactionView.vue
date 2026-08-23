@@ -382,6 +382,8 @@ const isSubmitting = ref(false);
 
 // Seat conflict modal
 const showSeatConflictModal = ref(false);
+const isInsurance = ref(false);
+const showInsuranceInfoModal = ref(false);
 const seatConflictData = ref(null);
 
 const executeCheckout = async () => {
@@ -411,6 +413,7 @@ const executeCheckout = async () => {
     admin_fee: adminFee.value,
     ppn: 0,
     payment_status: "PENDING",
+    is_insurance: isInsurance.value,
     tickets: (() => {
       // For festival tickets: generate based on quantity (no seats)
       if (ticket.value?.ticket_category === 'festival') {
@@ -959,6 +962,14 @@ const isLongText = (str, limit = 20) => {
                 </template>
               </div>
 
+              <div class="summary-route-section flex-row-between" style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                <div class="summary-route-label" style="margin-bottom: 0;">Gunakan Asuransi?</div>
+                <div class="summary-route-value" style="display: flex; align-items: center; gap: 8px;">
+                  <input type="checkbox" v-model="isInsurance" style="cursor: pointer; width: 18px; height: 18px; accent-color: var(--primary, #C94C4C);" />
+                  <Info @click.stop="showInsuranceInfoModal = true" :size="16" style="cursor: pointer; color: var(--primary, #C94C4C);" />
+                </div>
+              </div>
+
               <div class="summary-divider-dashed" style="margin-top: 20px;"></div>
 
               <div class="calculation-rows-list">
@@ -1268,9 +1279,26 @@ const isLongText = (str, limit = 20) => {
         <button type="button" class="btn-modal-action btn-modal-submit" @click="showSeatConflictModal = false">
           Mengerti
         </button>
+        </div>
       </div>
     </div>
-  </div>
+    <!-- Insurance Info Modal -->
+    <div class="confirm-modal-overlay" v-if="showInsuranceInfoModal" @click="showInsuranceInfoModal = false">
+      <div class="confirm-modal-card" @click.stop>
+        <div class="modal-header-row">
+          <div class="modal-header-left">
+            <h3 class="modal-title-text">Info Asuransi</h3>
+          </div>
+          <button type="button" class="btn-close-modal" @click="showInsuranceInfoModal = false">✕</button>
+        </div>
+        <div class="modal-details-box">
+          <p class="modal-subheading-text">Asuransi melindungi Anda dari risiko kehilangan atau kerusakan selama perjalanan. Pilih asuransi untuk menambah keamanan.</p>
+        </div>
+        <div class="modal-footer-actions-row">
+          <button type="button" class="btn-modal-action btn-modal-submit" @click="showInsuranceInfoModal = false">Tutup</button>
+        </div>
+      </div>
+    </div>
 </template>
 
 <style scoped>

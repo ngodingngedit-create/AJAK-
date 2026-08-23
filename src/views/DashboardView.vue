@@ -384,7 +384,7 @@ const exportExcel = () => {
     const headers = [
       'Invoice No', 'Tanggal Order', 'Nama', 'Email', 'No Telp',
       'Jenis Tiket', 'Tanggal Berangkat', 'Sesi', 'Trip',
-      'Qty', 'Seat', 'Qty Seat', 'Status'
+      'Qty', 'Seat', 'Qty Seat', 'Harga Tiket', 'Status'
     ];
   
     // Build data array (header + rows) for SheetJS
@@ -401,6 +401,7 @@ const exportExcel = () => {
       getTotalQty(b),
       getseats(b),
       getSeatQty(b),
+      Number(b.total_price) || 0,
       b.payment_status || '-'
     ]);
 
