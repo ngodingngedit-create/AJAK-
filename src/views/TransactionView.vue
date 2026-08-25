@@ -81,6 +81,14 @@ onMounted(async () => {
         const matched = result.data.data.find(s => s.name === event.value.name);
         if (matched) {
             shuttleAdminDetail.value = matched;
+            // Initialize insurance state based on shuttle config
+            if (Number(matched.insurance_required) === 1) {
+              isInsurance.value = true; // wajib → auto-centang
+            } else if (Number(matched.is_insurance) === 1) {
+              isInsurance.value = false; // opsional → user pilih
+            } else {
+              isInsurance.value = false; // is_insurance=0 → pasti off
+            }
         }
       }
     }
@@ -237,8 +245,12 @@ const totalDiscount = computed(() => {
 const adminFee = computed(() => {
   return Number(shuttleAdminDetail.value?.admin_fee || 8000);
 });
+const insuranceEnabled = computed(() => Number(shuttleAdminDetail.value?.is_insurance) === 1);
+const insuranceRequired = computed(() => Number(shuttleAdminDetail.value?.insurance_required) === 1);
+const insuranceAmount = computed(() => Number(shuttleAdminDetail.value?.insurance_amount) || 0);
+const insuranceCost = computed(() => isInsurance.value ? insuranceAmount.value : 0);
 const totalPayment = computed(() => {
-  return Math.max(0, baseTicketPrice.value + adminFee.value - totalDiscount.value);
+  return Math.max(0, baseTicketPrice.value + adminFee.value + insuranceCost.value - totalDiscount.value);
 });
 
 // Handle Gunakan Data Pemesan toggle
@@ -413,7 +425,7 @@ const executeCheckout = async () => {
     admin_fee: adminFee.value,
     ppn: 0,
     payment_status: "PENDING",
-    is_insurance: isInsurance.value,
+    is_insurance: isInsurance.value ? 1 : 0,
     tickets: (() => {
       // For festival tickets: generate based on quantity (no seats)
       if (ticket.value?.ticket_category === 'festival') {
@@ -962,10 +974,10 @@ const isLongText = (str, limit = 20) => {
                 </template>
               </div>
 
-              <div class="summary-route-section flex-row-between" style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
-                <div class="summary-route-label" style="margin-bottom: 0;">Gunakan Asuransi?</div>
+              <div class="summary-route-section flex-row-between" v-if="insuranceEnabled" style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+                <div class="summary-route-label" style="margin-bottom: 0;">Gunakan Asuransi? <span v-if="insuranceAmount > 0" style="font-weight: 400; color: var(--text-muted, #94a3b8);">(+{{ formatRp(insuranceAmount) }})</span></div>
                 <div class="summary-route-value" style="display: flex; align-items: center; gap: 8px;">
-                  <input type="checkbox" v-model="isInsurance" style="cursor: pointer; width: 18px; height: 18px; accent-color: var(--primary, #C94C4C);" />
+                  <input type="checkbox" v-model="isInsurance" :disabled="insuranceRequired" style="cursor: pointer; width: 18px; height: 18px; accent-color: var(--primary, #C94C4C);" />
                   <Info @click.stop="showInsuranceInfoModal = true" :size="16" style="cursor: pointer; color: var(--primary, #C94C4C);" />
                 </div>
               </div>
@@ -988,6 +1000,10 @@ const isLongText = (str, limit = 20) => {
                 <div class="calc-row-item">
                   <span class="calc-label">Biaya Admin</span>
                   <span class="calc-value">{{ formatRp(adminFee) }}</span>
+                </div>
+                <div class="calc-row-item" v-if="isInsurance && insuranceAmount > 0">
+                  <span class="calc-label">Biaya Asuransi</span>
+                  <span class="calc-value">{{ formatRp(insuranceAmount) }}</span>
                 </div>
               </div>
 
@@ -1128,6 +1144,14 @@ const isLongText = (str, limit = 20) => {
               </template>
             </div>
 
+            <div class="summary-route-section flex-row-between" v-if="insuranceEnabled" style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px;">
+              <div class="summary-route-label" style="margin-bottom: 0;">Gunakan Asuransi? <span v-if="insuranceAmount > 0" style="font-weight: 400; color: var(--text-muted, #94a3b8);">(+{{ formatRp(insuranceAmount) }})</span></div>
+              <div class="summary-route-value" style="display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" v-model="isInsurance" :disabled="insuranceRequired" style="cursor: pointer; width: 18px; height: 18px; accent-color: var(--primary, #C94C4C);" />
+                <Info @click.stop="showInsuranceInfoModal = true" :size="16" style="cursor: pointer; color: var(--primary, #C94C4C);" />
+              </div>
+            </div>
+
             <div class="summary-divider-dashed" style="margin-top: 20px;"></div>
 
             <div class="calculation-rows-list">
@@ -1146,6 +1170,10 @@ const isLongText = (str, limit = 20) => {
               <div class="calc-row-item">
                 <span class="calc-label">Biaya Admin</span>
                 <span class="calc-value">{{ formatRp(adminFee) }}</span>
+              </div>
+              <div class="calc-row-item" v-if="isInsurance && insuranceAmount > 0">
+                <span class="calc-label">Biaya Asuransi</span>
+                <span class="calc-value">{{ formatRp(insuranceAmount) }}</span>
               </div>
             </div>
 

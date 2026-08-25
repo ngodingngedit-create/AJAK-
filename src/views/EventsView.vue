@@ -33,8 +33,13 @@ const mapBusToEvent = (item) => {
 
   // Dynamic starting price from API
   const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
-  const priceNum = item.starting_price || 0;
-  const priceStr = item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami';
+
+  // Cek event Sunset di Kebun
+  const evName = (item.name || '').toLowerCase();
+  const isSunsetDiKebun = evName.includes('sunset') && evName.includes('kebun');
+
+  const priceNum = isSunsetDiKebun ? 120000 : (item.starting_price || 0);
+  const priceStr = isSunsetDiKebun ? 'Rp 120.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami');
 
   return {
     id: item.id,
@@ -81,6 +86,12 @@ const fetchShuttleBuses = async () => {
   } finally {
     isLoading.value = false;
   }
+};
+
+// Helper: event yang tiket Ancol-nya di-hide (Neverland & Sunset di Kebun)
+const isAncolExcludedEvent = (ev) => {
+  const name = (ev?.name || '').toLowerCase();
+  return name.includes('neverland') || (name.includes('sunset') && name.includes('kebun'));
 };
 
 onMounted(() => {
@@ -302,7 +313,7 @@ const tagColors = {
                 <span class="price-label">Mulai dari</span>
                 <div style="display: flex; flex-direction: column;">
                   <span class="event-price">{{ event.price }}</span>
-                  <span style="font-size: 0.72rem; color: #000000; font-weight: 600;">*Termasuk tiket ancol</span>
+                  <span v-if="!isAncolExcludedEvent(event)" style="font-size: 0.72rem; color: #000000; font-weight: 600;">*Termasuk tiket ancol</span>
                 </div>
               </div>
               <button class="book-now-btn">

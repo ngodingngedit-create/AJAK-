@@ -329,6 +329,10 @@ const getTicketQuantity = (ticketId) => {
 
 // Helper: set quantity for a specific ticket
 const setTicketQuantity = (ticketId, qty) => {
+  // Safety net: jangan tambah qty jika penjualan sudah selesai
+  const ticket = filteredTickets.value.find(t => t.id === ticketId);
+  if (ticket && isTicketSalesEnded(ticket)) return;
+  
   const newQty = Math.max(0, Math.min(50, qty)); // Increased to 50 for bundling support
   ticketQuantities.value[ticketId] = newQty;
   
@@ -1506,8 +1510,25 @@ const isseatAvailable = (seatId) => {
   return !isBlocked(taken) && !isBlocked(pending) && !isBlocked(reserved);
 };
 
+// Helper: check if ticket sales have ended based on ticket_end_date + ticket_end_time
+const isTicketSalesEnded = (t) => {
+  // Cek berdasarkan ticket_end_date + ticket_end_time vs waktu sekarang
+  if (t.ticket_end) {
+    const timeStr = t.ending_time || '00:00:00';
+    const [y, m, d] = t.ticket_end.split('-').map(Number);
+    const [h, min, s] = timeStr.split(':').map(Number);
+    const endDate = new Date(y, m - 1, d, h || 0, min || 0, s || 0);
+    if (new Date() > endDate) return true;
+  }
+  // Honor backend flag juga
+  return Boolean(t.is_finish);
+};
+
 const hasAvailableseats = (t) => {
   if (!t) return false;
+  
+  // Penjualan selesai berdasarkan ticket_end_date + end_time
+  if (isTicketSalesEnded(t)) return false;
   
   if (t.ticket_start_date) {
     const timeStr = t.ticket_start_time || '00:00:00';
@@ -1529,6 +1550,9 @@ const hasAvailableseats = (t) => {
 };
 
 const getTicketStatus = (t) => {
+  // Penjualan selesai berdasarkan ticket_end_date + end_time
+  if (isTicketSalesEnded(t)) return 'PENJUALAN SELESAI';
+  
   if (t.is_soldout) return 'TIKET HABIS';
   if (t.is_fullbook) return 'FULL BOOKED';
   if (t.is_finish) return 'PENJUALAN SELESAI';
@@ -1555,6 +1579,9 @@ const getTicketStatus = (t) => {
 };
 
 const getTicketStatusClass = (t) => {
+  // Penjualan selesai berdasarkan ticket_end_date + end_time
+  if (isTicketSalesEnded(t)) return 'sold-out';
+  
   if (t.ticket_start_date) {
     const timeStr = t.ticket_start_time || '00:00:00';
     const [year, month, day] = t.ticket_start_date.split('-').map(Number);
@@ -2024,11 +2051,20 @@ const isNeverlandEvent = computed(() => {
   return name.includes('neverland');
 });
 
+// Detect Sunset di Kebun event
+const isSunsetDiKebunEvent = computed(() => {
+  const name = (event.value?.name || '').toLowerCase();
+  return name.includes('sunset') && name.includes('kebun');
+});
+
+// Any event that uses local audio file instead of YouTube iframe
+const usesLocalAudio = computed(() => isNeverlandEvent.value || isSunsetDiKebunEvent.value);
+
 const toggleMute = () => {
   isMuted.value = !isMuted.value;
   
-  // For Neverland: control local audio element
-  if (isNeverlandEvent.value) {
+  // For events with local audio: control local audio element
+  if (usesLocalAudio.value) {
     const audio = localAudioRef.value;
     if (audio) {
       audio.muted = isMuted.value;
@@ -2047,8 +2083,8 @@ const toggleMute = () => {
 };
 
 const tryAutoplay = () => {
-  // For Neverland: play local audio
-  if (isNeverlandEvent.value) {
+  // For events with local audio: play local audio
+  if (usesLocalAudio.value) {
     const audio = localAudioRef.value;
     if (audio) {
       audio.play().catch(() => {});
@@ -2770,8 +2806,15 @@ const tryAutoplay = () => {
                                 
                                 <!-- Direct Book / Select seat Button OR Quantity Selector for Festival -->
                                 <div class="ticket-action-select-btn-only">
+                                  <!-- Festival ticket: Penjualan selesai (ticket_end_date + end_time lewat) -->
+                                  <button
+                                    v-if="t.ticket_category === 'festival' && isTicketSalesEnded(t)"
+                                    class="select-ticket-btn sold-out"
+                                    disabled
+                                  >Penjualan Selesai</button>
+
                                   <!-- Festival ticket: Show quantity selector -->
-                                  <div v-if="t.ticket_category === 'festival'" class="quantity-selector-wrapper">
+                                  <div v-else-if="t.ticket_category === 'festival'" class="quantity-selector-wrapper">
                                     <button class="qty-btn" @click="setTicketQuantity(t.id, getTicketQuantity(t.id) - (t.is_bundling ? (t.bundling_qty || 1) : 1))">−</button>
                                     <span class="qty-display">{{ getTicketQuantity(t.id) }}</span>
                                     <button class="qty-btn" @click="setTicketQuantity(t.id, getTicketQuantity(t.id) + (t.is_bundling ? (t.bundling_qty || 1) : 1))">+</button>
@@ -2787,6 +2830,7 @@ const tryAutoplay = () => {
                                   >
                                     <template v-if="!hasAvailableseats(t)">
                                       <template v-if="getTicketStatusClass(t) === 'not-started'">Belum Dimulai</template>
+                                      <template v-else-if="isTicketSalesEnded(t)">Penjualan Selesai</template>
                                       <template v-else>Habis</template>
                                     </template>
                                     <template v-else-if="t.ticket_type_id === 0">Beli Tiket</template>
@@ -3240,11 +3284,11 @@ const tryAutoplay = () => {
       </div>
     </transition>
 
-    <!-- Neverland local audio (only for Neverland event) -->
+    <!-- Local audio (for Neverland & Sunset di Kebun events) -->
     <audio
-      v-if="isNeverlandEvent"
+      v-if="usesLocalAudio"
       ref="localAudioRef"
-      :src="'/sounds/JINGLE NEVERLAND FULL VERSION.wav'"
+      :src="isSunsetDiKebunEvent ? '/sounds/Cacaca Bang Rey.wav' : '/sounds/JINGLE NEVERLAND FULL VERSION.wav'"
       loop
       autoplay
       preload="auto"

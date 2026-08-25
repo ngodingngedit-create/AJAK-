@@ -237,6 +237,11 @@ const fetchUpcomingEvents = async () => {
         }
 
           const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
+          
+          // Cek event Sunset di Kebun
+          const evName = (item.name || '').toLowerCase();
+          const isSunsetDiKebun = evName.includes('sunset') && evName.includes('kebun');
+          
           return {
             id: item.id,
             name: item.name,
@@ -249,8 +254,8 @@ const fetchUpcomingEvents = async () => {
             location: item.description || 'TBA',
             city: 'Ecovention & Ecopark Ancol, Jakarta',
             organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
-            price: item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami',
-            priceNum: item.starting_price || 0,
+            price: isSunsetDiKebun ? 'Rp 120.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami'),
+            priceNum: isSunsetDiKebun ? 120000 : (item.starting_price || 0),
             tag: 'Shuttle Bersama',
             bus_type: 'MINIBUS',
             plate_number: '-',
@@ -261,6 +266,12 @@ const fetchUpcomingEvents = async () => {
   } catch (error) {
     console.error('Failed to fetch shuttle events:', error);
   }
+};
+
+// Helper: event yang tiket Ancol-nya di-hide (Neverland & Sunset di Kebun)
+const isAncolExcludedEvent = (ev) => {
+  const name = (ev?.name || '').toLowerCase();
+  return name.includes('neverland') || (name.includes('sunset') && name.includes('kebun'));
 };
 
 // Event Modal
@@ -592,7 +603,7 @@ const tagColors = {
                   <span class="price-label">Mulai dari</span>
                   <div style="display: flex; flex-direction: column;">
                     <span class="event-price">{{ event.price }}</span>
-                    <span v-if="!event.name?.toLowerCase().includes('neverland')" style="font-size: 0.75rem; color: #000000; font-weight: 600;">*Termasuk tiket ancol</span>
+                    <span v-if="!isAncolExcludedEvent(event)" style="font-size: 0.75rem; color: #000000; font-weight: 600;">*Termasuk tiket ancol</span>
                   </div>
                 </div>
                 <button class="book-now-btn">
