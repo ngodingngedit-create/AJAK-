@@ -55,8 +55,6 @@ const getDayOfMonth = (dateStr) => {
   return parts.length === 3 ? parseInt(parts[2], 10) : NaN;
 };
 
-const isTSPDay7or8 = computed(() => isTSPEvent() && [7, 8].includes(getDayOfMonth(selectedDate.value)));
-
 const dateOptions = computed(() => {
   if (!event.value || !event.value.operation_days || !Array.isArray(event.value.operation_days) || event.value.operation_days.length === 0) {
     return [];
@@ -1073,17 +1071,14 @@ const filteredTickets = computed(() => {
     if (!currentSesiObj || !currentSesiObj.tickets || !Array.isArray(currentSesiObj.tickets)) return [];
     
     return currentSesiObj.tickets.map(t => {
-      // On TSP day 7 (2026-08-07) and day 8 (2026-08-08), force "sold out" for all tickets
-      const forceSoldOut = isTSPDay7or8.value;
-
-      const isSold = Boolean(t.status?.is_soldout) || forceSoldOut;
+      const isSold = Boolean(t.status?.is_soldout);
       const isFull = Boolean(t.status?.is_fullbook);
       const isFin = Boolean(t.status?.is_finish);
-      
+
       return {
         id: t.id,
         name: t.name || 'Tiket Shuttle',
-        ticket_category: t.ticket_category || 'seated', // festival or seated
+        ticket_category: t.ticket_category || 'seated',
         description: t.description || (t.route ? `Rute: ${t.route.origin_name || ''} -> ${t.route.destination_name || ''} (${t.route.distance_km || ''} km)` : ''),
         price: parseInt(t.price || 0),
         ticket_fee: t.ticket_fee || 0,
@@ -1105,26 +1100,14 @@ const filteredTickets = computed(() => {
         prices: t.prices || [],
         is_soldout: isSold,
         is_fullbook: isFull,
-        is_finish: isFin
+        is_finish: isFin,
+        is_show: t.is_show !== false
       };
-    }).filter(t => {
-      // 🔹 Filter: di sesi 4 day 1 hanya tampilkan ticket rute Sudirman → Ancol
-      const firstDate = dateOptions.value[0]?.id;
-      const isDay1 = firstDate && String(selectedDate.value) === String(firstDate);
-      const currentSesi = sessionOptions.value.find(s => String(s.id) === String(selectedSesi.value));
-      const isSesiPetang = currentSesi && (currentSesi.name || '').toLowerCase().includes('petang');
-      
-      if (isDay1 && isSesiPetang) {
-        const origin = (t.route?.origin_name || '').toLowerCase();
-        const dest = (t.route?.destination_name || '').toLowerCase();
-        return origin.includes('sudirman') && dest.includes('ancol');
-      }
-      return true;
-    });
+    }).filter(t => t.is_show !== false);
   }
-  
+
   if (event.value.has_event_ticket && Array.isArray(event.value.has_event_ticket)) {
-    return event.value.has_event_ticket;
+    return event.value.has_event_ticket.filter(t => t.is_show !== false);
   }
   return [];
 });
