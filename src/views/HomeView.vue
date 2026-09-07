@@ -240,7 +240,7 @@ const fetchUpcomingEvents = async () => {
           
           // Cek event Sunset di Kebun
           const evName = (item.name || '').toLowerCase();
-          const isSunsetDiKebun = evName.includes('sunset') && evName.includes('kebun');
+          const isSunsetDiKebun = evName.includes('sunset') && (evName.includes('kebun') || evName.includes('pantai'));
           
           return {
             id: item.id,
@@ -271,7 +271,7 @@ const fetchUpcomingEvents = async () => {
 // Helper: event yang tiket Ancol-nya di-hide (Neverland & Sunset di Kebun)
 const isAncolExcludedEvent = (ev) => {
   const name = (ev?.name || '').toLowerCase();
-  return name.includes('neverland') || (name.includes('sunset') && name.includes('kebun'));
+  return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai')));
 };
 
 // Event Modal

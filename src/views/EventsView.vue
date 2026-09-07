@@ -34,9 +34,9 @@ const mapBusToEvent = (item) => {
   // Dynamic starting price from API
   const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
 
-  // Cek event Sunset di Kebun
+  // Cek event Sunset (di Kebun / di Pantai)
   const evName = (item.name || '').toLowerCase();
-  const isSunsetDiKebun = evName.includes('sunset') && evName.includes('kebun');
+  const isSunsetDiKebun = evName.includes('sunset') && (evName.includes('kebun') || evName.includes('pantai'));
 
   const priceNum = isSunsetDiKebun ? 120000 : (item.starting_price || 0);
   const priceStr = isSunsetDiKebun ? 'Rp 120.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami');
@@ -91,7 +91,7 @@ const fetchShuttleBuses = async () => {
 // Helper: event yang tiket Ancol-nya di-hide (Neverland & Sunset di Kebun)
 const isAncolExcludedEvent = (ev) => {
   const name = (ev?.name || '').toLowerCase();
-  return name.includes('neverland') || (name.includes('sunset') && name.includes('kebun'));
+  return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai')));
 };
 
 onMounted(() => {

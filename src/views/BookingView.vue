@@ -2034,10 +2034,10 @@ const isNeverlandEvent = computed(() => {
   return name.includes('neverland');
 });
 
-// Detect Sunset di Kebun event
+// Detect Sunset di Kebun / Sunset di Pantai event
 const isSunsetDiKebunEvent = computed(() => {
   const name = (event.value?.name || '').toLowerCase();
-  return name.includes('sunset') && name.includes('kebun');
+  return name.includes('sunset') && (name.includes('kebun') || name.includes('pantai'));
 });
 
 // Any event that uses local audio file instead of YouTube iframe
