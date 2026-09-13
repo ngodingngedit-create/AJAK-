@@ -252,7 +252,7 @@ const fetchUpcomingEvents = async () => {
             dateLabel: `${day} ${month} ${year}`,
             time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
             location: item.description || 'TBA',
-            city: 'Ecovention & Ecopark Ancol, Jakarta',
+            city: '',
             organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
             price: isSunsetDiKebun ? 'Rp 120.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami'),
             priceNum: isSunsetDiKebun ? 120000 : (item.starting_price || 0),
@@ -433,7 +433,7 @@ const tagColors = {
 
             <div class="modal-info-grid">
               <div class="meta-item"><Calendar size="15" /><span>{{ selectedEvent.date }} · {{ selectedEvent.time }}</span></div>
-              <div class="meta-item"><MapPin size="15" /><span>{{ selectedEvent.location }}, {{ selectedEvent.city }}</span></div>
+              <div class="meta-item"><MapPin size="15" /><span>{{ selectedEvent.location }}{{ selectedEvent.city ? ', ' + selectedEvent.city : '' }}</span></div>
               <div class="meta-item"><Tag size="15" /><span>{{ selectedEvent.price }} / orang</span></div>
               <div class="meta-item seats"><Clock size="15" /><span>{{ selectedEvent.seats }} kursi tersisa</span></div>
             </div>
@@ -585,7 +585,7 @@ const tagColors = {
               </div>
             </div>
             <div class="event-card-body">
-              <div class="event-city-text">{{ event.city }}</div>
+              <div v-if="event.city" class="event-city-text">{{ event.city }}</div>
               <h3 class="event-name">{{ event.name }}</h3>
               <div class="event-organizer">Oleh {{ event.organizer }}</div>
               <div class="event-meta">

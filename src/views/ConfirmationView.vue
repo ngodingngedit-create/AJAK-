@@ -150,7 +150,7 @@ const qrPattern = [1,2,3,4,5,7,11,13,15,17,19,21,22,23,24,25];
                   <h3 class="eticket-event-name">{{ event.name }}</h3>
                   <div class="eticket-meta-row">
                     <span class="eticket-meta-item"><Calendar :size="12" /> {{ event.dateLabel || event.date }}</span>
-                    <span class="eticket-meta-item"><MapPin :size="12" /> {{ event.city }}</span>
+                    <span v-if="event.city" class="eticket-meta-item"><MapPin :size="12" /> {{ event.city }}</span>
                   </div>
                   <div class="eticket-category-badge" v-if="ticket">
                     {{ ticket.name }}

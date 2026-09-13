@@ -57,7 +57,7 @@ const mapBusToEvent = (item) => {
     departureTime: '',
     returnTime: '',
     location: item.description || '',
-    city: (item.location_city && item.location_city !== 'Jakarta') ? item.location_city : 'Ecovention & Ecopark Ancol, Jakarta',
+    city: (item.location_city && item.location_city !== 'Jakarta') ? item.location_city : '',
     organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
     price: priceStr,
     priceNum: priceNum,
@@ -276,7 +276,7 @@ const tagColors = {
             </div>
           </div>
           <div class="event-card-body">
-            <div class="event-city-text">{{ event.city }}</div>
+            <div v-if="event.city" class="event-city-text">{{ event.city }}</div>
             <h3 class="event-name">{{ event.name }}</h3>
             <div class="event-meta">
               <div class="meta-row">
