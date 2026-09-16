@@ -34,12 +34,13 @@ const mapBusToEvent = (item) => {
   // Dynamic starting price from API
   const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
 
-  // Cek event Sunset (di Kebun / di Pantai)
+  // Cek event Sunset (di Kebun / di Pantai) & Pestapora
   const evName = (item.name || '').toLowerCase();
   const isSunsetDiKebun = evName.includes('sunset') && (evName.includes('kebun') || evName.includes('pantai'));
+  const isPestapora = evName.includes('pestapora');
 
-  const priceNum = isSunsetDiKebun ? 120000 : (item.starting_price || 0);
-  const priceStr = isSunsetDiKebun ? 'Rp 120.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami');
+  const priceNum = isPestapora ? 80000 : (isSunsetDiKebun ? 120000 : (item.starting_price || 0));
+  const priceStr = isPestapora ? 'Rp 80.000' : (isSunsetDiKebun ? 'Rp 120.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami'));
 
   return {
     id: item.id,
@@ -88,10 +89,10 @@ const fetchShuttleBuses = async () => {
   }
 };
 
-// Helper: event yang tiket Ancol-nya di-hide (Neverland & Sunset di Kebun)
+// Helper: event yang tiket Ancol-nya di-hide (Neverland, Sunset di Kebun & Pestapora)
 const isAncolExcludedEvent = (ev) => {
   const name = (ev?.name || '').toLowerCase();
-  return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai')));
+  return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai'))) || name.includes('pestapora');
 };
 
 onMounted(() => {

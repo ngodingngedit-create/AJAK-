@@ -241,6 +241,7 @@ const fetchUpcomingEvents = async () => {
           // Cek event Sunset di Kebun
           const evName = (item.name || '').toLowerCase();
           const isSunsetDiKebun = evName.includes('sunset') && (evName.includes('kebun') || evName.includes('pantai'));
+          const isPestapora = evName.includes('pestapora');
           
           return {
             id: item.id,
@@ -254,8 +255,8 @@ const fetchUpcomingEvents = async () => {
             location: item.description || 'TBA',
             city: '',
             organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
-            price: isSunsetDiKebun ? 'Rp 120.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami'),
-            priceNum: isSunsetDiKebun ? 120000 : (item.starting_price || 0),
+            price: isPestapora ? 'Rp 80.000' : (isSunsetDiKebun ? 'Rp 120.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami')),
+            priceNum: isPestapora ? 80000 : (isSunsetDiKebun ? 120000 : (item.starting_price || 0)),
             tag: 'Shuttle Bersama',
             bus_type: 'MINIBUS',
             plate_number: '-',
@@ -268,10 +269,10 @@ const fetchUpcomingEvents = async () => {
   }
 };
 
-// Helper: event yang tiket Ancol-nya di-hide (Neverland & Sunset di Kebun)
+// Helper: event yang tiket Ancol-nya di-hide (Neverland, Sunset di Kebun & Pestapora)
 const isAncolExcludedEvent = (ev) => {
   const name = (ev?.name || '').toLowerCase();
-  return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai')));
+  return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai'))) || name.includes('pestapora');
 };
 
 // Event Modal
