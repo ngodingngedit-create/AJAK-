@@ -53,6 +53,7 @@ const mapBusToEvent = (item) => {
     total_seat: seats,
     facilities: item.facilities || [],
     date: item.start_date ? item.start_date.split('T')[0] : '',
+    end_date: item.end_date ? String(item.end_date).split('T')[0] : '',
     dateLabel: `${day} ${month} ${year}`,
     time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
     departureTime: '',
@@ -94,6 +95,15 @@ const fetchShuttleBuses = async () => {
 const isAncolExcludedEvent = (ev) => {
   const name = (ev?.name || '').toLowerCase();
   return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai'))) || name.includes('pestapora');
+};
+
+// Helper: event sudah selesai (hari ini lewat end_date / start_date)
+const isEventEnded = (ev) => {
+  const end = ev?.end_date || ev?.date;
+  if (!end) return false;
+  const t = new Date();
+  const todayStr = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+  return todayStr > end;
 };
 
 onMounted(() => {
@@ -270,7 +280,8 @@ const tagColors = {
           v-for="event in filteredEvents"
           :key="event.id"
           class="event-card"
-          @click="selectEvent(event)"
+          :class="{ 'event-ended': isEventEnded(event) }"
+          @click="!isEventEnded(event) && selectEvent(event)"
         >
           <div class="event-card-img">
             <img :src="event.image" :alt="event.name" />
@@ -320,8 +331,8 @@ const tagColors = {
                   <span v-if="!isAncolExcludedEvent(event)" style="font-size: 0.72rem; color: #000000; font-weight: 600;">*Termasuk tiket ancol</span>
                 </div>
               </div>
-              <button class="book-now-btn">
-                Pesan →
+              <button class="book-now-btn" :disabled="isEventEnded(event)">
+                {{ isEventEnded(event) ? 'Event Selesai' : 'Pesan →' }}
               </button>
             </div>
           </div>
@@ -744,6 +755,30 @@ const tagColors = {
   background: #b34242;
   transform: translateY(-2px);
   box-shadow: 0 6px 18px rgba(201,76,76,0.25);
+}
+
+/* Event sudah selesai: card grey & non-interaktif */
+.event-card.event-ended {
+  cursor: default;
+  filter: grayscale(0.95);
+  opacity: 0.65;
+}
+.event-card.event-ended:hover .event-card-img {
+  transform: translateY(0) scale(1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+.event-card.event-ended:hover .event-card-img img { transform: scale(1); }
+.event-card.event-ended:hover .event-card-img::after { left: -150%; }
+.book-now-btn:disabled {
+  background: #9e9e9e;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+.book-now-btn:disabled:hover {
+  background: #9e9e9e;
+  transform: none;
+  box-shadow: none;
 }
 
 /* ===== SHUTTLE SPECIFIC DETAILS ===== */

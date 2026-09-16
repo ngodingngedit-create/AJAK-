@@ -135,11 +135,13 @@ const sessionOptions = computed(() => {
     const depTime = formatTimeOnly(s.departure_time);
     const arrTime = formatTimeOnly(s.arrival_time);
     const hasTickets = s.tickets && Array.isArray(s.tickets) && s.tickets.length > 0;
+    const isPestapora = (event.value?.name || '').toLowerCase().includes('pestapora');
+    const isPestaporaNoon = isPestapora && depTime === '12:00';
     return {
       id: String(s.id),
       name: s.name || 'Sesi',
-      time: depTime ? depTime + ' WIB' : 'Jam Berangkat',
-      departureTime: depTime ? depTime + ' WIB' : '',
+      time: isPestaporaNoon ? '12:00 - 13:00 WIB' : (depTime ? depTime + ' WIB' : 'Jam Berangkat'),
+      departureTime: isPestaporaNoon ? '12:00 - 13:00 WIB' : (depTime ? depTime + ' WIB' : ''),
       arrivalTime: arrTime ? arrTime + ' WIB' : '',
       available: hasTickets,
       tickets: s.tickets || []
