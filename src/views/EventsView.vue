@@ -57,7 +57,8 @@ const mapBusToEvent = (item) => {
     time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
     departureTime: '',
     returnTime: '',
-    location: item.description || '',
+    location: item.venue_name || item.description || '',
+    venue_name: item.venue_name || '',
     city: (item.location_city && item.location_city !== 'Jakarta') ? item.location_city : '',
     organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
     price: priceStr,
@@ -129,6 +130,8 @@ const filteredEvents = computed(() => {
     const q = searchQuery.value.toLowerCase();
     result = result.filter(e =>
       e.name.toLowerCase().includes(q) ||
+      (e.location || '').toLowerCase().includes(q) ||
+      (e.venue_name || '').toLowerCase().includes(q) ||
       e.city.toLowerCase().includes(q) ||
       e.tag.toLowerCase().includes(q) ||
       e.bus_code.toLowerCase().includes(q) ||

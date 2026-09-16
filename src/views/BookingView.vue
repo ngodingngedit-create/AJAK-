@@ -1262,7 +1262,7 @@ onMounted(async () => {
     time: item.start_time ? item.start_time.slice(0, 5) + ' WIB' : '',
     departureTime: '',
     returnTime: '',
-    location: item.description || '',
+    location: item.venue_name || item.description || '',
     city: 'Jakarta',
     price: mappedTickets.length > 0 ? `Rp ${mappedTickets[0].price.toLocaleString('id-ID')}` : 'Lihat Detail',
     priceNum: mappedTickets.length > 0 ? mappedTickets[0].price : 0,
