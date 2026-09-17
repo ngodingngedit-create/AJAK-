@@ -238,10 +238,11 @@ const fetchUpcomingEvents = async () => {
 
           const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
           
-          // Cek event Sunset di Kebun
+          // Cek event Sunset di Kebun & Nosfest
           const evName = (item.name || '').toLowerCase();
           const isSunsetDiKebun = evName.includes('sunset') && (evName.includes('kebun') || evName.includes('pantai'));
           const isPestapora = evName.includes('pestapora');
+          const isNosfest = evName.includes('nosfest');
           
           return {
             id: item.id,
@@ -257,8 +258,8 @@ const fetchUpcomingEvents = async () => {
             venue_name: item.venue_name || '',
             city: '',
             organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
-            price: isPestapora ? 'Rp 80.000' : (isSunsetDiKebun ? 'Rp 120.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami')),
-            priceNum: isPestapora ? 80000 : (isSunsetDiKebun ? 120000 : (item.starting_price || 0)),
+            price: isPestapora ? 'Rp 80.000' : ((isSunsetDiKebun || isNosfest) ? 'Rp 120.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami')),
+            priceNum: isPestapora ? 80000 : ((isSunsetDiKebun || isNosfest) ? 120000 : (item.starting_price || 0)),
             tag: 'Shuttle Bersama',
             bus_type: 'MINIBUS',
             plate_number: '-',
@@ -271,10 +272,10 @@ const fetchUpcomingEvents = async () => {
   }
 };
 
-// Helper: event yang tiket Ancol-nya di-hide (Neverland, Sunset di Kebun & Pestapora)
+// Helper: event yang tiket Ancol-nya di-hide (Neverland, Sunset di Kebun, Pestapora & Nosfest)
 const isAncolExcludedEvent = (ev) => {
   const name = (ev?.name || '').toLowerCase();
-  return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai'))) || name.includes('pestapora');
+  return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai'))) || name.includes('pestapora') || name.includes('nosfest');
 };
 
 // Helper: event sudah selesai (hari ini lewat end_date / start_date)

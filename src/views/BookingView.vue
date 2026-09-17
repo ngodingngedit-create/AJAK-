@@ -2048,8 +2048,14 @@ const isPestaporaEvent = computed(() => {
   return name.includes('pestapora');
 });
 
+// Detect Nosfest event
+const isNosfestEvent = computed(() => {
+  const name = (event.value?.name || '').toLowerCase();
+  return name.includes('nosfest');
+});
+
 // Any event that uses local audio file instead of YouTube iframe
-const usesLocalAudio = computed(() => isNeverlandEvent.value || isSunsetDiKebunEvent.value || isPestaporaEvent.value);
+const usesLocalAudio = computed(() => isNeverlandEvent.value || isSunsetDiKebunEvent.value || isPestaporaEvent.value || isNosfestEvent.value);
 
 const toggleMute = () => {
   isMuted.value = !isMuted.value;
@@ -3275,11 +3281,11 @@ const tryAutoplay = () => {
       </div>
     </transition>
 
-    <!-- Local audio (for Neverland, Sunset di Kebun & Pestapora events) -->
+    <!-- Local audio (for Neverland, Sunset di Kebun, Pestapora & Nosfest events) -->
     <audio
       v-if="usesLocalAudio"
       ref="localAudioRef"
-      :src="isPestaporaEvent ? '/sounds/Mari-Mari Berpestapora.mp3' : (isSunsetDiKebunEvent ? '/sounds/Cacaca Bang Rey.wav' : '/sounds/JINGLE NEVERLAND FULL VERSION.wav')"
+      :src="isPestaporaEvent ? '/sounds/Mari-Mari Berpestapora.mp3' : ((isSunsetDiKebunEvent || isNosfestEvent) ? '/sounds/Cacaca Bang Rey.wav' : '/sounds/JINGLE NEVERLAND FULL VERSION.wav')"
       loop
       autoplay
       preload="auto"
