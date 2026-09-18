@@ -19,6 +19,9 @@ export const bookingStore = reactive({
   selectedSessionId: null,
   selectedDate: null,
   selectedPrice: null,
+  // Konteks per tiket untuk checkout multi-hari:
+  // [{ ticketId, dayId, sesiId, seats[], quantity, price, name, isFestival }]
+  selectedItems: [],
 
   reset() {
     this.selectedEvent = null;
@@ -35,6 +38,7 @@ export const bookingStore = reactive({
     this.selectedSessionId = null;
     this.selectedDate = null;
     this.selectedPrice = null;
+    this.selectedItems = [];
   },
 
   generateBookingCode() {

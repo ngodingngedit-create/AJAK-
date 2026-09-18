@@ -220,23 +220,131 @@ const applyVoucher = (index) => {
 // Calculation computed properties
 const effectivePrice = computed(() => bookingStore.selectedPrice || ticket.value?.price || 0);
 
-const baseTicketPrice = computed(() => effectivePrice.value * (isPP.value ? effectiveTicketCount.value : quantity.value));
+// View-model per tiket untuk checkout multi-hari (beda tiket beda hari).
+// Fallback: 1 item sintetis dari konteks tunggal lama (single-tiket identik seperti sebelumnya).
+const checkoutItems = computed(() => {
+  const items = Array.isArray(bookingStore.selectedItems) ? bookingStore.selectedItems : [];
+  if (items.length > 0) {
+    return items.map(it => ({
+      ticketId: it.ticketId,
+      dayId: it.dayId || '',
+      sesiId: it.sesiId || '',
+      seats: Array.isArray(it.seats) ? it.seats : [],
+      quantity: Number(it.quantity) || 0,
+      price: Number(it.price) || 0,
+      name: it.name || ticket.value?.name || 'Tiket',
+      isFestival: !!it.isFestival
+    }));
+  }
+  return [{
+    ticketId: ticket.value?.id,
+    dayId: bookingStore.selectedDate || '',
+    sesiId: bookingStore.selectedSessionId || '',
+    seats: [...selectedseats.value],
+    quantity: ticket.value?.ticket_category === 'festival' ? (Number(quantity.value) || 0) : 0,
+    price: Number(effectivePrice.value) || 0,
+    name: ticket.value?.name || 'Tiket',
+    isFestival: ticket.value?.ticket_category === 'festival'
+  }];
+});
+
+const isMultiItem = computed(() => checkoutItems.value.length > 1);
+
+const getItemCount = (item) => {
+  if (!item) return 0;
+  if (item.isFestival) return Number(item.quantity) || 0;
+  if (isPP.value) return (item.seats || []).filter(s => String(s).endsWith('_1')).length;
+  return (item.seats || []).length;
+};
+
+// Total dasar dari per-item (dipakai bila multi-item & harga beda);
+// single-item hasilnya identik dengan rumus lama.
+const checkoutBaseTotal = computed(() => {
+  return checkoutItems.value.reduce((sum, it) => sum + (Number(it.price) || 0) * getItemCount(it), 0);
+});
+
+const baseTicketPrice = computed(() => {
+  if (isMultiItem.value) return checkoutBaseTotal.value;
+  return effectivePrice.value * (isPP.value ? effectiveTicketCount.value : quantity.value);
+});
+
+// Slot per pemilik sejajar ticketOwners: [{ item, seat }] agar label & harga per kartu benar
+const ownerSlots = computed(() => {
+  const slots = [];
+  checkoutItems.value.forEach(item => {
+    if (item.isFestival) {
+      const n = getItemCount(item);
+      for (let i = 0; i < n; i++) slots.push({ item, seat: '' });
+    } else {
+      (item.seats || []).forEach(seat => slots.push({ item, seat }));
+    }
+  });
+  return slots;
+});
+
+const formatDayLabel = (dayId) => {
+  if (!dayId) return '';
+  const pure = String(dayId).split('T')[0];
+  const parts = pure.split('-');
+  if (parts.length !== 3) return String(dayId);
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  if (isNaN(d.getTime())) return String(dayId);
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+const getItemSessionText = (item) => {
+  if (!item) return '';
+  const ops = event.value?.operation_days;
+  if (Array.isArray(ops)) {
+    for (const op of ops) {
+      const s = (op.sessions || []).find(x => String(x.id) === String(item.sesiId));
+      if (s) {
+        const dep = String(s.departure_time || '').slice(0, 5);
+        return `${s.name || ''}${dep ? ' • ' + dep : ''}`.trim();
+      }
+    }
+  }
+  return '';
+};
+
+const getItemMetaText = (item) => {
+  if (!item) return '';
+  const day = formatDayLabel(item.dayId);
+  const ses = getItemSessionText(item);
+  return [day, ses].filter(Boolean).join(' • ');
+};
 
 // Helper: get seat labels for owner at given index
 const getOwnerLabel = (idx) => {
+  const slot = ownerSlots.value[idx];
+  const seat = slot ? slot.seat : selectedseats.value[idx];
+  const item = slot ? slot.item : null;
+  const isFest = item ? item.isFestival : ticket.value?.ticket_category === 'festival';
   // For festival tickets, don't show any label
-  if (ticket.value?.ticket_category === 'festival') {
+  if (isFest) {
     return '';
   }
-  
+
   if (!isPP.value) {
-    const seat = selectedseats.value[idx];
     return `${tripTypeName.value} ${formatseatBase(seat || '')}`;
   }
-  const seat = selectedseats.value[idx];
   if (!seat) return '';
-  const dir = seat.endsWith('_1') ? 'Pergi' : 'Pulang';
+  const dir = String(seat).endsWith('_1') ? 'Pergi' : 'Pulang';
   return `${dir} ${formatseatBase(seat)}`;
+};
+
+const getOwnerPrice = (idx) => {
+  const slot = ownerSlots.value[idx];
+  if (slot && slot.item) return Number(slot.item.price) || 0;
+  return Number(effectivePrice.value) || 0;
+};
+
+const getOwnerItemText = (idx) => {
+  if (!isMultiItem.value) return '';
+  const slot = ownerSlots.value[idx];
+  if (!slot || !slot.item) return '';
+  const meta = getItemMetaText(slot.item);
+  return meta ? `${slot.item.name} • ${meta}` : slot.item.name;
 };
 
 const totalDiscount = computed(() => {
@@ -417,7 +525,8 @@ const executeCheckout = async () => {
     trip_id: event.value?.trip_id || 1,
     route_id: bookingStore.selectedRouteId || bookingStore.selectedPickup?.id || ticket.value?.route_id || "",
     shuttle_route_id: bookingStore.selectedTicket?.route_id || null,
-    operational_date: bookingStore.selectedDate || "",
+    // Multi-hari: tanggal pertama sebagai kompatibilitas; tiap tiket bawa sesi/tiketnya sendiri di bawah
+    operational_date: bookingStore.selectedItems?.[0]?.dayId || bookingStore.selectedDate || "",
     total_qty: effectiveTicketCount.value,
     total_price: baseTicketPrice.value,
     total_voucher: totalDiscount.value,
@@ -427,6 +536,73 @@ const executeCheckout = async () => {
     payment_status: "PENDING",
     is_insurance: isInsurance.value ? 1 : 0,
     tickets: (() => {
+      const items = Array.isArray(bookingStore.selectedItems) ? bookingStore.selectedItems : [];
+      const discountPerTicket = (count) => totalDiscount.value > 0 && count > 0 ? (totalDiscount.value / count) : 0;
+
+      // Jalur multi-hari: tiap item bawa shuttle_ticket_id + shuttle_session_id sendiri
+      if (items.length > 0) {
+        const out = [];
+        const totalEntries = items.reduce((n, it) => n + (it.isFestival ? (it.quantity || 0) : (it.seats || []).length), 0) || 1;
+        items.forEach(it => {
+          const sesiId = parseInt(it.sesiId) || parseInt(bookingStore.selectedSessionId) || 0;
+          const unitPrice = Number(it.price) || effectivePrice.value;
+          if (it.isFestival) {
+            const isNeverland = event.value?.name?.toLowerCase().includes('neverland');
+            const defaultTypeId = isNeverland ? 3 : 1;
+            const n = Number(it.quantity) || 0;
+            for (let i = 0; i < n; i++) {
+              out.push({
+                shuttle_ticket_id: it.ticketId || ticket.value?.id || "",
+                shuttle_session_id: sesiId,
+                trip_status_id: bookingStore.selectedTripStatus?.id || 3,
+                type_id: defaultTypeId,
+                order_seat_number: "",
+                qty_ticket: 1,
+                price: unitPrice,
+                ticket_fee: 0,
+                is_promo: totalDiscount.value > 0 ? 1 : 0,
+                promo_price: discountPerTicket(totalEntries),
+                subtotal_price: unitPrice,
+                shuttle_route_id: it.route_id || ticket.value?.route_id || null,
+                is_bundling: ticket.value?.is_bundling || false,
+                bundling_qty: ticket.value?.bundling_qty || 0
+              });
+            }
+          } else {
+            (it.seats || []).forEach(seat => {
+              const seatMatch = String(seat).match(/^(.*?)_(1|2)$/);
+              let typeId;
+              let baseseat;
+              if (seatMatch) {
+                typeId = parseInt(seatMatch[2], 10);
+                baseseat = seatMatch[1];
+              } else {
+                typeId = bookingStore.selectedTripStatus?.id || 1;
+                baseseat = seat;
+              }
+              out.push({
+                shuttle_ticket_id: it.ticketId || ticket.value?.id || "",
+                shuttle_session_id: sesiId,
+                trip_status_id: bookingStore.selectedTripStatus?.id || 1,
+                type_id: typeId,
+                order_seat_number: baseseat,
+                qty_ticket: 1,
+                price: unitPrice,
+                ticket_fee: 0,
+                is_promo: totalDiscount.value > 0 ? 1 : 0,
+                promo_price: discountPerTicket(totalEntries),
+                subtotal_price: unitPrice,
+                shuttle_route_id: it.route_id || ticket.value?.route_id || null,
+                is_bundling: ticket.value?.is_bundling || false,
+                bundling_qty: ticket.value?.bundling_qty || 0
+              });
+            });
+          }
+        });
+        if (out.length > 0) return out;
+      }
+
+      // Fallback single-konteks (perilaku lama) bila selectedItems kosong
       // For festival tickets: generate based on quantity (no seats)
       if (ticket.value?.ticket_category === 'festival') {
         // Neverland: default type_id = 3 (Pulang Pergi)
@@ -699,7 +875,8 @@ const isLongText = (str, limit = 20) => {
                   <h3 class="ticket-owner-title">
                     {{ idx + 1 }}. Pemilik Tiket {{ getOwnerLabel(idx) }}
                   </h3>
-                  <span class="ticket-owner-subtitle">1 Tiket x {{ formatRp(effectivePrice) }}</span>
+                  <span v-if="getOwnerItemText(idx)" class="ticket-owner-subtitle ticket-owner-item">{{ getOwnerItemText(idx) }}</span>
+                  <span class="ticket-owner-subtitle">1 Tiket x {{ formatRp(getOwnerPrice(idx)) }}</span>
                 </div>
               </div>
               <button type="button" class="btn-toggle-accordion">
@@ -915,7 +1092,19 @@ const isLongText = (str, limit = 20) => {
             <h3 class="box-header-title">Ringkasan Pesanan</h3>
             
             <div class="summary-details-section">
-              <div class="s-category-row">
+              <div v-if="isMultiItem" class="s-category-multi">
+                <div v-for="(item, cIdx) in checkoutItems" :key="'s-cat-' + cIdx" class="s-category-row">
+                  <Ticket :size="16" class="s-ticket-icon" />
+                  <div class="s-category-info">
+                    <span class="s-category-name">{{ item.name }}</span>
+                    <span v-if="getItemMetaText(item)" class="s-category-meta">{{ getItemMetaText(item) }}</span>
+                    <span class="s-category-calc">
+                      {{ getItemCount(item) }} Tiket x {{ formatRp(item.price) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="s-category-row">
                 <Ticket :size="16" class="s-ticket-icon" />
                 <div class="s-category-info">
                   <span class="s-category-name" v-if="!isLongText(ticket.name, 25)">{{ ticket.name }}</span>
@@ -1085,7 +1274,19 @@ const isLongText = (str, limit = 20) => {
         
         <div class="drawer-body-content">
           <div class="summary-details-section">
-            <div class="s-category-row">
+            <div v-if="isMultiItem" class="s-category-multi">
+              <div v-for="(item, cIdx) in checkoutItems" :key="'m-cat-' + cIdx" class="s-category-row">
+                <Ticket :size="16" class="s-ticket-icon" />
+                <div class="s-category-info">
+                  <span class="s-category-name">{{ item.name }}</span>
+                  <span v-if="getItemMetaText(item)" class="s-category-meta">{{ getItemMetaText(item) }}</span>
+                  <span class="s-category-calc">
+                    {{ getItemCount(item) }} Tiket x {{ formatRp(item.price) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div v-else class="s-category-row">
               <Ticket :size="16" class="s-ticket-icon" />
               <div class="s-category-info">
                 <span class="s-category-name" v-if="!isLongText(ticket.name, 25)">{{ ticket.name }}</span>
@@ -1672,6 +1873,13 @@ const isLongText = (str, limit = 20) => {
   font-size: 0.8rem;
   font-weight: 600;
   color: #64748b;
+  display: block;
+}
+
+.ticket-owner-subtitle.ticket-owner-item {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary, #C94C4C);
 }
 
 [data-theme="dark"] .ticket-owner-subtitle {
@@ -1969,6 +2177,16 @@ const isLongText = (str, limit = 20) => {
   align-items: flex-start;
   gap: 12px;
   padding-bottom: 14px;
+}
+
+.s-category-multi .s-category-row:last-child {
+  padding-bottom: 14px;
+}
+
+.s-category-meta {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--primary, #C94C4C);
 }
 
 .s-ticket-icon {

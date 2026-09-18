@@ -214,9 +214,133 @@ const juneDays = computed(() => {
 });
 
 // Booking states (Quantity, selected seats, and buyer information)
-// Per-ticket quantities for festival tickets (keyed by ticket.id)
+// Per-ticket quantities for festival tickets (keyed by ticket.id, global per tiket)
 const ticketQuantities = ref({});
 const selectedseatsMap = ref({});
+// Konteks hari+sesi saat qty festival pertama kali diisi (agar label tidak ikut pindah hari aktif)
+const festivalContextMap = ref({});
+
+const parseSelectionKey = (key) => {
+  const parts = String(key || '').split('_');
+  if (parts.length < 3) return { ticketId: String(key || ''), dayId: '', sesiId: '' };
+  const sesiId = parts.pop();
+  const dayId = parts.pop();
+  const ticketId = parts.join('_');
+  return { ticketId, dayId, sesiId };
+};
+
+const formatTimeOnlyGlobal = (val) => {
+  if (!val) return '';
+  if (String(val).includes('T')) {
+    const tPart = String(val).split('T')[1];
+    return tPart ? tPart.slice(0, 5) : '';
+  }
+  return String(val).slice(0, 5);
+};
+
+const normalizeRawTicket = (t) => {
+  const isSold = Boolean(t.status?.is_soldout);
+  const isFull = Boolean(t.status?.is_fullbook);
+  const isFin = Boolean(t.status?.is_finish);
+  return {
+    id: t.id,
+    name: t.name || 'Tiket Shuttle',
+    ticket_category: t.ticket_category || 'seated',
+    description: t.description || (t.route ? `Rute: ${t.route.origin_name || ''} -> ${t.route.destination_name || ''} (${t.route.distance_km || ''} km)` : ''),
+    price: parseInt(t.price || 0),
+    ticket_fee: t.ticket_fee || 0,
+    is_bundling: t.is_bundling || false,
+    bundling_qty: t.bundling_qty || 1,
+    available_seat_number: t.available_seat_number || 'A1,A2,A3,A4,A5,B1,B2,B3,C1,C2,C3,D1,D2,E1,E2,E3',
+    taken_seat_number: t.taken_seat_number || '',
+    pending_seat_number: t.pending_seat_number || '',
+    reserved_seat_number: t.reserved_seat_number || '',
+    ticket_end: t.ticket_end_date ? String(t.ticket_end_date).split('T')[0] : '',
+    ending_time: t.ticket_end_time || '',
+    ticket_start_date: t.ticket_start_date ? String(t.ticket_start_date).split('T')[0] : '',
+    ticket_start_time: t.ticket_start_time || '',
+    total_seat: t.total_seat || 59,
+    ticket_type_id: 1,
+    route_id: t.route?.id || t.route_id || '',
+    route: t.route,
+    trip_status: t.trip_status,
+    prices: t.prices || [],
+    is_soldout: isSold,
+    is_fullbook: isFull,
+    is_finish: isFin,
+    is_show: t.is_show !== false
+  };
+};
+
+// Registry global semua tiket dari semua hari+sesi (agar seleksi tidak hilang saat pindah hari)
+const allTicketsFlat = computed(() => {
+  if (!event.value) return [];
+  if (event.value.operation_days && Array.isArray(event.value.operation_days) && event.value.operation_days.length > 0) {
+    const out = [];
+    event.value.operation_days.forEach(op => {
+      (op.sessions || []).forEach(s => {
+        (s.tickets || []).forEach(t => {
+          out.push(normalizeRawTicket(t));
+        });
+      });
+    });
+    return out.filter(t => t.is_show !== false);
+  }
+  if (event.value.has_event_ticket && Array.isArray(event.value.has_event_ticket)) {
+    return event.value.has_event_ticket.filter(t => t.is_show !== false);
+  }
+  return [];
+});
+
+const ticketById = computed(() => {
+  const map = new Map();
+  allTicketsFlat.value.forEach(t => {
+    if (!map.has(String(t.id))) map.set(String(t.id), t);
+  });
+  // Tiket hari+sesi aktif selalu menang (data paling fresh untuk harga/status)
+  filteredTickets.value.forEach(t => {
+    map.set(String(t.id), t);
+  });
+  return map;
+});
+
+// Registry global sesi (untuk label ringkasan lintas hari)
+const sessionById = computed(() => {
+  const map = new Map();
+  if (event.value?.operation_days && Array.isArray(event.value.operation_days)) {
+    event.value.operation_days.forEach(op => {
+      (op.sessions || []).forEach(s => {
+        const dep = formatTimeOnlyGlobal(s.departure_time);
+        const arr = formatTimeOnlyGlobal(s.arrival_time);
+        if (!map.has(String(s.id))) {
+          map.set(String(s.id), {
+            id: String(s.id),
+            name: s.name || 'Sesi',
+            time: dep ? dep + ' WIB' : 'Jam Berangkat',
+            departureTime: dep ? dep + ' WIB' : '',
+            arrivalTime: arr ? arr + ' WIB' : '',
+            operation_date: op.operation_date
+          });
+        }
+      });
+    });
+  }
+  // Sesi aktif (sudah terfilter/format) menimpa agar konsisten dengan tampilan
+  try {
+    sessionOptions.value.forEach(s => {
+      map.set(String(s.id), s);
+    });
+  } catch (e) {}
+  return map;
+});
+
+const getSessionLabelById = (sesiId) => {
+  const s = sessionById.value.get(String(sesiId));
+  if (s) return { name: s.name || String(sesiId), time: s.time || s.departureTime || '' };
+  const fallback = sessionOptions.value.find(x => String(x.id) === String(sesiId));
+  if (fallback) return { name: fallback.name, time: fallback.time || '' };
+  return { name: String(sesiId), time: '' };
+};
 
 const currentSelectionKey = computed(() => {
   if (!selectedTicket.value) return '';
@@ -241,12 +365,11 @@ const allSelectedTickets = computed(() => {
   const list = [];
   if (!event.value) return [];
   
-  // Add seated tickets from selectedseatsMap
+  // Add seated tickets from selectedseatsMap (lookup global agar tidak hilang saat pindah hari)
   for (const [key, seats] of Object.entries(selectedseatsMap.value)) {
     if (seats && seats.length > 0) {
-      const [ticketId, dayId, sesiId] = key.split('_');
-      const allTickets = filteredTickets.value;
-      const ticket = allTickets.find(t => String(t.id) === String(ticketId));
+      const { ticketId, dayId, sesiId } = parseSelectionKey(key);
+      const ticket = ticketById.value.get(String(ticketId));
       if (ticket) {
         list.push({
           key,
@@ -262,16 +385,17 @@ const allSelectedTickets = computed(() => {
     }
   }
   
-  // Add festival tickets with quantity > 0
+  // Add festival tickets with quantity > 0 (qty global per tiket, lookup global)
   for (const [ticketId, qty] of Object.entries(ticketQuantities.value)) {
     if (qty > 0) {
-      const ticket = filteredTickets.value.find(t => String(t.id) === String(ticketId));
+      const ticket = ticketById.value.get(String(ticketId));
       if (ticket && ticket.ticket_category === 'festival') {
+        const ctx = festivalContextMap.value[String(ticketId)] || {};
         list.push({
           key: `festival_${ticketId}`,
           ticket,
-          dayId: selectedDate.value,
-          sesiId: selectedSesi.value,
+          dayId: ctx.dayId || selectedDate.value,
+          sesiId: ctx.sesiId || selectedSesi.value,
           seats: [], // No seats for festival
           quantity: qty,
           price: getEffectivePrice(ticket),
@@ -327,18 +451,28 @@ const getTicketQuantity = (ticketId) => {
   return ticketQuantities.value[ticketId] || 0;
 };
 
-// Helper: set quantity for a specific ticket
+// Helper: set quantity for a specific ticket (qty global per tiket, tidak reset saat pindah hari)
 const setTicketQuantity = (ticketId, qty) => {
-  // Safety net: jangan tambah qty jika penjualan sudah selesai
-  const ticket = filteredTickets.value.find(t => t.id === ticketId);
+  // Safety net: jangan tambah qty jika penjualan sudah selesai (cek global dulu, fallback aktif)
+  const ticket = ticketById.value.get(String(ticketId)) || filteredTickets.value.find(t => String(t.id) === String(ticketId));
   if (ticket && isTicketSalesEnded(ticket)) return;
   
   const newQty = Math.max(0, Math.min(50, qty)); // Increased to 50 for bundling support
   ticketQuantities.value[ticketId] = newQty;
+
+  // Simpan konteks hari+sesi pertama kali qty diisi (untuk label ringkasan, tidak ikut pindah hari)
+  if (newQty > 0 && !festivalContextMap.value[String(ticketId)]) {
+    festivalContextMap.value[String(ticketId)] = {
+      dayId: String(selectedDate.value || ''),
+      sesiId: String(selectedSesi.value || '')
+    };
+  }
+  if (newQty === 0) {
+    delete festivalContextMap.value[String(ticketId)];
+  }
   
   // Auto-select ticket when quantity > 0
   if (newQty > 0) {
-    const ticket = filteredTickets.value.find(t => t.id === ticketId);
     if (ticket && ticket.ticket_category === 'festival') {
       selectedTicket.value = ticket;
       expandedTicketId.value = ticketId;
@@ -1026,19 +1160,22 @@ watch(() => route.hash, (newHash) => {
 }, { immediate: true });
 
 // Clear trip type error when user selects a trip type
+// NOTE: jangan reset selectedseatsMap di sini agar pilihan hari lain tidak hilang (akumulasi multi-hari)
 watch(selectedTripStatus, (val) => {
   if (val) {
     tripTypeError.value = '';
-    selectedseatsMap.value = {}; // Reset seats
   }
 });
 
 // Reset trip type if it's not allowed for the currently selected date
+// NOTE: tanpa clear seat; hanya sesuaikan opsi agar seleksi hari lain tetap tersimpan
 watch([isPulangOnlyDate, tripStatusOptions], () => {
   if (selectedTripStatus.value) {
     const allowed = availableTripStatusOptions.value.some(ts => String(ts.id) === String(selectedTripStatus.value.id));
     if (!allowed) {
-      selectedTripStatus.value = null;
+      // Tanggal pulang-only: arahkan ke opsi Pulang (id 2) bila tersedia, tanpa hapus seat hari lain
+      const pulang = tripStatusOptions.value.find(ts => Number(ts.id) === 2);
+      selectedTripStatus.value = pulang || null;
     }
   }
 });
@@ -1072,40 +1209,7 @@ const filteredTickets = computed(() => {
     const currentSesiObj = currentOp.sessions?.find(s => String(s.id) === String(selectedSesi.value));
     if (!currentSesiObj || !currentSesiObj.tickets || !Array.isArray(currentSesiObj.tickets)) return [];
     
-    return currentSesiObj.tickets.map(t => {
-      const isSold = Boolean(t.status?.is_soldout);
-      const isFull = Boolean(t.status?.is_fullbook);
-      const isFin = Boolean(t.status?.is_finish);
-
-      return {
-        id: t.id,
-        name: t.name || 'Tiket Shuttle',
-        ticket_category: t.ticket_category || 'seated',
-        description: t.description || (t.route ? `Rute: ${t.route.origin_name || ''} -> ${t.route.destination_name || ''} (${t.route.distance_km || ''} km)` : ''),
-        price: parseInt(t.price || 0),
-        ticket_fee: t.ticket_fee || 0,
-        is_bundling: t.is_bundling || false,
-        bundling_qty: t.bundling_qty || 1,
-        available_seat_number: t.available_seat_number || 'A1,A2,A3,A4,A5,B1,B2,B3,C1,C2,C3,D1,D2,E1,E2,E3',
-        taken_seat_number: t.taken_seat_number || '',
-        pending_seat_number: t.pending_seat_number || '',
-        reserved_seat_number: t.reserved_seat_number || '',
-        ticket_end: t.ticket_end_date ? String(t.ticket_end_date).split('T')[0] : '',
-        ending_time: t.ticket_end_time || '',
-        ticket_start_date: t.ticket_start_date ? String(t.ticket_start_date).split('T')[0] : '',
-        ticket_start_time: t.ticket_start_time || '',
-        total_seat: t.total_seat || 59,
-        ticket_type_id: 1,
-        route_id: t.route?.id || t.route_id || '',
-        route: t.route,
-        trip_status: t.trip_status,
-        prices: t.prices || [],
-        is_soldout: isSold,
-        is_fullbook: isFull,
-        is_finish: isFin,
-        is_show: t.is_show !== false
-      };
-    }).filter(t => t.is_show !== false);
+    return currentSesiObj.tickets.map(t => normalizeRawTicket(t)).filter(t => t.is_show !== false);
   }
 
   if (event.value.has_event_ticket && Array.isArray(event.value.has_event_ticket)) {
@@ -1697,7 +1801,13 @@ const clearSelectedseats = () => {
 };
 
 const deleteTicketSelectionByKey = (key) => {
-  selectedseatsMap.value[key] = [];
+  if (String(key || '').startsWith('festival_')) {
+    const ticketId = String(key).replace(/^festival_/, '');
+    ticketQuantities.value[ticketId] = 0;
+    delete festivalContextMap.value[ticketId];
+  } else {
+    selectedseatsMap.value[key] = [];
+  }
   validateseats();
 };
 
@@ -1775,6 +1885,18 @@ const goToBuyerDetails = () => {
     bookingStore.selectedSessionId = selectedSesi.value;
     bookingStore.selectedRouteId = selectedTicket.value?.route_id || null;
     bookingStore.selectedPrice = getEffectivePrice(selectedTicket.value);
+    // Konteks per tiket untuk checkout multi-hari (tetap simpan field tunggal di atas untuk kompatibilitas)
+    bookingStore.selectedItems = allSelectedTickets.value.map(item => ({
+      ticketId: item.ticket?.id,
+      dayId: item.dayId,
+      sesiId: item.sesiId,
+      seats: [...(item.seats || [])],
+      quantity: item.isFestival ? (item.quantity || 0) : 0,
+      price: item.price,
+      name: item.name,
+      isFestival: !!item.isFestival,
+      route_id: item.ticket?.route_id || null
+    }));
     
     // Direct user to transaction page
     router.push('/transaksi');
@@ -1799,24 +1921,6 @@ const isFormValid = computed(() => {
   return isNameValid && isEmailValid && isPhoneValid && isIdentityValid;
 });
 
-const increaseQuantity = () => {
-  if (quantity.value < maxTickets.value) {
-    quantity.value++;
-    validateseats();
-  }
-};
-
-const decreaseQuantity = () => {
-  if (quantity.value > 1) {
-    quantity.value--;
-    const key = currentSelectionKey.value;
-    if (key && selectedseatsMap.value[key] && selectedseatsMap.value[key].length > quantity.value) {
-      selectedseatsMap.value[key] = selectedseatsMap.value[key].slice(0, quantity.value);
-    }
-    validateseats();
-  }
-};
-
 const toggleseatSelection = (seatId) => {
   if (!isseatAvailable(seatId)) return;
   const key = currentSelectionKey.value;
@@ -1840,10 +1944,6 @@ const toggleseatSelection = (seatId) => {
     } else {
       selectedseatsMap.value[key] = [...seats, seatId];
     }
-  }
-  
-  if (selectedTicket.value?.ticket_type_id !== 0) {
-    quantity.value = Math.max(1, selectedseatsMap.value[key].length);
   }
   
   validateseats();
@@ -1952,6 +2052,17 @@ const handleProceedToCheckout = () => {
     bookingStore.selectedDate = selectedDate.value;
     bookingStore.selectedSessionId = selectedSesi.value;
     bookingStore.selectedRouteId = selectedTicket.value?.route_id || null;
+    bookingStore.selectedItems = allSelectedTickets.value.map(item => ({
+      ticketId: item.ticket?.id,
+      dayId: item.dayId,
+      sesiId: item.sesiId,
+      seats: [...(item.seats || [])],
+      quantity: item.isFestival ? (item.quantity || 0) : 0,
+      price: item.price,
+      name: item.name,
+      isFestival: !!item.isFestival,
+      route_id: item.ticket?.route_id || null
+    }));
 
     const code = bookingStore.generateBookingCode();
     const payload = {
@@ -1994,6 +2105,17 @@ const confirmBooking = () => {
   bookingStore.adults = totalSelectedTicketsCount.value;
   bookingStore.toddlers = 0;
   bookingStore.selectedseats = [...mergedSelectedseats.value];
+  bookingStore.selectedItems = allSelectedTickets.value.map(item => ({
+    ticketId: item.ticket?.id,
+    dayId: item.dayId,
+    sesiId: item.sesiId,
+    seats: [...(item.seats || [])],
+    quantity: item.isFestival ? (item.quantity || 0) : 0,
+    price: item.price,
+    name: item.name,
+    isFestival: !!item.isFestival,
+    route_id: item.ticket?.route_id || null
+  }));
   bookingStore.selectedPickup = { 
     name: 'Venue Acara (' + event.value.location_name + ')', 
     address: event.value.location_address || event.value.location_name
@@ -2897,7 +3019,7 @@ const tryAutoplay = () => {
                           <!-- Day and Session Info -->
                           <div class="summary-ticket-meta-row">
                             <div class="summary-meta-info">
-                              <span>{{ item.dayId }}</span> &bull; <span>{{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.name || item.sesiId }} ({{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.time || '' }})</span>
+                              <span>{{ item.dayId }}</span> &bull; <span>{{ getSessionLabelById(item.sesiId).name }} ({{ getSessionLabelById(item.sesiId).time }})</span>
                             </div>
                             <button 
                               v-if="isEditMode" 
@@ -2954,15 +3076,15 @@ const tryAutoplay = () => {
                       >
                         <div class="summary-detail-row">
                           <span class="sd-label">Kategori</span>
-                          <span class="sd-value">{{ item.name }} ({{ item.dayId }} &bull; {{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.name || item.sesiId }})</span>
+                          <span class="sd-value">{{ item.name }} ({{ item.dayId }} &bull; {{ getSessionLabelById(item.sesiId).name }})</span>
                         </div>
                         <div class="summary-detail-row">
                           <span class="sd-label">seat</span>
-                          <span class="sd-value seats-highlight">{{ item.seats.map(s => formatseatLabel(s)).join(', ') }}</span>
+                          <span class="sd-value seats-highlight">{{ item.isFestival ? '-' : item.seats.map(s => formatseatLabel(s)).join(', ') }}</span>
                         </div>
                         <div class="summary-detail-row">
                           <span class="sd-label">Jumlah</span>
-                          <span class="sd-value">{{ isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length }} Tiket</span>
+                          <span class="sd-value">{{ item.isFestival ? item.quantity : (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length) }} Tiket</span>
                         </div>
                         <div class="summary-detail-row">
                           <span class="sd-label">Harga per seat</span>
@@ -2970,7 +3092,7 @@ const tryAutoplay = () => {
                         </div>
                         <div class="summary-detail-row sd-total-row">
                           <span class="sd-label font-bold">Subtotal</span>
-                          <span class="sd-value font-black text-primary">{{ formatRp(item.price * (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length)) }}</span>
+                          <span class="sd-value font-black text-primary">{{ formatRp(item.isFestival ? (item.price * item.quantity) : (item.price * (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length))) }}</span>
                         </div>
                       </div>
                       
@@ -3168,7 +3290,7 @@ const tryAutoplay = () => {
           <div class="pm-body">
             <div class="pm-total">
               <span>Total Tagihan</span>
-              <strong>{{ formatRp(selectedTicket.price * quantity) }}</strong>
+              <strong>{{ formatRp(totalSelectedTicketsPrice) }}</strong>
             </div>
             
             <div class="pm-methods">
@@ -3221,8 +3343,8 @@ const tryAutoplay = () => {
           </div>
           
           <div class="mobile-sheet-body">
-            <!-- Empty state when no seat is chosen -->
-            <div v-if="!selectedTicket || selectedseats.length === 0" class="empty-summary-state">
+            <!-- Empty state when no seat is chosen (pakai total global agar tidak reset saat pindah hari) -->
+            <div v-if="allSelectedTickets.length === 0" class="empty-summary-state">
               <div class="info-circle-icon">
                 <Info :size="20" />
               </div>
@@ -3241,13 +3363,13 @@ const tryAutoplay = () => {
                     <!-- Ticket Icon -->
                     <svg class="ticket-icon-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v14M9 9h.01M9 13h.01M9 17h.01"></path></svg>
                     <span class="summary-ticket-name">Tiket {{ item.name }}</span>
-                    <span class="summary-ticket-badge-count">{{ isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length }}X</span>
+                    <span class="summary-ticket-badge-count">{{ item.isFestival ? item.quantity : (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length) }}X</span>
                   </div>
                   
                   <!-- Day and Session Info -->
                   <div class="summary-ticket-meta-row" style="font-size: 0.8rem; color: #64748b; font-weight: 700; padding-left: 24px; margin-top: 2px; margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div>
-                      <span>Hari: {{ item.dayId }}</span> &bull; <span>Sesi: {{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.name || item.sesiId }} ({{ sessionOptions.find(s => String(s.id) === String(item.sesiId))?.time || '' }})</span>
+                      <span>Hari: {{ item.dayId }}</span> &bull; <span>Sesi: {{ getSessionLabelById(item.sesiId).name }} ({{ getSessionLabelById(item.sesiId).time }})</span>
                     </div>
                     <button 
                       v-if="isEditMode" 
@@ -3260,12 +3382,12 @@ const tryAutoplay = () => {
                     </button>
                   </div>
                   
-                  <div class="summary-ticket-seats-row">
+                  <div v-if="!item.isFestival" class="summary-ticket-seats-row">
                     seat No: {{ item.seats.map(s => formatseatLabel(s)).join(', ') }}
                   </div>
                   
                   <div class="summary-ticket-price-row">
-                    {{ formatRp(item.price * (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length)) }}
+                    {{ formatRp(item.isFestival ? (item.price * item.quantity) : (item.price * (isPP ? item.seats.filter(s => s.endsWith('_1')).length : item.seats.length))) }}
                   </div>
                 </div>
                 

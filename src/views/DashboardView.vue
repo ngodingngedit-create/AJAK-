@@ -68,40 +68,131 @@ const isNeverlandDashboard = computed(() => {
   return name.includes('neverland');
 });
 
-const getSesi = (b) => {
-  // Helper: extract HH:mm from departure_time
-  const getTime = (timeStr) => {
-    if (!timeStr) return null;
-    if (typeof timeStr === 'string') {
-      if (timeStr.includes('T')) {
-        const tPart = timeStr.split('T')[1];
-        return tPart.slice(0, 5);
-      }
-      return timeStr.slice(0, 5);
+const extractTime = (timeStr) => {
+  if (!timeStr) return null;
+  if (typeof timeStr === 'string') {
+    if (timeStr.includes('T')) {
+      const tPart = timeStr.split('T')[1];
+      return tPart.slice(0, 5);
     }
-    return null;
+    return timeStr.slice(0, 5);
+  }
+  return null;
+};
+
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
+// Ambil YYYY-MM-DD dalam zona WIB. Date-only dipakai langsung (tanpa konversi),
+// datetime UTC/offset dikonversi +7 jam dulu agar tidak mundur 1 hari.
+// Contoh: "2026-08-06T17:00:00.000Z" (= 07 Agu 00:00 WIB) -> "2026-08-07".
+const toWIBDateKey = (dateStr) => {
+  if (!dateStr) return '';
+  let s = String(dateStr).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  // Normalisasi fraksi detik ke 3 digit agar new Date valid di semua browser
+  // ("2026-09-24T17:00:00.000000Z" -> "2026-09-24T17:00:00.000Z")
+  s = s.replace(/(\.\d{3})\d+(Z|[+-]\d{2}:?\d{2}|$)/, '$1$2');
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return String(dateStr).split('T')[0] || '';
+  const wib = new Date(d.getTime() + WIB_OFFSET_MS);
+  const y = wib.getUTCFullYear();
+  const m = String(wib.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(wib.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+const formatDepartureDateLabel = (dateStr) => {
+  const key = toWIBDateKey(dateStr);
+  if (!key) return null;
+  const parts = key.split('-');
+  if (parts.length !== 3) return null;
+  const d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
+const getDateKey = (dateStr) => {
+  return toWIBDateKey(dateStr);
+};
+
+// Kumpulkan semua jadwal unik dalam 1 transaksi (multi-hari): [{ dateKey, dateLabel, time, name }]
+const getTicketSchedules = (b) => {
+  const out = [];
+  const seen = new Set();
+  const push = (dateRaw, timeRaw, nameRaw) => {
+    const dateLabel = formatDepartureDateLabel(dateRaw);
+    const time = extractTime(timeRaw);
+    const name = (nameRaw || '').trim();
+    const dateKey = getDateKey(dateRaw);
+    // Skip baris totalmente kosong
+    if (!dateLabel && !time && !name) return;
+    const key = `${dateKey}|${time || ''}|${name}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push({ dateKey, dateLabel: dateLabel || '-', time: time || '-', name });
   };
 
-  if (b.tickets?.[0]?.shuttle_session?.departure_time) {
-    const time = getTime(b.tickets[0].shuttle_session.departure_time);
-    if (time) return time;
+  // Gabung semua sumber (jangan fallback): API list kadang hanya populate
+  // shuttle_session untuk sebagian tiket, sisanya ada di etickets.
+  // Dedup per dateKey|time|name via seen agar tiket identik tetap 1 baris.
+  if (b.tickets && b.tickets.length > 0) {
+    b.tickets.forEach(t => {
+      const ss = t.shuttle_session || {};
+      // Prioritas tanggal: ticket_date (date-only, paling akurat) -> departure_date (via WIB)
+      const dateRaw = t.ticket_date || ss.departure_date;
+      const timeRaw = t.journey_time || ss.departure_time;
+      if (dateRaw || timeRaw || ss.name) {
+        push(dateRaw, timeRaw, ss.name);
+      }
+    });
   }
-  if (b.trip && b.trip.departure_time) {
-    const time = getTime(b.trip.departure_time);
-    if (time) return time;
+  if (b.etickets && b.etickets.length > 0) {
+    b.etickets.forEach(et => {
+      const ss = et.shuttle_session || {};
+      push(et.ticket_date || ss.departure_date || et.journey_date, et.journey_time || ss.departure_time, ss.name);
+    });
   }
+  if (out.length === 0 && b.trip && (b.trip.departure_time || b.trip.departure_date)) {
+    push(b.trip.departure_date, b.trip.departure_time, '');
+  }
+  // Urut kronologis: tanggal lalu jam
+  out.sort((a, b2) => {
+    if (a.dateKey !== b2.dateKey) return String(a.dateKey).localeCompare(String(b2.dateKey));
+    return String(a.time).localeCompare(String(b2.time));
+  });
+  return out;
+};
+
+const getDepartureDateList = (b) => {
+  const labels = getTicketSchedules(b).map(s => s.dateLabel).filter(v => v && v !== '-');
+  return [...new Set(labels)];
+};
+
+const getSesiListForBooking = (b) => {
+  const times = getTicketSchedules(b).map(s => s.time).filter(v => v && v !== '-');
+  return [...new Set(times)];
+};
+
+const getSesi = (b) => {
+  const list = getSesiListForBooking(b);
+  if (list.length > 0) return list.join('; ');
   return '-';
 };
 
 const getDepartureDate = (b) => {
-  if (b.tickets?.[0]?.shuttle_session?.departure_date) {
-    const d = new Date(b.tickets[0].shuttle_session.departure_date);
-    return d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-  }
+  const list = getDepartureDateList(b);
+  if (list.length > 0) return list.join('; ');
   return '-';
 };
 
 const getTripStatus = (b) => {
+  const names = new Set();
+  if (b.tickets && b.tickets.length > 0) {
+    b.tickets.forEach(t => {
+      if (t.trip_status?.name) names.add(t.trip_status.name);
+    });
+  }
+  if (names.size > 0) return Array.from(names).join('; ');
   if (b.tickets?.[0]?.trip_status?.name) {
     return b.tickets[0].trip_status.name;
   }
@@ -240,10 +331,11 @@ const paymentStatuses = computed(() => {
 const sesiList = computed(() => {
   const sesis = new Set();
   allBookings.value.forEach(b => {
-    const s = getSesi(b);
-    if (s && s !== '-') sesis.add(s);
+    getSesiListForBooking(b).forEach(s => {
+      if (s && s !== '-') sesis.add(s);
+    });
   });
-  return ['Semua', ...Array.from(sesis)];
+  return ['Semua', ...Array.from(sesis).sort()];
 });
 
 const jenisTiketList = computed(() => {
@@ -264,19 +356,17 @@ const filteredBookings = computed(() => {
     res = res.filter(b => b.payment_status === filterStatus.value);
   }
   if (filterSesi.value !== 'Semua') {
-    res = res.filter(b => getSesi(b) === filterSesi.value);
+    res = res.filter(b => getSesiListForBooking(b).includes(filterSesi.value));
   }
   if (filterJenisTiket.value !== 'Semua') {
     res = res.filter(b => getJenisTiket(b).includes(filterJenisTiket.value));
   }
   if (filterDate.value) {
     res = res.filter(b => {
-      if (b.tickets?.[0]?.shuttle_session?.departure_date) {
-        const departureDate = new Date(b.tickets[0].shuttle_session.departure_date);
-        const filterDateObj = new Date(filterDate.value);
-        return departureDate.toDateString() === filterDateObj.toDateString();
-      }
-      return false;
+      const schedules = getTicketSchedules(b);
+      if (schedules.length === 0) return false;
+      const filterKey = String(filterDate.value).split('T')[0];
+      return schedules.some(s => s.dateKey === filterKey);
     });
   }
   if (searchQuery.value.trim()) {
@@ -335,13 +425,17 @@ const perSesiDanJenisStats = computed(() => {
   const stats = {};
   filteredBookings.value.forEach(b => {
     if (!isPaid(b)) return;
-    const sesi = getSesi(b);
-    if (sesi === '-') return;
     if (b.tickets && b.tickets.length > 0) {
       const bookingTotal = Number(b.total_price) || 0;
       const ticketCount = b.tickets.length;
       b.tickets.forEach(t => {
         const tName = t.ticket?.name || 'Tiket';
+        // Sesi per tiket (multi-hari): pakai sesi tiket itu sendiri, fallback ke jadwal booking
+        const sesi = extractTime(t.shuttle_session?.departure_time)
+          || getTicketSchedules(b).find(s => s.dateKey === getDateKey(t.shuttle_session?.departure_date))?.time
+          || getSesiListForBooking(b)[0]
+          || '-';
+        if (sesi === '-') return;
         const key = `${tName} - ${sesi}`;
         if (!stats[key]) stats[key] = { qty: 0, revenue: 0, jenisTiket: tName, sesi };
         stats[key].qty += 1;
@@ -654,9 +748,15 @@ const editTransaction = (booking) => {
                 <td style="white-space: nowrap;">{{ b.pemesan?.email || b.passengers?.find(p => p.is_pemesan)?.email || '-' }}</td>
                 <td style="white-space: nowrap;">{{ b.pemesan?.phone || b.passengers?.find(p => p.is_pemesan)?.phone || '-' }}</td>
                 <td style="white-space: nowrap;">{{ getJenisTiket(b) }}</td>
-                <td style="white-space: nowrap;">{{ getDepartureDate(b) }}</td>
-                <td style="white-space: nowrap;">{{ getSesi(b) }}</td>
-                <td style="white-space: nowrap;">{{ getTripStatus(b) }}</td>
+                <td style="white-space: normal; min-width: 130px;" :title="getDepartureDate(b)">
+                  <div v-for="(d, i) in getDepartureDateList(b)" :key="i" style="line-height: 1.5;">{{ d }}</div>
+                  <span v-if="getDepartureDateList(b).length === 0">-</span>
+                </td>
+                <td style="white-space: normal; min-width: 90px;" :title="getSesi(b)">
+                  <div v-for="(s, i) in getSesiListForBooking(b)" :key="i" style="line-height: 1.5;">{{ s }}</div>
+                  <span v-if="getSesiListForBooking(b).length === 0">-</span>
+                </td>
+                <td style="white-space: normal; min-width: 100px;" :title="getTripStatus(b)">{{ getTripStatus(b) }}</td>
                 <td class="text-center">{{ getTotalQty(b) }}</td>
                 <td style="white-space: nowrap; max-width: 150px; overflow: hidden; text-overflow: ellipsis;" :title="getseats(b)">{{ getseats(b) }}</td>
                 <td class="text-center">{{ getSeatQty(b) }}</td>
