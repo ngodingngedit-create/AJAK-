@@ -2176,8 +2176,14 @@ const isNosfestEvent = computed(() => {
   return name.includes('nosfest');
 });
 
+// Detect The Papandayan Jazz event
+const isPapandayanJazzEvent = computed(() => {
+  const name = (event.value?.name || '').toLowerCase();
+  return name.includes('papandayan');
+});
+
 // Any event that uses local audio file instead of YouTube iframe
-const usesLocalAudio = computed(() => isNeverlandEvent.value || isSunsetDiKebunEvent.value || isPestaporaEvent.value || isNosfestEvent.value);
+const usesLocalAudio = computed(() => isNeverlandEvent.value || isSunsetDiKebunEvent.value || isPestaporaEvent.value || isNosfestEvent.value || isPapandayanJazzEvent.value);
 
 const toggleMute = () => {
   isMuted.value = !isMuted.value;
@@ -3403,11 +3409,11 @@ const tryAutoplay = () => {
       </div>
     </transition>
 
-    <!-- Local audio (for Neverland, Sunset di Kebun, Pestapora & Nosfest events) -->
+    <!-- Local audio (for Neverland, Sunset di Kebun, Pestapora, Nosfest & Papandayan Jazz events) -->
     <audio
       v-if="usesLocalAudio"
       ref="localAudioRef"
-      :src="isPestaporaEvent ? '/sounds/Mari-Mari Berpestapora.mp3' : ((isSunsetDiKebunEvent || isNosfestEvent) ? '/sounds/Cacaca Bang Rey.wav' : '/sounds/JINGLE NEVERLAND FULL VERSION.wav')"
+      :src="isPestaporaEvent ? '/sounds/Mari-Mari Berpestapora.mp3' : ((isSunsetDiKebunEvent || isNosfestEvent || isPapandayanJazzEvent) ? '/sounds/Cacaca Bang Rey.wav' : '/sounds/JINGLE NEVERLAND FULL VERSION.wav')"
       loop
       autoplay
       preload="auto"
