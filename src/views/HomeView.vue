@@ -238,12 +238,13 @@ const fetchUpcomingEvents = async () => {
 
           const formatRp = (num) => 'Rp ' + Number(num || 0).toLocaleString('id-ID');
           
-          // Cek event Sunset di Kebun, Nosfest & Papandayan Jazz
+          // Cek event Sunset di Kebun, Nosfest, Papandayan Jazz & Rajawali Guns N' Roses
           const evName = (item.name || '').toLowerCase();
           const isSunsetDiKebun = evName.includes('sunset') && (evName.includes('kebun') || evName.includes('pantai'));
           const isPestapora = evName.includes('pestapora');
           const isNosfest = evName.includes('nosfest');
           const isPapandayan = evName.includes('papandayan');
+          const isRajawali = evName.includes('rajawali');
           
           return {
             id: item.id,
@@ -259,8 +260,8 @@ const fetchUpcomingEvents = async () => {
             venue_name: item.venue_name || '',
             city: '',
             organizer: item.organizer || (item.name && item.name.includes('Joyland') ? 'Plainsong Live' : (item.name && item.name.includes('Jakarta Fair') ? 'JIEXPO' : 'Ajak! Partner')),
-            price: isPestapora ? 'Rp 80.000' : ((isSunsetDiKebun || isNosfest) ? 'Rp 120.000' : (isPapandayan ? 'Rp 50.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami'))),
-            priceNum: isPestapora ? 80000 : ((isSunsetDiKebun || isNosfest) ? 120000 : (isPapandayan ? 50000 : (item.starting_price || 0))),
+            price: isPestapora ? 'Rp 80.000' : ((isSunsetDiKebun || isNosfest || isRajawali) ? 'Rp 120.000' : (isPapandayan ? 'Rp 50.000' : (item.starting_price ? formatRp(item.starting_price) : 'Hubungi Kami'))),
+            priceNum: isPestapora ? 80000 : ((isSunsetDiKebun || isNosfest || isRajawali) ? 120000 : (isPapandayan ? 50000 : (item.starting_price || 0))),
             tag: 'Shuttle Bersama',
             bus_type: 'MINIBUS',
             plate_number: '-',
@@ -273,10 +274,10 @@ const fetchUpcomingEvents = async () => {
   }
 };
 
-// Helper: event yang tiket Ancol-nya di-hide (Neverland, Sunset di Kebun, Pestapora, Nosfest & Papandayan Jazz)
+// Helper: event yang tiket Ancol-nya di-hide (Neverland, Sunset di Kebun, Pestapora, Nosfest, Papandayan Jazz & Rajawali Guns N' Roses)
 const isAncolExcludedEvent = (ev) => {
   const name = (ev?.name || '').toLowerCase();
-  return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai'))) || name.includes('pestapora') || name.includes('nosfest') || name.includes('papandayan');
+  return name.includes('neverland') || (name.includes('sunset') && (name.includes('kebun') || name.includes('pantai'))) || name.includes('pestapora') || name.includes('nosfest') || name.includes('papandayan') || name.includes('rajawali');
 };
 
 // Helper: event sudah selesai (hari ini lewat end_date / start_date)
